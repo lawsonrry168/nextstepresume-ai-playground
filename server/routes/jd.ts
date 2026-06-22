@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { extractJdKeywords } from "../../src/lib/atsKeywords.ts";
 import { buildJobDescriptionFromHtml } from "../../src/lib/jdHtmlExtract.ts";
 import { extractJobMeta } from "../../src/lib/extractJobMeta.ts";
 import { mergeImportedJobMeta } from "../../src/lib/createDraftApplicationPackage.ts";
@@ -8,6 +9,15 @@ const JD_FETCH_TIMEOUT_MS = 12_000;
 const JD_FETCH_MAX_BYTES = 512 * 1024;
 
 export function registerJdRoutes(app: Express): void {
+  app.post("/api/jd/extract-keywords", (req, res) => {
+    const { jobDescription } = req.body;
+    if (!jobDescription || typeof jobDescription !== "string") {
+      return res.status(400).json({ error: "jobDescription is required" });
+    }
+    const keywords = extractJdKeywords(jobDescription);
+    return res.json({ keywords, meta: { source: "parser", simulated: false } });
+  });
+
   app.post("/api/jd/fetch-url", async (req, res) => {
     const { url } = req.body ?? {};
     if (!url || typeof url !== "string") {
