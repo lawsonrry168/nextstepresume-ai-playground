@@ -28,6 +28,7 @@
     "pdf-parse": "^2.4.5",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "redis": "^4.7.1",
     "vite": "^6.2.3"
   },
   "devDependencies": {

@@ -201,6 +201,7 @@ export default function JobImportPanel({
       className={`panel-muted border-emerald-100/60 ${
         compact ? "p-3 space-y-2" : "p-4 space-y-3"
       }`}
+      id="job-import-panel"
     >
       <div className="flex items-center justify-between gap-2">
         <div>
@@ -234,6 +235,7 @@ export default function JobImportPanel({
           </button>
           <button
             type="button"
+            id="job-import-mode-jobsdb"
             onClick={() => (canImportJobsdb ? setMode("jobsdb") : subscription.openUpgrade("import.jobsdb"))}
             className={`px-2 py-1 text-[10px] font-bold cursor-pointer flex items-center gap-0.5 ${
               mode === "jobsdb" ? "bg-emerald-600 text-white" : "bg-white text-slate-600"
@@ -286,6 +288,7 @@ export default function JobImportPanel({
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="space-y-1">
               <input
+                id="jobsdb-keyword-input"
                 className={`${inputClass} ${jobsdbKeywordError ? "border-amber-400 ring-1 ring-amber-200" : ""}`}
                 placeholder={t("editor.jobImport.keywordPlaceholder")}
                 value={jobsdbKeyword}
@@ -353,6 +356,7 @@ export default function JobImportPanel({
             </select>
             <button
               type="button"
+              id="jobsdb-search-btn"
               onClick={handleJobsdbSearch}
               disabled={fetching}
               className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-60 cursor-pointer"
@@ -377,6 +381,7 @@ export default function JobImportPanel({
                 visible: { transition: { staggerChildren: 0.06 } },
               }}
               className="max-h-48 overflow-y-auto space-y-1 rounded-lg border border-slate-100 bg-white p-2"
+              id="jobsdb-results-list"
             >
               {jobsdbResults.map((job) => (
                 <motion.li

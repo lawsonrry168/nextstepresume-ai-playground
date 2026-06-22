@@ -28,4 +28,41 @@ test.describe("playground smoke", () => {
     await expect(switcher).toBeVisible();
     await expect(switcher).toBeEnabled();
   });
+
+  test("switches resume template from preview tab", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("#subtab-preview").click();
+    const picker = page.locator("#preview-tab-template-picker");
+    await expect(picker).toBeVisible();
+
+    const variantSelect = picker.locator('[data-testid="template-variant-select"]');
+    await variantSelect.selectOption("modern-02");
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => localStorage.getItem("nsr_workspace_template")),
+      )
+      .toBe("modern-02");
+  });
+
+  test("jobsdb import smoke with simulated listings", async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate(() => {
+      localStorage.setItem("nsr_subscription_plan", "pro");
+    });
+    await page.reload();
+
+    await page.locator("#subtab-applications").click();
+    await page.locator("#job-import-mode-jobsdb").click();
+    await page.locator("#jobsdb-keyword-input").fill("frontend");
+    await page.locator("#jobsdb-search-btn").click();
+
+    const results = page.locator("#jobsdb-results-list button");
+    await expect(results.first()).toBeVisible({ timeout: 15_000 });
+    await results.first().click();
+
+    await expect
+      .poll(async () => page.evaluate(() => localStorage.getItem("nsr_workspace_jd") ?? ""))
+      .toContain("frontend");
+  });
 });

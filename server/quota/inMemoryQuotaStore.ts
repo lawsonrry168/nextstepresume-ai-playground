@@ -26,6 +26,10 @@ export class InMemoryQuotaStore implements QuotaStore {
     return record;
   }
 
+  seed(clientId: string, record: ClientSubscriptionRecord): void {
+    this.records.set(clientId, record);
+  }
+
   clear(): void {
     this.records.clear();
   }

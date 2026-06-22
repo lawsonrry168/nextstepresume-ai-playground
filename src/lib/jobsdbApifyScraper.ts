@@ -35,9 +35,9 @@ export type JobsdbListing = {
 export type JobsdbSearchResponse = {
   jobs: JobsdbListing[];
   meta: {
-    source: "jobsdb-apify";
+    source: "jobsdb-apify" | "jobsdb-simulation";
     count: number;
-    simulated: false;
+    simulated: boolean;
   };
 };
 

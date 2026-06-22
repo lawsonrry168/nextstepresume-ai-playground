@@ -31,3 +31,4 @@ jobs:
       - run: npm run test:e2e
         env:
           CI: "true"
+          NSR_JOBSDB_SIMULATE: "1"

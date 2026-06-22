@@ -116,6 +116,7 @@ export default function TemplatePicker({
           </label>
           <select
             id={familyId}
+            data-testid="template-family-select"
             value={family}
             onChange={(e) => selectFamily(e.target.value as LayoutPickerMode)}
             className={`${selectClass} w-full ${isCustom ? (isDark ? "border-violet-500/50" : "border-violet-300") : ""}`}
@@ -136,6 +137,7 @@ export default function TemplatePicker({
           </label>
           <select
             id={variantId}
+            data-testid="template-variant-select"
             value={activeTemplate}
             onChange={(e) => {
               const style = e.target.value as TemplateStyle;

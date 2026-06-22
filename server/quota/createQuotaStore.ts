@@ -1,4 +1,6 @@
 import { InMemoryQuotaStore } from "./inMemoryQuotaStore.ts";
+import { createRedisKv, resolveRedisUrl } from "./redisClient.ts";
+import { RedisQuotaStore } from "./redisQuotaStore.ts";
 import type { QuotaStore } from "./types.ts";
 
 export type QuotaStoreKind = "memory" | "redis";
@@ -10,14 +12,18 @@ export function resolveQuotaStoreKind(): QuotaStoreKind {
 
 /**
  * Factory for server-side subscription quota persistence.
- * Redis is reserved for production multi-instance deploys; falls back to memory in playground.
+ * Redis uses an L1 in-process cache with write-through for sync Express middleware.
  */
 export function createQuotaStore(kind: QuotaStoreKind = resolveQuotaStoreKind()): QuotaStore {
   if (kind === "redis") {
-    console.warn(
-      "[quota] NSR_QUOTA_STORE=redis is not implemented yet — using in-memory store. " +
-        "Set NSR_QUOTA_STORE=memory or omit for playground.",
-    );
+    const url = resolveRedisUrl();
+    if (!url) {
+      console.warn(
+        "[quota] NSR_QUOTA_STORE=redis but NSR_REDIS_URL (or REDIS_URL) is missing — using in-memory store.",
+      );
+      return new InMemoryQuotaStore();
+    }
+    return new RedisQuotaStore(createRedisKv(url));
   }
   return new InMemoryQuotaStore();
 }

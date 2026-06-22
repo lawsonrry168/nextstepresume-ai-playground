@@ -2,6 +2,10 @@ import type { Express, Request } from "express";
 import { extractApifyErrorMessage, runApifyActorSync } from "../../src/lib/apify/client.ts";
 import { normalizeJobsdbListings, type JobsdbPostedDate } from "../../src/lib/jobsdbApifyScraper.ts";
 import { validateJobsdbStartUrl } from "../../src/lib/security/urlPolicy.ts";
+import {
+  buildSimulatedJobsdbListings,
+  shouldSimulateJobsdbSearch,
+} from "../simulation/jobsdb.ts";
 
 const JOBSDB_ACTOR_ID = "shahidirfan~jobsdb-scraper";
 const JOBSDB_SEARCH_MAX_RESULTS = 30;
@@ -31,14 +35,6 @@ function parsePostedDate(value: unknown): JobsdbPostedDate {
 
 export function registerJobsdbRoutes(app: Express): void {
   app.post("/api/jobsdb/search", async (req: Request<object, unknown, JobsdbSearchBody>, res) => {
-    const apifyToken = process.env.APIFY_API_TOKEN?.trim();
-    if (!apifyToken) {
-      return res.status(503).json({
-        error:
-          "未設定 APIFY_API_TOKEN。請在 .env 加入 Apify API Token（https://console.apify.com/account/integrations）",
-      });
-    }
-
     const {
       keyword,
       location,
@@ -67,10 +63,30 @@ export function registerJobsdbRoutes(app: Express): void {
         return res.status(400).json({ error: validated.error });
       }
     }
+
     const limit = Math.min(
       Math.max(1, Number(results_wanted) || 10),
       JOBSDB_SEARCH_MAX_RESULTS,
     );
+
+    if (shouldSimulateJobsdbSearch()) {
+      const jobs = buildSimulatedJobsdbListings(
+        hasKeyword ? String(keyword) : "JobsDB search",
+        limit,
+      );
+      return res.json({
+        jobs,
+        meta: { source: "jobsdb-simulation", count: jobs.length, simulated: true },
+      });
+    }
+
+    const apifyToken = process.env.APIFY_API_TOKEN?.trim();
+    if (!apifyToken) {
+      return res.status(503).json({
+        error:
+          "未設定 APIFY_API_TOKEN。請在 .env 加入 Apify API Token（https://console.apify.com/account/integrations）",
+      });
+    }
 
     const actorInput: Record<string, unknown> = {
       country,

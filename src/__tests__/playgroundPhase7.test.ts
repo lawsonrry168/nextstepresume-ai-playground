@@ -1,6 +1,7 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach } from "vitest";
 import { createQuotaStore } from "../../server/quota/createQuotaStore.ts";
 import { InMemoryQuotaStore } from "../../server/quota/inMemoryQuotaStore.ts";
+import { RedisQuotaStore } from "../../server/quota/redisQuotaStore.ts";
 import {
   applyUsageDeltas,
   getClientRecord,
@@ -25,12 +26,29 @@ describe("quota store factory", () => {
     expect(store).toBeInstanceOf(InMemoryQuotaStore);
   });
 
-  it("warns and falls back when redis is requested", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const store = createQuotaStore("redis");
-    expect(store).toBeInstanceOf(InMemoryQuotaStore);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("redis"));
-    warn.mockRestore();
+  it("creates redis store when url is configured", () => {
+    const prevUrl = process.env.NSR_REDIS_URL;
+    process.env.NSR_REDIS_URL = "redis://127.0.0.1:6379";
+    try {
+      const store = createQuotaStore("redis");
+      expect(store).toBeInstanceOf(RedisQuotaStore);
+    } finally {
+      process.env.NSR_REDIS_URL = prevUrl;
+    }
+  });
+
+  it("falls back to memory when redis url is missing", () => {
+    const prevUrl = process.env.NSR_REDIS_URL;
+    const prevRedis = process.env.REDIS_URL;
+    delete process.env.NSR_REDIS_URL;
+    delete process.env.REDIS_URL;
+    try {
+      const store = createQuotaStore("redis");
+      expect(store).toBeInstanceOf(InMemoryQuotaStore);
+    } finally {
+      process.env.NSR_REDIS_URL = prevUrl;
+      process.env.REDIS_URL = prevRedis;
+    }
   });
 
   it("setClientPlan creates record when missing", () => {
