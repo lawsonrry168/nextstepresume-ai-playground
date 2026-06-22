@@ -29,6 +29,25 @@ test.describe("playground smoke", () => {
     await expect(switcher).toBeEnabled();
   });
 
+  test("cycles locale and persists selection", async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate(() => localStorage.setItem("nsr_ui_locale", "en"));
+    await page.reload();
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "en-HK");
+    await expect(page.locator('[data-testid="locale-switcher-label"]')).toHaveText("English");
+    await expect(page.locator("#subtab-content")).toContainText("Resume Editor");
+
+    await page.locator("#locale-switcher").click();
+
+    await expect
+      .poll(async () => page.evaluate(() => localStorage.getItem("nsr_ui_locale")))
+      .toBe("zh-HK");
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh-HK");
+    await expect(page.locator('[data-testid="locale-switcher-label"]')).toHaveText("繁體中文（香港）");
+    await expect(page.locator("#subtab-content")).toContainText("履歷編輯");
+  });
+
   test("switches resume template from preview tab", async ({ page }) => {
     await page.goto("/");
     await page.locator("#subtab-preview").click();

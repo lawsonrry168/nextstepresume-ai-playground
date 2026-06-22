@@ -23,7 +23,7 @@ export default function LanguageSwitcher({ compact = false, className = "" }: La
       onClick={() => setLocale(nextLocale)}
     >
       <Languages className="w-3.5 h-3.5 shrink-0" />
-      {!compact ? <span>{LOCALE_LABELS[locale]}</span> : null}
+      {!compact ? <span data-testid="locale-switcher-label">{LOCALE_LABELS[locale]}</span> : null}
     </button>
   );
 }
