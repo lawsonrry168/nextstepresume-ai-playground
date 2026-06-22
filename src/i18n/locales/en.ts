@@ -1626,6 +1626,53 @@ const en: MessageTree = {
     appliedSummary: "Suggestion appended to your resume summary!",
     copiedGrammar: "Copied to grammar check area — run the check above.",
     addedSkill: "Added core skill [ {{skill}} ] to your skills matrix!",
+    autoSaveSuccess: "Background auto-save completed successfully.",
+    autoSaveFailed: "Background auto-save failed: {{message}}",
+    manualSaveSuccess: "Manual save (Ctrl+S) succeeded and backup was written.",
+    manualSaveFailed: "Manual save failed.",
+    workspaceReset: "Workspace reset to default sample data.",
+    resumeImported: "Resume imported via text parse.",
+  },
+
+  systemLog: {
+    engineReady: "NextStepResume.ai engine ready — workspace modules loaded.",
+    apiCalling: "Calling API: {{url}}",
+    apiResponse:
+      "API {{outcome}} ← {{url}} in {{latency}}ms (HTTP {{status}})",
+    apiError: "API error ← {{url}} in {{latency}}ms: {{message}}",
+    exportLogsStart: "Exporting system performance and operation logs.",
+    exportLogsDone: "Log backup complete — file: {{filename}}",
+    shortcutsToggle: "Keyboard shortcuts panel toggled.",
+    escapeClose: "Esc closed all floating panels.",
+    tabSwitch: "User switched tab: [{{tab}}]",
+    templateSwitch: "User changed template: {{label}} ({{id}})",
+    outcome: {
+      success: "response OK",
+      rejected: "rejected",
+      failed: "failed",
+    },
+  },
+
+  apiErrors: {
+    rateLimitMinute: "Too many requests — please wait (limit 60 per minute).",
+    rateLimit: "Too many requests — please try again later.",
+    jdExtractInsufficient: "Could not extract enough job content from this URL — paste the full JD instead.",
+    jdPasteMinLength: "Job description must be at least 20 characters.",
+    jobsdbSearchFailed: "JobsDB search failed (HTTP {{status}})",
+    askGeminiInvalid: "Invalid ask-gemini response",
+  },
+
+  geminiChatInitial: {
+    message:
+      "Hello! I'm your elite AI Career Coach and ATS optimizer.\n\nI've reviewed your resume against the target job description.\n\nAsk me anything — for example:\n- \"Rewrite my summary to highlight system design\"\n- \"Optimize my bullets with STAR metrics\"\n- \"Which keywords am I missing?\"",
+  },
+
+  voiceInput: {
+    unsupported: "Your browser does not support Web Speech API. Try Google Chrome.",
+    stopped: "Voice recognition stopped.",
+    listening: "Listening… start speaking.",
+    disconnected: "Voice connection lost.",
+    startError: "Error starting speech recognition.",
   },
 
   applicationsTimeline: {

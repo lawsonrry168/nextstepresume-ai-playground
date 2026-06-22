@@ -1,5 +1,6 @@
 import { parseApiJson } from "./apiResponse";
 import { extractJobMeta } from "./extractJobMeta";
+import { t } from "../i18n/translate";
 
 export interface JdFetchResult {
   jobDescription: string;
@@ -18,7 +19,7 @@ export async function fetchJdFromUrl(
 ): Promise<JdFetchResult> {
   const trimmed = url.trim();
   if (!trimmed) {
-    throw new Error("請輸入職缺網址");
+    throw new Error(t("toast.playground.jdUrlRequired"));
   }
 
   const res = await measuredFetch("/api/jd/fetch-url", {
@@ -29,7 +30,7 @@ export async function fetchJdFromUrl(
 
   const { data } = await parseApiJson<JdFetchResult>(res);
   if (!data.jobDescription || data.jobDescription.trim().length < 20) {
-    throw new Error("無法從此網址提取足夠的職缺內容，請改貼上 JD 全文");
+    throw new Error(t("apiErrors.jdExtractInsufficient"));
   }
   return data;
 }
@@ -44,7 +45,7 @@ export interface JdPasteImportResult {
 export function importJdFromPaste(text: string): JdPasteImportResult {
   const jobDescription = text.trim();
   if (jobDescription.length < 20) {
-    throw new Error("JD 至少需要 20 字元");
+    throw new Error(t("apiErrors.jdPasteMinLength"));
   }
   const meta = extractJobMeta(jobDescription);
   return {

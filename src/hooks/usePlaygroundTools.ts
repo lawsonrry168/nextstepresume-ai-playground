@@ -1,4 +1,5 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import { t } from "../i18n/translate";
 import { ResumeData } from "../types";
 import { extractJdKeywords } from "../lib/atsKeywords";
 import type { TemplateStyle } from "../lib/resumeTemplateCatalog";
@@ -166,7 +167,7 @@ export function usePlaygroundTools({
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRec) {
-      alert("您的瀏覽器暫不支援 Web Speech API 語音辨識。請使用 Google Chrome 進行測試。");
+      alert(t("voiceInput.unsupported"));
       return;
     }
 
@@ -178,12 +179,12 @@ export function usePlaygroundTools({
         console.error(err);
       }
       setVoiceRecording(false);
-      setVoiceStatus("語音辨識已關閉");
+      setVoiceStatus(t("voiceInput.stopped"));
       return;
     }
 
     setVoiceRecording(true);
-    setVoiceStatus("錄音聆聽中... 請開始說話...");
+    setVoiceStatus(t("voiceInput.listening"));
 
     try {
       const rec = new SpeechRec();
@@ -226,7 +227,7 @@ export function usePlaygroundTools({
 
       rec.onend = () => {
         setVoiceRecording(false);
-        setVoiceStatus("語音連線已斷開");
+        setVoiceStatus(t("voiceInput.disconnected"));
       };
 
       (window as any).activeSpeechRecognition = rec;
@@ -234,7 +235,7 @@ export function usePlaygroundTools({
     } catch (e) {
       console.error(e);
       setVoiceRecording(false);
-      setVoiceStatus("開啟辨識模組時發生錯誤");
+      setVoiceStatus(t("voiceInput.startError"));
     }
   }, [setPremiumGrammarText, setResumeData, voiceRecording, voiceTarget]);
 

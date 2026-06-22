@@ -44,6 +44,7 @@ import { useResumeUndoHistory } from "../hooks/useResumeUndoHistory";
 import { usePlaygroundContentEditor } from "../hooks/usePlaygroundContentEditor";
 import { usePlaygroundPremiumMetrics } from "../hooks/usePlaygroundPremiumMetrics";
 import { usePlaygroundKeyboardShortcuts } from "../hooks/usePlaygroundKeyboardShortcuts";
+import { collectLivePreviewProps } from "../lib/playgroundLivePreviewProps";
 import { usePlaygroundPdfExport } from "../hooks/usePlaygroundPdfExport";
 
 interface ResumeSimulatorPlaygroundProps {
@@ -93,8 +94,8 @@ export default function ResumeSimulatorPlayground({
     handleManualSave: persistManualSave,
     handleResetToDefault,
   } = useResumeWorkspace({
-    onAutoSaved: () => addSystemLog("info", "系統成功背景執行自動存檔備份作業。"),
-    onAutoSaveFailed: (message) => addSystemLog("error", `系統背景存檔備份作業失敗: ${message}`),
+    onAutoSaved: () => addSystemLog("info", t("playgroundUi.autoSaveSuccess")),
+    onAutoSaveFailed: (message) => addSystemLog("error", t("playgroundUi.autoSaveFailed", { message })),
   });
 
   const {
@@ -106,9 +107,9 @@ export default function ResumeSimulatorPlayground({
 
   const handleManualSave = () => {
     if (persistManualSave()) {
-      addSystemLog("info", "使用者手動觸發儲存作業 (Ctrl+S) 成功且備份檔案已寫入。");
+      addSystemLog("info", t("playgroundUi.manualSaveSuccess"));
     } else {
-      addSystemLog("error", "使用者儲存作業系統失敗");
+      addSystemLog("error", t("playgroundUi.manualSaveFailed"));
     }
   };
 
@@ -334,7 +335,7 @@ export default function ResumeSimulatorPlayground({
       handleResetToDefault();
       clearThemeCustomizationStorage();
       resetThemeCustomization();
-      addSystemLog("info", "工作區已重設為預設範例資料。");
+      addSystemLog("info", t("playgroundUi.workspaceReset"));
     }
   };
 
@@ -342,6 +343,42 @@ export default function ResumeSimulatorPlayground({
     setAutoSaveShouldFail(false);
     handleManualSave();
   };
+
+  const livePreviewProps = collectLivePreviewProps({
+    isPreviewMode,
+    setIsPreviewMode,
+    liveAtsScore,
+    previewZoom,
+    setPreviewZoom,
+    grayscaleMode,
+    setGrayscaleMode,
+    studioViewMode,
+    setStudioViewMode,
+    activeTemplate,
+    setActiveTemplate,
+    history,
+    handleUndo,
+    chatOpen,
+    setChatOpen,
+    pdfExporting,
+    exportToPDF,
+    exportToJson,
+    exportToDocx,
+    resumeData,
+    highlightChanges,
+    setHighlightChanges,
+    analysisResult,
+    detectedKeywords,
+    activeKeywordsList,
+    matcherHighlightActive,
+    setMatcherHighlightActive,
+    atsScoreExpanded,
+    setAtsScoreExpanded,
+    themeCustomization,
+    onThemeCustomizationChange: updateThemeCustomization,
+    onThemeCustomizationReset: resetThemeCustomization,
+    resolvedTheme,
+  });
 
   return (
     <div
@@ -630,80 +667,10 @@ export default function ResumeSimulatorPlayground({
 
             </div>
           }
-          right={
-            <ResumeLivePreviewPanel
-              isPreviewMode={isPreviewMode}
-              setIsPreviewMode={setIsPreviewMode}
-              liveAtsScore={liveAtsScore}
-              previewZoom={previewZoom}
-              setPreviewZoom={setPreviewZoom}
-              grayscaleMode={grayscaleMode}
-              setGrayscaleMode={setGrayscaleMode}
-              studioViewMode={studioViewMode}
-              setStudioViewMode={setStudioViewMode}
-              activeTemplate={activeTemplate}
-              setActiveTemplate={setActiveTemplate}
-              history={history}
-              handleUndo={handleUndo}
-              chatOpen={chatOpen}
-              setChatOpen={setChatOpen}
-              pdfExporting={pdfExporting}
-              exportToPDF={exportToPDF}
-              exportToJson={exportToJson}
-              exportToDocx={exportToDocx}
-              resumeData={resumeData}
-              highlightChanges={highlightChanges}
-              setHighlightChanges={setHighlightChanges}
-              analysisResult={analysisResult}
-              detectedKeywords={detectedKeywords}
-              activeKeywordsList={activeKeywordsList}
-              matcherHighlightActive={matcherHighlightActive}
-              setMatcherHighlightActive={setMatcherHighlightActive}
-              atsScoreExpanded={atsScoreExpanded}
-              setAtsScoreExpanded={setAtsScoreExpanded}
-              themeCustomization={themeCustomization}
-              onThemeCustomizationChange={updateThemeCustomization}
-              onThemeCustomizationReset={resetThemeCustomization}
-              resolvedTheme={resolvedTheme}
-            />
-          }
+          right={<ResumeLivePreviewPanel {...livePreviewProps} />}
         />
       ) : (
-        <ResumeLivePreviewPanel
-          isPreviewMode={isPreviewMode}
-          setIsPreviewMode={setIsPreviewMode}
-          liveAtsScore={liveAtsScore}
-          previewZoom={previewZoom}
-          setPreviewZoom={setPreviewZoom}
-          grayscaleMode={grayscaleMode}
-          setGrayscaleMode={setGrayscaleMode}
-          studioViewMode={studioViewMode}
-          setStudioViewMode={setStudioViewMode}
-          activeTemplate={activeTemplate}
-          setActiveTemplate={setActiveTemplate}
-          history={history}
-          handleUndo={handleUndo}
-          chatOpen={chatOpen}
-          setChatOpen={setChatOpen}
-          pdfExporting={pdfExporting}
-          exportToPDF={exportToPDF}
-          exportToJson={exportToJson}
-          exportToDocx={exportToDocx}
-          resumeData={resumeData}
-          highlightChanges={highlightChanges}
-          setHighlightChanges={setHighlightChanges}
-          analysisResult={analysisResult}
-          detectedKeywords={detectedKeywords}
-          activeKeywordsList={activeKeywordsList}
-          matcherHighlightActive={matcherHighlightActive}
-          setMatcherHighlightActive={setMatcherHighlightActive}
-          atsScoreExpanded={atsScoreExpanded}
-          setAtsScoreExpanded={setAtsScoreExpanded}
-          themeCustomization={themeCustomization}
-          onThemeCustomizationChange={updateThemeCustomization}
-          onThemeCustomizationReset={resetThemeCustomization}
-          resolvedTheme={resolvedTheme}
-        />
+        <ResumeLivePreviewPanel {...livePreviewProps} />
       )}
 
       <GrammarToneDrawer
@@ -751,7 +718,7 @@ export default function ResumeSimulatorPlayground({
       onImported={(data) => {
         setResumeData(data);
         pushToast("success", t("toast.playground.resumeParsed"));
-        addSystemLog("info", "使用者透過文字解析匯入履歷資料。");
+        addSystemLog("info", t("playgroundUi.resumeImported"));
       }}
     />
 

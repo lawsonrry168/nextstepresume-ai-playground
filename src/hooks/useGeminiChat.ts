@@ -11,10 +11,10 @@ type MeasuredFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<R
 
 type ToastFn = (type: "success" | "error" | "warning" | "info", message: string) => void;
 
-const INITIAL_MESSAGE: ChatMessage = {
+const createInitialMessage = (): ChatMessage => ({
   role: "assistant",
-  content: `Hello! I'm your elite AI Career Coach and ATS Optimizer. 🚀\n\nI have evaluated your active Resume Profile against your target Job Description.\n\nAsk me anything! For example:\n- *"Rewrite my professional summary to highlight system designs"* \n- *"Optimize my experience milestones with STAR metrics"* \n- *"Which keywords am I currently missing?"*`,
-};
+  content: t("geminiChatInitial.message"),
+});
 
 function getSimulatedCoachReply(
   msg: string,
@@ -111,7 +111,7 @@ export function useGeminiChat({
   const subscription = useSubscription();
   const [chatOpen, setChatOpen] = useState(false);
   const [thinkingMode, setThinkingMode] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [createInitialMessage()]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
 

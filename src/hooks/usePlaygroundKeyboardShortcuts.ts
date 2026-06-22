@@ -1,4 +1,5 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
+import { t } from "../i18n/translate";
 import { getResumeTemplateTheme } from "../lib/resumeTemplateCatalog";
 import type { TemplateStyle } from "../types";
 import type { SystemLogType } from "./useMeasuredApi";
@@ -34,7 +35,7 @@ export function usePlaygroundKeyboardShortcuts({
       if (e.key === "?" && !isInput) {
         e.preventDefault();
         setShortcutsModalOpen((prev) => !prev);
-        addSystemLog("info", "觸發鍵盤快捷鍵說明面板切換。");
+        addSystemLog("info", t("systemLog.shortcutsToggle"));
         return;
       }
 
@@ -51,7 +52,7 @@ export function usePlaygroundKeyboardShortcuts({
         setSalaryInsightsOpen(false);
         setChatOpen(false);
         setShortcutsModalOpen(false);
-        addSystemLog("info", "Esc 鍵關閉所有浮落控制區。");
+        addSystemLog("info", t("systemLog.escapeClose"));
       }
     };
 
@@ -67,13 +68,14 @@ export function usePlaygroundKeyboardShortcuts({
   ]);
 
   useEffect(() => {
-    addSystemLog("info", `使用者切換功能分頁為: [${activeTab.toUpperCase()}]`);
+    addSystemLog("info", t("systemLog.tabSwitch", { tab: activeTab.toUpperCase() }));
   }, [activeTab, addSystemLog]);
 
   useEffect(() => {
+    const theme = getResumeTemplateTheme(activeTemplate);
     addSystemLog(
       "info",
-      `使用者更換履歷排版為: ${getResumeTemplateTheme(activeTemplate).labelZh} (${activeTemplate})`,
+      t("systemLog.templateSwitch", { label: theme.labelZh, id: activeTemplate }),
     );
   }, [activeTemplate, addSystemLog]);
 }

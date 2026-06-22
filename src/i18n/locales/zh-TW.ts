@@ -1618,6 +1618,52 @@ const zhTW: MessageTree = {
     appliedSummary: "已將建議段落追加填入至履歷「個人簡介」尾端！",
     copiedGrammar: "已複製該專業術語段落至「語法檢查區」，您可以一鍵點擊上方進行語法診斷！",
     addedSkill: "已將核心技能 [ {{skill}} ] 新增添加到您的履歷技能矩陣中！",
+    autoSaveSuccess: "系統成功背景執行自動存檔備份作業。",
+    autoSaveFailed: "系統背景存檔備份作業失敗：{{message}}",
+    manualSaveSuccess: "使用者手動觸發儲存作業 (Ctrl+S) 成功且備份檔案已寫入。",
+    manualSaveFailed: "使用者儲存作業系統失敗",
+    workspaceReset: "工作區已重設為預設範例資料。",
+    resumeImported: "使用者透過文字解析匯入履歷資料。",
+  },
+
+  systemLog: {
+    engineReady: "NextStepResume.ai 核心引擎就緒：工作區已載入基礎模組。",
+    apiCalling: "正在呼叫 API 請求：{{url}}",
+    apiResponse: "API 回應{{outcome}} ← {{url}} 耗時 {{latency}}ms（狀態碼：{{status}}）",
+    apiError: "API 異常 ← {{url}} 耗時 {{latency}}ms：{{message}}",
+    exportLogsStart: "開始匯出系統效能及操作日誌。",
+    exportLogsDone: "日誌備份完成 — 檔案：{{filename}}",
+    shortcutsToggle: "觸發鍵盤快捷鍵說明面板切換。",
+    escapeClose: "Esc 鍵關閉所有浮落控制區。",
+    tabSwitch: "使用者切換功能分頁為：[{{tab}}]",
+    templateSwitch: "使用者更換履歷排版為：{{label}}（{{id}}）",
+    outcome: {
+      success: "成功",
+      rejected: "被拒",
+      failed: "失敗",
+    },
+  },
+
+  apiErrors: {
+    rateLimitMinute: "請求過於頻繁，請稍後再試（每分鐘上限 60 次）",
+    rateLimit: "請求過於頻繁，請稍後再試",
+    jdExtractInsufficient: "無法從此網址提取足夠的職缺內容，請改貼上 JD 全文",
+    jdPasteMinLength: "JD 至少需要 20 字元",
+    jobsdbSearchFailed: "JobsDB 搜尋失敗（HTTP {{status}}）",
+    askGeminiInvalid: "ask-gemini 回應格式無效",
+  },
+
+  geminiChatInitial: {
+    message:
+      "你好！我是你的 AI 職涯教練與 ATS 優化顧問。\n\n我已對照你的履歷與目標職缺 JD 做過初步評估。\n\n你可以問我任何問題，例如：\n- 「幫我改寫摘要，突出系統設計能力」\n- 「用 STAR 法優化我的成就 bullet」\n- 「我還缺哪些關鍵字？」",
+  },
+
+  voiceInput: {
+    unsupported: "您的瀏覽器暫不支援 Web Speech API 語音辨識。請使用 Google Chrome 進行測試。",
+    stopped: "語音辨識已關閉",
+    listening: "錄音聆聽中… 請開始說話…",
+    disconnected: "語音連線已斷開",
+    startError: "開啟辨識模組時發生錯誤",
   },
 
   applicationsTimeline: {
