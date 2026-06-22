@@ -1527,6 +1527,16 @@ const zhTW: MessageTree = {
         payloadSchema: "{ resumeId: string, styleConfig: { font: string, spacing: string, colorTheme: string } }",
         responseSchema: "瀏覽器內直接開啟列印視窗",
       },
+      jobsdb: {
+        role: "透過 Apify actor 代理 JobsDB HK 職缺，並驗證 startUrl 以防 SSRF。",
+        payloadSchema: '{ keyword?: string, startUrl?: string, maxResults?: number }',
+        responseSchema: "{ jobs: JobListing[], meta: ApiResponseMeta }",
+      },
+      health: {
+        role: "Express API 存活探測與 Gemini 可用性旗標。",
+        payloadSchema: "（無）",
+        responseSchema: '{ status: "ok", ai_enabled: boolean, timestamp: string }',
+      },
     },
   },
 
@@ -1729,6 +1739,8 @@ const zhTW: MessageTree = {
       feature: "功能",
       "3": "3 款",
       "30": "30 款",
+      "100": "100 次/月",
+      all: "全部模板",
       watermark: "浮水印",
       full: "完整",
       no: "—",
@@ -1740,6 +1752,7 @@ const zhTW: MessageTree = {
         aiCredits: "AI 點數 / 月",
         templates: "模板",
         exports: "PDF 匯出",
+        jobsdb: "JobsDB HK 搜尋",
         tracker: "申請追蹤",
         canvas: "Canvas Studio",
         gemini: "Gemini 導師",

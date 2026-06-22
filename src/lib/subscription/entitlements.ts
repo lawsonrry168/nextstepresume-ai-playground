@@ -219,3 +219,72 @@ export function isTabAllowed(plan: SubscriptionPlan, tab: string): boolean {
       return true;
   }
 }
+
+const UNLIMITED_COMPARE = 999_999;
+
+function formatCompareLimit(limit: number): string {
+  if (limit <= 0) return "no";
+  if (limit >= UNLIMITED_COMPARE) return "unlimited";
+  return String(limit);
+}
+
+export interface PlanCompareRow {
+  key: string;
+  starter: string;
+  pro: string;
+  max: string;
+}
+
+/** Pricing table rows derived from authoritative entitlements (avoids COMPARE_ROWS drift). */
+export function buildPlanCompareRows(): PlanCompareRow[] {
+  const geminiCell = (plan: SubscriptionPlan): string => {
+    if (hasFeature(plan, "ai.geminiThinking")) return "flash+thinking";
+    if (hasFeature(plan, "ai.geminiChat")) return "flash";
+    return "no";
+  };
+
+  return [
+    {
+      key: "aiCredits",
+      starter: String(PLAN_ENTITLEMENTS.starter.limits.aiCredits),
+      pro: String(PLAN_ENTITLEMENTS.pro.limits.aiCredits),
+      max: String(PLAN_ENTITLEMENTS.max.limits.aiCredits),
+    },
+    {
+      key: "templates",
+      starter: String(STARTER_TEMPLATE_IDS.length),
+      pro: "all",
+      max: "all",
+    },
+    {
+      key: "exports",
+      starter: hasFeature("starter", "export.pdfVisualClean") ? "full" : "watermark",
+      pro: hasFeature("pro", "export.pdfVisualClean") ? "full" : "watermark",
+      max: hasFeature("max", "export.pdfVisualClean") ? "full" : "watermark",
+    },
+    {
+      key: "jobsdb",
+      starter: formatCompareLimit(PLAN_ENTITLEMENTS.starter.limits.jobsdbSearch),
+      pro: formatCompareLimit(PLAN_ENTITLEMENTS.pro.limits.jobsdbSearch),
+      max: formatCompareLimit(PLAN_ENTITLEMENTS.max.limits.jobsdbSearch),
+    },
+    {
+      key: "tracker",
+      starter: formatCompareLimit(PLAN_ENTITLEMENTS.starter.limits.applicationPackages),
+      pro: formatCompareLimit(PLAN_ENTITLEMENTS.pro.limits.applicationPackages),
+      max: formatCompareLimit(PLAN_ENTITLEMENTS.max.limits.applicationPackages),
+    },
+    {
+      key: "canvas",
+      starter: hasFeature("starter", "layout.canvasStudio") ? "yes" : "no",
+      pro: hasFeature("pro", "layout.canvasStudio") ? "yes" : "no",
+      max: hasFeature("max", "layout.canvasStudio") ? "yes" : "no",
+    },
+    {
+      key: "gemini",
+      starter: geminiCell("starter"),
+      pro: geminiCell("pro"),
+      max: geminiCell("max"),
+    },
+  ];
+}

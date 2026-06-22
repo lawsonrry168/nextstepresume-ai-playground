@@ -10,6 +10,18 @@ import {
 
 export type SystemLogType = "info" | "warn" | "error";
 
+export function apiResponseLogLevel(status: number): SystemLogType {
+  if (status >= 500 || status === 0) return "error";
+  if (status >= 400) return "warn";
+  return "info";
+}
+
+export function apiResponseOutcomeLabel(status: number): string {
+  if (status >= 500 || status === 0) return "失敗";
+  if (status >= 400) return "被拒";
+  return "成功";
+}
+
 export interface SystemLogEntry {
   id: string;
   timestamp: string;
@@ -75,7 +87,10 @@ export function useMeasuredApi(onLog?: (type: SystemLogType, message: string) =>
         { url: urlStr, latency: latencyValue, status: response.status, timestamp: new Date().toLocaleTimeString() },
         ...prev.slice(0, 24),
       ]);
-      addSystemLog("info", `API 回應成功 ← ${urlStr} 耗時 ${latencyValue}ms (狀態碼: ${response.status})`);
+      addSystemLog(
+        apiResponseLogLevel(response.status),
+        `API 回應${apiResponseOutcomeLabel(response.status)} ← ${urlStr} 耗時 ${latencyValue}ms (狀態碼: ${response.status})`,
+      );
       return response;
     } catch (err: unknown) {
       const latencyValue = Math.round(performance.now() - startTime);

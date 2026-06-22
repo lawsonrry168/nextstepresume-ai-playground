@@ -1535,6 +1535,16 @@ const en: MessageTree = {
         payloadSchema: "{ resumeId: string, styleConfig: { font: string, spacing: string, colorTheme: string } }",
         responseSchema: "In-Browser direct printer window prompt",
       },
+      jobsdb: {
+        role: "Proxy JobsDB HK listings via Apify actor with SSRF-safe startUrl validation.",
+        payloadSchema: '{ keyword?: string, startUrl?: string, maxResults?: number }',
+        responseSchema: "{ jobs: JobListing[], meta: ApiResponseMeta }",
+      },
+      health: {
+        role: "Liveness probe for the Express API and Gemini availability flag.",
+        payloadSchema: "(none)",
+        responseSchema: '{ status: "ok", ai_enabled: boolean, timestamp: string }',
+      },
     },
   },
 
@@ -1737,6 +1747,8 @@ const en: MessageTree = {
       feature: "Feature",
       "3": "3 templates",
       "30": "30 templates",
+      "100": "100 / mo",
+      all: "All templates",
       watermark: "Watermarked",
       full: "Full",
       no: "—",
@@ -1748,6 +1760,7 @@ const en: MessageTree = {
         aiCredits: "AI credits / mo",
         templates: "Templates",
         exports: "PDF export",
+        jobsdb: "JobsDB HK search",
         tracker: "Application tracker",
         canvas: "Canvas Studio",
         gemini: "Gemini coach",

@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import {
+  buildPlanCompareRows,
   getEntitlements,
   hasFeature,
   isTabAllowed,
@@ -81,6 +82,22 @@ describe("subscription entitlements", () => {
   it("locks applications tab on starter", () => {
     expect(isTabAllowed("starter", "applications")).toBe(false);
     expect(isTabAllowed("pro", "applications")).toBe(true);
+  });
+
+  it("allows tools tab when any tool feature is enabled", () => {
+    expect(isTabAllowed("starter", "tools")).toBe(false);
+    expect(isTabAllowed("pro", "tools")).toBe(true);
+  });
+
+  it("builds pricing compare rows from entitlements", () => {
+    const rows = buildPlanCompareRows();
+    const aiRow = rows.find((row) => row.key === "aiCredits");
+    expect(aiRow).toEqual({ key: "aiCredits", starter: "3", pro: "80", max: "300" });
+    const templateRow = rows.find((row) => row.key === "templates");
+    expect(templateRow?.starter).toBe(String(STARTER_TEMPLATE_IDS.length));
+    expect(templateRow?.pro).toBe("all");
+    const jobsdbRow = rows.find((row) => row.key === "jobsdb");
+    expect(jobsdbRow).toEqual({ key: "jobsdb", starter: "no", pro: "30", max: "100" });
   });
 
   it("enforces starter AI credit quota", () => {

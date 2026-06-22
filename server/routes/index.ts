@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import type { GoogleGenAI } from "@google/genai";
-import { registerAiRoutes } from "./ai.ts";
+import { registerAiRoutes } from "./ai/index.ts";
 import { registerHealthRoutes } from "./health.ts";
 import { registerJdRoutes } from "./jd.ts";
 import { registerJobsdbRoutes } from "./jobsdb.ts";

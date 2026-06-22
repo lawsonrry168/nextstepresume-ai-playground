@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { GoogleGenAI } from "@google/genai";
 import { describe, expect, it } from "vitest";
-import { registerAiRoutes } from "../../server/routes/ai.ts";
+import { registerAiRoutes } from "../../server/routes/ai/index.ts";
 
 describe("registerAiRoutes", () => {
   it("registers all quota-protected AI endpoints", () => {
