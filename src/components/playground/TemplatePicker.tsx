@@ -51,7 +51,7 @@ export default function TemplatePicker({
   const isCustom = family === "custom";
 
   const themeLabel = getTemplateThemeLabel(activeTheme, locale);
-  const variantLabel = (item: { label: string; labelZh: string }) =>
+  const variantLabel = (item: { id: TemplateStyle; label: string; labelZh: string }) =>
     getTemplateThemeLabel(item, locale);
 
   useEffect(() => {

@@ -213,10 +213,15 @@ function isChineseLocale(locale: AppLocale): boolean {
 }
 
 export function getTemplateThemeLabel(
-  theme: Pick<ResumeTemplateTheme, "label" | "labelZh">,
+  theme: Pick<ResumeTemplateTheme, "id" | "label" | "labelZh">,
   locale?: AppLocale,
 ): string {
   const loc = locale ?? getActiveLocale();
+  const key = `templateThemes.${theme.id}`;
+  const translated = t(key, undefined, loc);
+  if (!translated.startsWith("templateThemes.")) {
+    return translated;
+  }
   return isChineseLocale(loc) ? theme.labelZh : theme.label;
 }
 

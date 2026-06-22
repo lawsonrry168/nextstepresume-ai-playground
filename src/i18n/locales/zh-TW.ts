@@ -1,4 +1,5 @@
 import type { MessageTree } from "../types";
+import templateThemes from "./data/templateThemes.zh-TW";
 
 const zhTW: MessageTree = {
   brand: {
@@ -516,6 +517,8 @@ const zhTW: MessageTree = {
     classic: "經典",
     minimalist: "極簡",
   },
+
+  templateThemes,
 
   export: {
     menuTitle: "匯出 PDF（ATS / 影像型）、Word 或 JSON",

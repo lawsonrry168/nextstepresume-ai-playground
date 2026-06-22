@@ -1,4 +1,5 @@
 import type { MessageTree } from "../types";
+import templateThemes from "./data/templateThemes.en";
 
 const en: MessageTree = {
   brand: {
@@ -521,6 +522,8 @@ const en: MessageTree = {
     classic: "Classic",
     minimalist: "Minimalist",
   },
+
+  templateThemes,
 
   export: {
     menuTitle: "Export PDF (ATS / visual), Word, or JSON",
