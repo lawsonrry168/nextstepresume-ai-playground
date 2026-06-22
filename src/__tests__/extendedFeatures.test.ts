@@ -402,6 +402,10 @@ describe("importJdFromPaste", () => {
 
 describe("jobsdbApifyScraper", () => {
   it("maps listing to imported job description", async () => {
+    const { ensureLocaleLoaded, setActiveLocale } = await import("../i18n/translate");
+    setActiveLocale("zh-TW");
+    await ensureLocaleLoaded("zh-TW");
+
     const { jobsdbListingToImportedJob, normalizeJobsdbListings } = await import(
       "../lib/jobsdbApifyScraper"
     );
@@ -417,10 +421,11 @@ describe("jobsdbApifyScraper", () => {
       },
     ]);
     expect(jobs).toHaveLength(1);
-    const imported = jobsdbListingToImportedJob(jobs[0]);
+    const imported = jobsdbListingToImportedJob(jobs[0], "zh-TW");
     expect(imported.jobTitle).toBe("Frontend Engineer");
     expect(imported.companyName).toBe("Acme HK");
     expect(imported.jobDescription).toContain("Build React apps.");
+    expect(imported.jobDescription).toContain("職位");
     expect(imported.sourceUrl).toContain("jobsdb.com");
   });
 });

@@ -200,7 +200,6 @@ export default function FreeLayoutStudioCanvas({
         <DraggableSection
           key={section.id}
           sectionId={section.id}
-          labelZh={section.labelZh}
           position={pos}
           compact={isNarrowPanel}
           chromeMode={chromeMode}
@@ -481,7 +480,6 @@ export default function FreeLayoutStudioCanvas({
 
 interface DraggableSectionProps {
   sectionId: string;
-  labelZh: string;
   position: FreeLayoutPosition;
   compact?: boolean;
   chromeMode?: "full" | "live";
@@ -682,7 +680,6 @@ const DimensionControls: React.FC<{
 
 const DraggableSection = memo(function DraggableSection({
   sectionId,
-  labelZh,
   position,
   compact = false,
   chromeMode = "full",

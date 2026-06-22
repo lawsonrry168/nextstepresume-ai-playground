@@ -13,8 +13,6 @@ export interface FreeLayoutPosition {
 
 export interface FreeLayoutSectionMeta {
   id: string;
-  labelZh: string;
-  labelEn: string;
 }
 
 export const FREE_LAYOUT_BY_FAMILY_KEY = NSR_STORAGE_KEYS.freeLayoutByFamily;
@@ -172,33 +170,31 @@ export function applyMagneticSnap(
 }
 
 export function buildFreeLayoutSections(data: ResumeData): FreeLayoutSectionMeta[] {
-  const sections: FreeLayoutSectionMeta[] = [
-    { id: "header", labelZh: "聯絡與標題", labelEn: "Header" },
-  ];
+  const sections: FreeLayoutSectionMeta[] = [{ id: "header" }];
 
   if (data.summary?.trim()) {
-    sections.push({ id: "summary", labelZh: "個人簡介", labelEn: "Summary" });
+    sections.push({ id: "summary" });
   }
   if (data.experience?.length) {
-    sections.push({ id: "experience", labelZh: "工作經歷", labelEn: "Experience" });
+    sections.push({ id: "experience" });
   }
   if (data.education?.length) {
-    sections.push({ id: "education", labelZh: "學歷", labelEn: "Education" });
+    sections.push({ id: "education" });
   }
   if (data.projects?.length) {
-    sections.push({ id: "projects", labelZh: "專案作品", labelEn: "Projects" });
+    sections.push({ id: "projects" });
   }
   if (data.skills?.length) {
-    sections.push({ id: "skills", labelZh: "技能", labelEn: "Skills" });
+    sections.push({ id: "skills" });
   }
   if (data.certifications?.length) {
-    sections.push({ id: "certifications", labelZh: "證照", labelEn: "Certifications" });
+    sections.push({ id: "certifications" });
   }
   if (data.volunteerWork?.length) {
-    sections.push({ id: "volunteer", labelZh: "志工經歷", labelEn: "Volunteer" });
+    sections.push({ id: "volunteer" });
   }
   if (data.languages?.length) {
-    sections.push({ id: "languages", labelZh: "語言", labelEn: "Languages" });
+    sections.push({ id: "languages" });
   }
 
   return sections;
@@ -343,17 +339,15 @@ export type FreeLayoutPresetId =
 
 export interface FreeLayoutPreset {
   id: FreeLayoutPresetId;
-  labelZh: string;
-  labelEn: string;
 }
 
 export const FREE_LAYOUT_PRESETS: FreeLayoutPreset[] = [
-  { id: "modern", labelZh: "現代版型", labelEn: "Modern" },
-  { id: "classic", labelZh: "經典單欄", labelEn: "Classic" },
-  { id: "minimalist", labelZh: "極簡側欄", labelEn: "Minimalist" },
-  { id: "two-column", labelZh: "雙欄對照", labelEn: "Two Column" },
-  { id: "magazine", labelZh: "雜誌式", labelEn: "Magazine" },
-  { id: "compact", labelZh: "緊湊置中", labelEn: "Compact" },
+  { id: "modern" },
+  { id: "classic" },
+  { id: "minimalist" },
+  { id: "two-column" },
+  { id: "magazine" },
+  { id: "compact" },
 ];
 
 function place(

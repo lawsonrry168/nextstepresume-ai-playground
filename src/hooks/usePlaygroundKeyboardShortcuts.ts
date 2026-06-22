@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { t } from "../i18n/translate";
-import { getResumeTemplateTheme } from "../lib/resumeTemplateCatalog";
+import { getResumeTemplateTheme, getTemplateThemeLabel } from "../lib/resumeTemplateCatalog";
 import type { TemplateStyle } from "../types";
 import type { SystemLogType } from "./useMeasuredApi";
 
@@ -75,7 +75,10 @@ export function usePlaygroundKeyboardShortcuts({
     const theme = getResumeTemplateTheme(activeTemplate);
     addSystemLog(
       "info",
-      t("systemLog.templateSwitch", { label: theme.labelZh, id: activeTemplate }),
+      t("systemLog.templateSwitch", {
+        label: getTemplateThemeLabel(theme),
+        id: activeTemplate,
+      }),
     );
   }, [activeTemplate, addSystemLog]);
 }

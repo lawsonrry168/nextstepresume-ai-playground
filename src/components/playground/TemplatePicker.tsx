@@ -6,6 +6,7 @@ import {
   getResumeTemplateTheme,
   getTemplateFamily,
   getTemplatesByFamily,
+  getTemplateThemeLabel,
   TEMPLATE_FAMILIES,
 } from "../../lib/resumeTemplateCatalog";
 import { useI18n } from "../../i18n";
@@ -48,11 +49,10 @@ export default function TemplatePicker({
     family === "custom" ? activeFamily : family,
   ).filter((item) => plan === "starter" ? STARTER_TEMPLATE_IDS.includes(item.id) : canUseTemplate(item.id));
   const isCustom = family === "custom";
-  const isZh = locale === "zh-TW" || locale === "zh-HK";
 
-  const themeLabel = isZh ? activeTheme.labelZh : activeTheme.label;
+  const themeLabel = getTemplateThemeLabel(activeTheme, locale);
   const variantLabel = (item: { label: string; labelZh: string }) =>
-    isZh ? item.labelZh : item.label;
+    getTemplateThemeLabel(item, locale);
 
   useEffect(() => {
     setFamily(freeLayoutEnabled ? "custom" : getTemplateFamily(activeTemplate));

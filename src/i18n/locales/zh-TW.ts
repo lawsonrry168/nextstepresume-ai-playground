@@ -1716,6 +1716,18 @@ const zhTW: MessageTree = {
     note: "備註",
   },
 
+  jobsdbJd: {
+    role: "職位",
+    company: "公司",
+    location: "地點",
+    workType: "工作型態",
+    classification: "分類",
+    salary: "薪資",
+    posted: "刊登",
+    highlights: "重點",
+    source: "來源：{{url}}",
+  },
+
   applicationsTimeline: {
     empty: "尚無時間軸紀錄",
     events: {

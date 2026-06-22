@@ -1,5 +1,5 @@
 import type { AppLocale } from "../i18n/types";
-import { t } from "../i18n/translate";
+import { getActiveLocale, t } from "../i18n/translate";
 
 export type TemplateFamily = "modern" | "classic" | "minimalist";
 
@@ -206,6 +206,18 @@ export function getTemplatesByFamily(family: TemplateFamily): ResumeTemplateThem
 
 export function getFamilyLabel(family: TemplateFamily, locale?: AppLocale) {
   return t(`templateFamilies.${family}`, undefined, locale);
+}
+
+function isChineseLocale(locale: AppLocale): boolean {
+  return locale === "zh-TW" || locale === "zh-HK";
+}
+
+export function getTemplateThemeLabel(
+  theme: Pick<ResumeTemplateTheme, "label" | "labelZh">,
+  locale?: AppLocale,
+): string {
+  const loc = locale ?? getActiveLocale();
+  return isChineseLocale(loc) ? theme.labelZh : theme.label;
 }
 
 export function isTemplateInFamily(style: TemplateStyle, family: TemplateFamily): boolean {

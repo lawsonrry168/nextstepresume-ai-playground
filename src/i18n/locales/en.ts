@@ -1728,6 +1728,18 @@ const en: MessageTree = {
     note: "Note",
   },
 
+  jobsdbJd: {
+    role: "Role",
+    company: "Company",
+    location: "Location",
+    workType: "Work type",
+    classification: "Classification",
+    salary: "Salary",
+    posted: "Posted",
+    highlights: "Highlights",
+    source: "Source: {{url}}",
+  },
+
   applicationsTimeline: {
     empty: "No timeline events yet",
     events: {
