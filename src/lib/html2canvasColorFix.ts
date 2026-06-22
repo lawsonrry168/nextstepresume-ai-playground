@@ -1,4 +1,5 @@
 import html2canvas, { type Options } from "html2canvas";
+import { pdfExportError } from "./pdfExportI18n";
 
 const UNSUPPORTED_COLOR_FUNCTIONS =
   /oklch|oklab|color-mix|lab\(|lch\(|hwb\(|\bcolor\(|device-cmb\(|device-cmyk\(/i;
@@ -703,9 +704,7 @@ export async function captureElementWithHtml2Canvas(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (/unsupported color function/i.test(message)) {
-      throw new Error(
-        "PDF 匯出失敗：色彩格式不相容（oklch）。請重新整理頁面後再匯出。"
-      );
+      throw new Error(pdfExportError("colorFormatUnsupported"));
     }
     throw err;
   }

@@ -1666,6 +1666,56 @@ const zhTW: MessageTree = {
     startError: "開啟辨識模組時發生錯誤",
   },
 
+  exportErrors: {
+    snapshotReadFailed: "無法讀取履歷快照",
+    snapshotNoInk: "履歷快照無內容，請確認預覽已載入後再匯出",
+    snapshotEmpty: "履歷快照為空",
+    contentTooShort: "履歷內容高度不足，請確認預覽已完整載入",
+    previewNotFound: "找不到履歷預覽元素",
+    colorFormatUnsupported: "PDF 匯出失敗：色彩格式不相容（oklch）。請重新整理頁面後再匯出。",
+  },
+
+  pdfExportModes: {
+    visual: {
+      title: "匯出 PDF（影像型）",
+      hint: "直接擷取預覽畫面，與所見即所得",
+    },
+    ats: {
+      title: "匯出 PDF（ATS）",
+      hint: "可選文字，ATS 友善結構",
+    },
+  },
+
+  followUpNotifications: {
+    followUpOverdueTitle: "追蹤已逾期 — {{company}}",
+    followUpDueTitle: "今日追蹤提醒 — {{company}}",
+    followUpOverdueBody: "{{jobTitle}} 的 follow-up 已逾期，請儘快聯繫 HR 或更新應徵狀態。",
+    followUpDueBody: "{{jobTitle}} 的 follow-up 日期為今日，請確認是否已聯繫 HR 或更新應徵狀態。",
+    interviewTodayTitle: "今日面試 — {{company}}",
+    interviewTodayBody: "{{jobTitle}} 面試就在今天，記得複習面試準備與公司研究。",
+    interviewTomorrowTitle: "明日面試 — {{company}}",
+    interviewTomorrowBody: "{{jobTitle}} 面試將在明天舉行，建議今晚完成最後準備。",
+  },
+
+  applicationDraft: {
+    companyTbd: "待確認公司",
+    jobTbd: "待確認職缺",
+    sourcePrefix: "來源：{{url}}",
+    createdFromImport: "從職缺匯入建立草稿",
+    createdPackage: "建立應徵套件",
+    createdDetail: "{{company}} · {{jobTitle}}",
+    createdDetailWithSource: "{{company}} · {{jobTitle}} · {{source}}",
+  },
+
+  applicationTimeline: {
+    created: "建立套件",
+    status_change: "狀態更新",
+    applied: "已投遞",
+    interview_scheduled: "面試排程",
+    follow_up: "追蹤提醒",
+    note: "備註",
+  },
+
   applicationsTimeline: {
     empty: "尚無時間軸紀錄",
     events: {

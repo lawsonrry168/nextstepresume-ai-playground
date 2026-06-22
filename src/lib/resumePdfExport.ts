@@ -2,6 +2,7 @@ import {
   captureElementWithHtml2Canvas,
   preInlineExportClonePaint,
 } from "./html2canvasColorFix";
+import { pdfExportError } from "./pdfExportI18n";
 import { downloadPdfFromCanvas, downloadPdfFromCanvases } from "./pdfHtmlRenderer";
 import { sliceCanvasVertically } from "./canvasPdfPagination";
 import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
@@ -82,7 +83,7 @@ function stripCanvasExportChrome(clone: HTMLElement): void {
 function assertCanvasHasInk(canvas: HTMLCanvasElement): void {
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("無法讀取履歷快照");
+    throw new Error(pdfExportError("snapshotReadFailed"));
   }
 
   const sampleHeight = Math.min(canvas.height, 400);
@@ -99,11 +100,11 @@ function assertCanvasHasInk(canvas: HTMLCanvasElement): void {
   }
 
   if (inkish < 12) {
-    throw new Error("履歷快照無內容，請確認預覽已載入後再匯出");
+    throw new Error(pdfExportError("snapshotNoInk"));
   }
 
   if (width < 16 || canvas.height < 16) {
-    throw new Error("履歷快照為空");
+    throw new Error(pdfExportError("snapshotEmpty"));
   }
 }
 
@@ -142,7 +143,7 @@ async function captureExportElement(source: HTMLElement, options?: { fixedA4?: b
 
     const contentHeight = fixedA4 ? CANVAS_PAGE_HEIGHT : Math.max(clone.scrollHeight, clone.offsetHeight);
     if (contentHeight < MIN_CONTENT_HEIGHT_PX) {
-      throw new Error("履歷內容高度不足，請確認預覽已完整載入");
+      throw new Error(pdfExportError("contentTooShort"));
     }
 
     preInlineExportClonePaint(source, clone);
@@ -185,7 +186,7 @@ async function captureExportElementPaginated(source: HTMLElement): Promise<HTMLC
 export async function captureResumeCanvas(): Promise<HTMLCanvasElement> {
   const source = findResumeExportRoot();
   if (!source) {
-    throw new Error("找不到履歷預覽元素");
+    throw new Error(pdfExportError("previewNotFound"));
   }
   const slices = await captureExportElementPaginated(source);
   return slices[0];
@@ -194,7 +195,7 @@ export async function captureResumeCanvas(): Promise<HTMLCanvasElement> {
 export async function captureResumeCanvasPages(): Promise<HTMLCanvasElement[]> {
   const pages = findCanvasExportPages();
   if (!pages.length) {
-    throw new Error("找不到履歷預覽元素");
+    throw new Error(pdfExportError("previewNotFound"));
   }
 
   const canvases: HTMLCanvasElement[] = [];
@@ -215,7 +216,7 @@ export async function downloadResumeVisualPdf(
 ): Promise<void> {
   const exportPages = findCanvasExportPages();
   if (!exportPages.length) {
-    throw new Error("找不到履歷預覽元素");
+    throw new Error(pdfExportError("previewNotFound"));
   }
 
   const allCanvases: HTMLCanvasElement[] = [];

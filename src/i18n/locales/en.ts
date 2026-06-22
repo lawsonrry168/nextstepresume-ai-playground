@@ -1675,6 +1675,59 @@ const en: MessageTree = {
     startError: "Error starting speech recognition.",
   },
 
+  exportErrors: {
+    snapshotReadFailed: "Could not read resume snapshot.",
+    snapshotNoInk: "Resume snapshot has no visible content — ensure preview is loaded before exporting.",
+    snapshotEmpty: "Resume snapshot is empty.",
+    contentTooShort: "Resume content is too short — ensure preview is fully loaded.",
+    previewNotFound: "Resume preview element not found.",
+    colorFormatUnsupported:
+      "PDF export failed: unsupported color format (oklch). Refresh the page and try again.",
+  },
+
+  pdfExportModes: {
+    visual: {
+      title: "Export PDF (visual)",
+      hint: "Captures the preview as shown (WYSIWYG)",
+    },
+    ats: {
+      title: "Export PDF (ATS)",
+      hint: "Selectable text, ATS-friendly structure",
+    },
+  },
+
+  followUpNotifications: {
+    followUpOverdueTitle: "Follow-up overdue — {{company}}",
+    followUpDueTitle: "Follow-up due today — {{company}}",
+    followUpOverdueBody:
+      "Follow-up for {{jobTitle}} is overdue. Contact HR or update your application status.",
+    followUpDueBody:
+      "Follow-up for {{jobTitle}} is due today. Confirm whether you have contacted HR.",
+    interviewTodayTitle: "Interview today — {{company}}",
+    interviewTodayBody: "Interview for {{jobTitle}} is today. Review your prep and company research.",
+    interviewTomorrowTitle: "Interview tomorrow — {{company}}",
+    interviewTomorrowBody: "Interview for {{jobTitle}} is tomorrow. Finish your final prep tonight.",
+  },
+
+  applicationDraft: {
+    companyTbd: "Company TBD",
+    jobTbd: "Role TBD",
+    sourcePrefix: "Source: {{url}}",
+    createdFromImport: "Draft created from job import",
+    createdPackage: "Application package created",
+    createdDetail: "{{company}} · {{jobTitle}}",
+    createdDetailWithSource: "{{company}} · {{jobTitle}} · {{source}}",
+  },
+
+  applicationTimeline: {
+    created: "Package created",
+    status_change: "Status updated",
+    applied: "Applied",
+    interview_scheduled: "Interview scheduled",
+    follow_up: "Follow-up reminder",
+    note: "Note",
+  },
+
   applicationsTimeline: {
     empty: "No timeline events yet",
     events: {
