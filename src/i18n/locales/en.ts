@@ -1321,6 +1321,36 @@ const en: MessageTree = {
     subtitle: "Fonts · colors · spacing · display",
     enable: "Enable",
     enabled: "Enabled",
+    colorFields: {
+      accentColor: {
+        label: "Accent",
+        hint: "Icons, links, skill chips, and other emphasis colors",
+      },
+      bodyColor: { label: "Body text", hint: "Paragraph and list content" },
+      headingColor: { label: "Headings", hint: "Name and major section titles" },
+      mutedColor: { label: "Muted text", hint: "Section subtitles and helper copy" },
+      backgroundColor: { label: "Page background", hint: "Resume sheet background" },
+      cardBackgroundColor: { label: "Card background", hint: "Education and project card blocks" },
+      borderColor: { label: "Borders", hint: "Section rules, dividers, and card outlines" },
+    },
+    accentBarGradient: {
+      label: "Bar right color",
+      hint: "Modern top bar only; left side syncs with accent color",
+    },
+    fonts: {
+      inherit: "Template default",
+      inter: "Inter",
+      "system-sans": "System sans-serif",
+      "system-serif": "System serif",
+      georgia: "Georgia",
+      playfair: "Playfair Display",
+      merriweather: "Merriweather",
+      lora: "Lora",
+      roboto: "Roboto",
+      "open-sans": "Open Sans",
+      "source-serif": "Source Serif 4",
+      jetbrains: "JetBrains Mono",
+    },
   },
 
   interviewPrep: {

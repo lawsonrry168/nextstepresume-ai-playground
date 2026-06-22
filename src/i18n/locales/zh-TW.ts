@@ -1316,6 +1316,36 @@ const zhTW: MessageTree = {
     subtitle: "字型 · 配色 · 間距 · 顯示",
     enable: "啟用",
     enabled: "已啟用",
+    colorFields: {
+      accentColor: {
+        label: "主色",
+        hint: "圖示、連結、技能標籤等強調色",
+      },
+      bodyColor: { label: "正文色", hint: "段落與列表內文" },
+      headingColor: { label: "標題色", hint: "姓名與大標題" },
+      mutedColor: { label: "次要文字", hint: "區塊小標與輔助說明" },
+      backgroundColor: { label: "頁面背景", hint: "履歷紙張底色" },
+      cardBackgroundColor: { label: "卡片背景", hint: "學歷／專案卡片區塊" },
+      borderColor: { label: "邊框色", hint: "區塊底線、分隔線與卡片邊框" },
+    },
+    accentBarGradient: {
+      label: "色條右側色",
+      hint: "僅 Modern 頂部色條；左側自動沿用主色",
+    },
+    fonts: {
+      inherit: "跟隨版型",
+      inter: "Inter",
+      "system-sans": "系統無襯線",
+      "system-serif": "系統襯線",
+      georgia: "Georgia",
+      playfair: "Playfair Display",
+      merriweather: "Merriweather",
+      lora: "Lora",
+      roboto: "Roboto",
+      "open-sans": "Open Sans",
+      "source-serif": "Source Serif 4",
+      jetbrains: "JetBrains Mono",
+    },
   },
 
   interviewPrep: {

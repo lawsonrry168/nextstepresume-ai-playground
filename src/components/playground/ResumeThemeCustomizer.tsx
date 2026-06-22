@@ -10,10 +10,16 @@ import {
   ResumeSectionGapId,
   ResumeSpacingId,
   THEME_COLOR_FIELDS,
-  ACCENT_BAR_GRADIENT_FIELD,
   countThemeOverrides,
   getColorFieldPreview,
 } from "../../lib/resumeThemeCustomization";
+import {
+  getAccentBarGradientHint,
+  getAccentBarGradientLabel,
+  getResumeFontLabel,
+  getThemeColorFieldHint,
+  getThemeColorFieldLabel,
+} from "../../lib/themeCustomizerI18n";
 import { TemplateStyle, getResumeTemplateTheme } from "../../lib/resumeTemplateCatalog";
 import {
   STUDIO_BTN,
@@ -361,8 +367,8 @@ function ThemePanelContent({
         <ThemeSection title={t("themeCustomizer.accentColor")} variant={variant}>
           <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 ${gridGap}`}>
             <ColorField
-              label={THEME_COLOR_FIELDS.accentColor.labelZh}
-              hint={THEME_COLOR_FIELDS.accentColor.hintZh}
+              label={getThemeColorFieldLabel("accentColor")}
+              hint={getThemeColorFieldHint("accentColor")}
               value={customization.accentColor}
               previewHex={accentStart}
               onChange={(v) => onChange({ accentColor: v })}
@@ -375,13 +381,11 @@ function ThemePanelContent({
 
         <ThemeSection title={t("themeCustomizer.textBgBorder")} variant={variant}>
           <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 ${gridGap}`}>
-            {generalKeys.map((field) => {
-              const meta = THEME_COLOR_FIELDS[field];
-              return (
+            {generalKeys.map((field) => (
                 <div key={field}>
                   <ColorField
-                    label={meta.labelZh}
-                    hint={meta.hintZh}
+                    label={getThemeColorFieldLabel(field)}
+                    hint={getThemeColorFieldHint(field)}
                     value={customization[field]}
                     previewHex={getColorFieldPreview(field, customization, theme)}
                     onChange={(v) => onChange({ [field]: v })}
@@ -390,8 +394,7 @@ function ThemePanelContent({
                     t={t}
                   />
                 </div>
-              );
-            })}
+            ))}
           </div>
         </ThemeSection>
 
@@ -413,8 +416,8 @@ function ThemePanelContent({
           <div className={`grid grid-cols-2 ${gridGap}`}>
             <LinkedColorPreview label={t("themeCustomizer.barLeft")} hint={compact ? undefined : t("themeCustomizer.syncAccent")} hex={accentStart} variant={variant} />
             <ColorField
-              label={ACCENT_BAR_GRADIENT_FIELD.labelZh}
-              hint={ACCENT_BAR_GRADIENT_FIELD.hintZh}
+              label={getAccentBarGradientLabel()}
+              hint={getAccentBarGradientHint()}
               value={customization.accentGradientEnd}
               previewHex={accentEnd}
               onChange={(v) => onChange({ accentGradientEnd: v })}
@@ -436,7 +439,10 @@ function ThemePanelContent({
           label={t("themeCustomizer.bodyFont")}
           hint={t("themeCustomizer.bodyFontHint")}
           value={customization.bodyFont}
-          options={RESUME_FONT_OPTIONS.filter((f) => f.id !== "inherit").map((f) => ({ value: f.id, label: f.labelZh }))}
+          options={RESUME_FONT_OPTIONS.filter((f) => f.id !== "inherit").map((f) => ({
+            value: f.id,
+            label: getResumeFontLabel(f.id),
+          }))}
           onChange={(v) => onChange({ bodyFont: v })}
           variant={variant}
         />
@@ -444,7 +450,10 @@ function ThemePanelContent({
           label={t("themeCustomizer.headingFont")}
           hint={t("themeCustomizer.headingFontHint")}
           value={customization.headingFont}
-          options={RESUME_FONT_OPTIONS.filter((f) => f.id !== "inherit").map((f) => ({ value: f.id, label: f.labelZh }))}
+          options={RESUME_FONT_OPTIONS.filter((f) => f.id !== "inherit").map((f) => ({
+            value: f.id,
+            label: getResumeFontLabel(f.id),
+          }))}
           onChange={(v) => onChange({ headingFont: v })}
           variant={variant}
         />
