@@ -1,0 +1,2083 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-display: "Caveat", cursive;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-accent: #c0392b;
+  --color-accent-muted: #faf6eb;
+  --color-surface: #faf6eb;
+  --color-ink: #1a2438;
+}
+
+/* ?? Marginalia notebook design system ?? */
+/* Light-mode tokens only ? dark tokens live in dark-marginalia.css */
+html:not(.dark) .marginalia-theme {
+  --m-paper: #faf6eb;
+  --m-paper-line: #c5d9e8;
+  --m-margin: #c0392b;
+  --m-rule: #5b8fb9;
+  --m-ink: #1a2438;
+  --m-marker: #f5d76e;
+  --m-mint: #d4edda;
+  --m-eraser: #f2c1c1;
+  --m-graphite: #535c68;
+  --m-red: #c0392b;
+  --m-red-hover: #a93226;
+  --m-card-shadow: 0 2px 8px -2px rgba(26, 36, 56, 0.08), 0 1px 2px rgba(26, 36, 56, 0.04);
+  --m-elevate: #ffffff;
+  --m-chrome: #f5f0e6;
+}
+
+.marginalia-theme {
+  color: var(--m-ink);
+}
+
+.marginalia-theme .notebook-bg {
+  background-color: var(--m-paper);
+  background-image:
+    linear-gradient(transparent 27px, var(--m-paper-line) 28px, transparent 29px);
+  background-size: 100% 28px;
+  background-position: 0 12px;
+}
+
+.marginalia-theme .notebook-margin {
+  box-shadow: inset 3rem 0 0 -2.85rem var(--m-margin);
+}
+
+.marginalia-theme .notebook-card {
+  background-color: color-mix(in srgb, var(--m-paper) 92%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-ink) 12%, transparent);
+  border-radius: 0.75rem;
+  box-shadow: var(--m-card-shadow);
+  border-left: 3px solid var(--m-margin);
+}
+
+.marginalia-theme .font-display {
+  font-family: var(--font-display);
+}
+
+.marginalia-theme .font-serif-heading {
+  font-family: var(--font-serif);
+}
+
+.marginalia-theme .ui-label {
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .highlight-marker {
+  background: linear-gradient(transparent 55%, var(--m-marker) 55%, var(--m-marker) 88%, transparent 88%);
+}
+
+.marginalia-theme .sticker-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, var(--m-ink) 15%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--m-ink) 8%, transparent);
+}
+
+.marginalia-theme .sticker-mint {
+  background-color: var(--m-mint);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .sticker-marker {
+  background-color: var(--m-marker);
+  color: var(--m-ink);
+}
+
+/* Shared utilities ??Marginalia overrides in light mode */
+.marginalia-theme .btn-accent {
+  background-color: var(--m-red);
+  color: white;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--m-red-hover) 80%, black);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.marginalia-theme .btn-accent:hover {
+  background-color: var(--m-red-hover);
+}
+
+.marginalia-theme .btn-accent:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--m-red-hover) 80%, black);
+}
+
+.marginalia-theme .panel-surface {
+  background-color: color-mix(in srgb, var(--m-paper) 94%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-ink) 12%, transparent);
+  border-radius: 0.75rem;
+  border-left: 3px solid var(--m-margin);
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .panel-muted {
+  background-color: color-mix(in srgb, var(--m-paper) 88%, var(--m-elevate));
+  border: 1px dashed color-mix(in srgb, var(--m-rule) 45%, transparent);
+  border-radius: 0.75rem;
+}
+
+.marginalia-theme .input-field {
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid var(--m-rule);
+  border-radius: 0;
+  color: var(--m-ink);
+  font-family: var(--font-serif);
+}
+
+.marginalia-theme .input-field:focus {
+  outline: none;
+  border-bottom-color: var(--m-red);
+  box-shadow: none;
+}
+
+/* Map legacy emerald UI ??Marginalia stationery (light only) */
+.marginalia-theme .bg-emerald-600 {
+  background-color: var(--m-red) !important;
+}
+
+.marginalia-theme .hover\:bg-emerald-700:hover,
+.marginalia-theme .hover\:bg-emerald-500:hover {
+  background-color: var(--m-red-hover) !important;
+}
+
+.marginalia-theme .bg-emerald-50,
+.marginalia-theme .bg-emerald-50\/80,
+.marginalia-theme .bg-emerald-50\/60 {
+  background-color: var(--m-mint) !important;
+}
+
+.marginalia-theme .text-emerald-600,
+.marginalia-theme .text-emerald-700,
+.marginalia-theme .text-emerald-500 {
+  color: var(--m-red) !important;
+}
+
+.marginalia-theme .border-emerald-100,
+.marginalia-theme .border-emerald-200,
+.marginalia-theme .border-emerald-300 {
+  border-color: color-mix(in srgb, var(--m-rule) 35%, transparent) !important;
+}
+
+.marginalia-theme .border-emerald-600 {
+  border-color: var(--m-red) !important;
+}
+
+.marginalia-theme .ring-emerald-200,
+.marginalia-theme .ring-emerald-500\/25 {
+  --tw-ring-color: color-mix(in srgb, var(--m-rule) 40%, transparent) !important;
+}
+
+.marginalia-theme #playground-sidebar {
+  background-color: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 30%, transparent);
+}
+
+.marginalia-theme #config-col {
+  background-color: var(--m-paper);
+  background-image:
+    linear-gradient(transparent 27px, var(--m-paper-line) 28px, transparent 29px);
+  background-size: 100% 28px;
+  background-position: 0 8px;
+}
+
+.marginalia-theme #app_root {
+  background-color: var(--m-paper);
+}
+
+.marginalia-theme #preview-col {
+  background-color: transparent;
+}
+
+.marginalia-theme #preview-col-wrap {
+  background-color: color-mix(in srgb, var(--m-paper) 92%, var(--m-elevate));
+}
+
+.marginalia-theme .preview-panel-frame {
+  background-color: color-mix(in srgb, var(--m-paper) 90%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 28%, transparent);
+  border-left: 3px solid var(--m-margin);
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .preview-canvas {
+  background-color: var(--m-paper);
+  background-image:
+    linear-gradient(transparent 27px, var(--m-paper-line) 28px, transparent 29px);
+  background-size: 100% 28px;
+  background-position: 0 8px;
+}
+
+.marginalia-theme .preview-resume-stage {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 100%;
+}
+
+.marginalia-theme .preview-canvas:has(.resume-template-marginalia),
+.marginalia-theme .preview-canvas:has(.preview-resume-sheet),
+.marginalia-theme .preview-canvas:has(.preview-comparison-slot) {
+  background-image: none;
+  background-color: #ebe5d6;
+}
+
+.marginalia-theme .preview-comparison-tray {
+  background-color: color-mix(in srgb, var(--m-paper) 88%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .preview-comparison-chip {
+  background-color: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .preview-comparison-slot {
+  background-color: transparent;
+  border-color: color-mix(in srgb, var(--m-ink) 10%, transparent);
+}
+
+.marginalia-theme :is(
+  #resume-container-box-comparison,
+  #resume-container-box-workspace
+).preview-canvas {
+  background-image: none;
+}
+
+.marginalia-theme #resume-container-box-comparison.preview-comparison-tray {
+  background-color: #ebe5d6;
+  background-image: none;
+}
+
+.marginalia-theme #resume-container-box:has(.resume-template-marginalia),
+.marginalia-theme #resume-container-box-workspace:has(.resume-template-marginalia) {
+  min-height: 0 !important;
+}
+
+.marginalia-theme #preview-col:has(.resume-template-marginalia) {
+  scrollbar-gutter: auto;
+}
+
+.marginalia-theme .preview-resume-sheet:not(:has(.resume-template-marginalia)) {
+  background-color: #fff !important;
+  border-color: color-mix(in srgb, var(--m-ink) 12%, transparent) !important;
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .preview-resume-sheet:has(.resume-template-marginalia),
+.marginalia-theme .preview-resume-sheet--marginalia {
+  background: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.marginalia-theme #resume-container-box .resume-template-marginalia,
+.marginalia-theme #resume-container-box-workspace .resume-template-marginalia {
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .split-divider {
+  background-color: color-mix(in srgb, var(--m-rule) 22%, var(--m-paper));
+}
+
+.marginalia-theme .split-divider:hover,
+.marginalia-theme .split-divider--active,
+.marginalia-theme .split-divider[data-dragging="true"] {
+  background-color: color-mix(in srgb, var(--m-marker) 50%, var(--m-paper));
+}
+
+.marginalia-theme .split-divider-handle {
+  background-color: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 35%, transparent);
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .split-divider:hover .split-divider-handle,
+.marginalia-theme .split-divider-handle--active {
+  background-color: var(--m-red);
+  border-color: var(--m-red-hover);
+  color: white;
+}
+
+.marginalia-theme .bg-slate-50,
+.marginalia-theme .bg-slate-50\/80,
+.marginalia-theme .bg-slate-100 {
+  background-color: color-mix(in srgb, var(--m-paper) 90%, var(--m-elevate)) !important;
+}
+
+.marginalia-theme .bg-white {
+  background-color: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate)) !important;
+}
+
+.marginalia-theme #preview-col .preview-resume-sheet:not(:has(.resume-template-marginalia)),
+.marginalia-theme #resume-printable-sheet:not(.resume-template-marginalia) {
+  background-color: #fff !important;
+}
+
+.marginalia-theme #preview-col .preview-resume-sheet:has(.resume-template-marginalia),
+.marginalia-theme #preview-col .preview-resume-sheet--marginalia {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.marginalia-theme #resume-container-box-workspace .preview-resume-stage,
+.marginalia-theme #resume-container-box .preview-resume-stage {
+  min-height: 100%;
+}
+
+.marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) {
+  min-height: 0;
+}
+
+.marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) #preview-studio-header {
+  position: relative;
+  z-index: 60;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+.marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) #canvas-studio-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) .canvas-studio-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* ?? Studio Canvas viewport (Phase 0 + 1) ?? */
+.marginalia-theme .canvas-studio-viewport {
+  background-color: #ebe5d6;
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .canvas-studio-stage {
+  background-color: #ebe5d6;
+  background-image:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--m-ink) 6%, transparent) 1px, transparent 0);
+  background-size: 24px 24px;
+  cursor: default;
+}
+
+.marginalia-theme .canvas-studio-viewport--panning .canvas-studio-stage {
+  cursor: grabbing;
+}
+
+.marginalia-theme .canvas-studio-hint span {
+  background: color-mix(in srgb, var(--m-elevate) 92%, #fff);
+  border: 1px solid color-mix(in srgb, var(--m-rule) 22%, transparent);
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .canvas-studio-toolbar {
+  background-color: color-mix(in srgb, var(--m-paper) 94%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .canvas-studio-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 28%, transparent);
+  background: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  color: var(--m-graphite);
+  font-size: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.marginalia-theme .canvas-studio-tool-btn:hover {
+  background: color-mix(in srgb, var(--m-marker) 12%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-marker) 35%, transparent);
+}
+
+.marginalia-theme .canvas-studio-zoom-label {
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-studio-toolbar-divider {
+  width: 1px;
+  height: 18px;
+  background: color-mix(in srgb, var(--m-rule) 28%, transparent);
+  margin: 0 4px;
+}
+
+.marginalia-theme .canvas-studio-zoom-slider {
+  accent-color: var(--m-marker);
+}
+
+.marginalia-theme .canvas-tool-group-label {
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .canvas-page-margin-guide-box {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f59e0b 8%, transparent);
+}
+
+.marginalia-theme .canvas-page-margin-label {
+  text-shadow: 0 0 4px color-mix(in srgb, var(--m-paper) 90%, #fff);
+}
+
+.marginalia-theme .canvas-studio-tool-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.marginalia-theme .canvas-align-group {
+  background: color-mix(in srgb, var(--m-paper) 88%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent) !important;
+}
+
+.marginalia-theme .canvas-tools-bar {
+  padding-bottom: 2px;
+}
+
+.marginalia-theme .canvas-studio-right-nav {
+  width: clamp(240px, 22vw, 272px);
+  background-color: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .canvas-studio-right-nav-footer {
+  background-color: color-mix(in srgb, var(--m-paper) 94%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 24%, transparent);
+}
+
+.marginalia-theme .canvas-studio-panel-header {
+  background-color: color-mix(in srgb, var(--m-paper) 92%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-studio-panel-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 24%, transparent);
+  background: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  color: var(--m-graphite);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.marginalia-theme .canvas-studio-panel-collapse-btn:hover {
+  border-color: color-mix(in srgb, var(--m-marker) 35%, transparent);
+  color: var(--m-ink);
+  background: color-mix(in srgb, var(--m-marker) 10%, var(--m-elevate));
+}
+
+.marginalia-theme .canvas-studio-panel-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 36px;
+  flex-shrink: 0;
+  padding: 10px 4px;
+  border: none;
+  cursor: pointer;
+  color: var(--m-graphite);
+  background: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.marginalia-theme .canvas-studio-panel-rail--left {
+  border-right: 1px solid color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .canvas-studio-panel-rail--right {
+  border-left: 1px solid color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .canvas-studio-panel-rail:hover {
+  color: var(--m-ink);
+  background: color-mix(in srgb, var(--m-marker) 12%, var(--m-elevate));
+}
+
+.marginalia-theme .canvas-studio-panel-rail-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  user-select: none;
+}
+
+.marginalia-theme .canvas-auto-save-status {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--m-mint) 55%, var(--m-graphite));
+  line-height: 1.3;
+}
+
+.marginalia-theme .canvas-nav-section {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--m-rule) 18%, transparent);
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.marginalia-theme .canvas-nav-section--dragging {
+  opacity: 0.55;
+  box-shadow: 0 8px 24px rgba(26, 36, 56, 0.12);
+}
+
+.marginalia-theme .canvas-nav-section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.marginalia-theme .canvas-nav-section-drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--m-graphite);
+  opacity: 0.45;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.marginalia-theme .canvas-nav-section-drag:hover {
+  opacity: 0.85;
+  background: color-mix(in srgb, var(--m-marker) 12%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-nav-section-drag--active {
+  opacity: 1;
+  cursor: grabbing;
+  background: color-mix(in srgb, var(--m-marker) 22%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-nav-section-title {
+  margin: 0;
+  flex: 1;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--m-graphite);
+  opacity: 0.65;
+}
+
+.marginalia-theme .canvas-nav-section-toggle {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.marginalia-theme .canvas-nav-section-toggle:hover .canvas-nav-section-title {
+  opacity: 0.9;
+}
+
+.marginalia-theme .canvas-nav-section-chevron {
+  opacity: 0.45;
+  transition: transform 0.15s ease;
+}
+
+.marginalia-theme .canvas-nav-section-chevron--open {
+  transform: rotate(180deg);
+}
+
+.marginalia-theme .canvas-nav-section--collapsed {
+  padding-bottom: 6px;
+}
+
+.marginalia-theme .canvas-nav-section-wrap {
+  position: relative;
+}
+
+.marginalia-theme .canvas-nav-drop-indicator {
+  height: 2px;
+  margin: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--m-marker) 75%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--m-marker) 35%, transparent);
+  pointer-events: none;
+}
+
+.marginalia-theme .canvas-nav-drop-indicator--before {
+  margin-bottom: 2px;
+}
+
+.marginalia-theme .canvas-nav-drop-indicator--after {
+  margin-top: 2px;
+}
+
+.marginalia-theme .canvas-nav-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.marginalia-theme .canvas-nav-tool-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 22%, transparent);
+  background: color-mix(in srgb, var(--m-paper) 88%, var(--m-elevate));
+  color: var(--m-graphite);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.marginalia-theme .canvas-nav-tool-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--m-marker) 12%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-marker) 35%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-nav-tool-btn--active {
+  background: color-mix(in srgb, var(--m-marker) 38%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-marker) 72%, transparent);
+  color: var(--m-ink);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--m-marker) 28%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--m-marker) 18%, transparent);
+}
+
+.marginalia-theme .canvas-nav-tool-btn--active::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--m-marker) 85%, var(--m-graphite));
+  box-shadow: 0 0 6px color-mix(in srgb, var(--m-marker) 55%, transparent);
+}
+
+.marginalia-theme .canvas-nav-tool-btn--active .canvas-nav-tool-label {
+  color: var(--m-ink);
+  font-weight: 800;
+}
+
+.marginalia-theme .canvas-nav-tool-btn--active svg {
+  color: color-mix(in srgb, var(--m-marker) 55%, var(--m-ink));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--m-marker) 35%, transparent));
+}
+
+.marginalia-theme .canvas-nav-tool-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.marginalia-theme .canvas-nav-tool-label {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marginalia-theme .canvas-layout-panel {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.marginalia-theme .canvas-layout-preset-select {
+  background: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) .canvas-studio-right-nav {
+  background-color: color-mix(in srgb, var(--m-elevate) 98%, var(--m-paper));
+}
+
+.marginalia-theme #resume-container-box-canvas.canvas-studio-node-host {
+  min-height: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* ?? Canvas Phase 2: layers, pages, shortcuts ?? */
+.marginalia-theme .canvas-layer-panel {
+  background-color: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-layer-panel-header {
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent);
+}
+
+.marginalia-theme .canvas-layer-row {
+  border-color: color-mix(in srgb, var(--m-rule) 20%, transparent);
+  background: color-mix(in srgb, var(--m-paper) 92%, var(--m-elevate));
+}
+
+.marginalia-theme .canvas-layer-row--selected {
+  border-color: color-mix(in srgb, var(--m-marker) 45%, transparent);
+  background: color-mix(in srgb, var(--m-marker) 10%, var(--m-elevate));
+}
+
+.marginalia-theme .canvas-layer-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 22%, transparent);
+  background: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  color: var(--m-graphite);
+  cursor: pointer;
+}
+
+.marginalia-theme .canvas-layer-icon-btn:hover {
+  border-color: color-mix(in srgb, var(--m-marker) 35%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-layer-page-select {
+  font-size: 9px;
+  max-width: 4.5rem;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 22%, transparent);
+  background: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .canvas-page-strip {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.marginalia-theme .canvas-page-strip--embedded {
+  padding: 0;
+  border: none;
+}
+
+.marginalia-theme .canvas-studio-bottom-dock {
+  background-color: color-mix(in srgb, var(--m-paper) 94%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+  transition: box-shadow 0.2s ease;
+}
+
+.marginalia-theme .canvas-studio-bottom-dock--expanded {
+  box-shadow: 0 -4px 16px rgba(26, 36, 56, 0.06);
+}
+
+.marginalia-theme .canvas-studio-dock-toggle-btn,
+.marginalia-theme .canvas-studio-dock-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 24%, transparent);
+  background: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+  color: var(--m-graphite);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.marginalia-theme .canvas-studio-dock-toggle-btn:hover,
+.marginalia-theme .canvas-studio-dock-pin-btn:hover {
+  border-color: color-mix(in srgb, var(--m-marker) 35%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-studio-dock-pin-btn--active {
+  border-color: color-mix(in srgb, var(--m-marker) 45%, transparent);
+  background: color-mix(in srgb, var(--m-marker) 12%, var(--m-elevate));
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-studio-dock-save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.marginalia-theme .canvas-page-tab {
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 22%, transparent);
+  background: color-mix(in srgb, var(--m-elevate) 96%, #fff);
+}
+
+.marginalia-theme .canvas-page-tab--active {
+  border-color: color-mix(in srgb, var(--m-marker) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--m-marker) 20%, transparent);
+}
+
+.marginalia-theme .canvas-page-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.marginalia-theme .canvas-page-tab-thumb {
+  width: 18px;
+  height: 24px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--m-ink) 15%, transparent);
+  background: #faf6eb;
+  border-left: 2px solid #c0392b;
+}
+
+.marginalia-theme .canvas-page-tab-label {
+  font-size: 10px;
+  font-weight: 700;
+  width: 4.5rem;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-page-tab-remove,
+.marginalia-theme .canvas-page-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px dashed color-mix(in srgb, var(--m-rule) 35%, transparent);
+  color: var(--m-graphite);
+  cursor: pointer;
+}
+
+.marginalia-theme .canvas-page-add-btn:hover,
+.marginalia-theme .canvas-page-tab-remove:hover {
+  border-color: color-mix(in srgb, var(--m-marker) 40%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-page-sheet {
+  width: 794px;
+  height: 1123px;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(26, 36, 56, 0.12);
+}
+
+.marginalia-theme .canvas-page-sheet--active {
+  outline: 2px solid color-mix(in srgb, var(--m-marker) 55%, transparent);
+  outline-offset: 4px;
+}
+
+.marginalia-theme .canvas-page-sheet-label {
+  position: absolute;
+  top: -22px;
+  left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--m-graphite);
+  z-index: 2;
+}
+
+.marginalia-theme .canvas-page-sheet-paper {
+  width: 794px;
+  height: 1123px;
+  max-height: 1123px;
+  overflow: hidden;
+}
+
+.marginalia-theme .canvas-page-sheet-paper--a4 {
+  box-sizing: border-box;
+}
+
+/* Canvas alignment grid ? minor 24px + major 96px; strength via --canvas-grid-strength (0?1) */
+.marginalia-theme .canvas-page-grid {
+  --canvas-grid-strength: 0.55;
+  --grid-minor-a: calc(var(--canvas-grid-strength) * 0.4);
+  --grid-major-a: calc(var(--canvas-grid-strength) * 0.69);
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(71, 85, 105, var(--grid-minor-a)) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(71, 85, 105, var(--grid-minor-a)) 1px, transparent 1px),
+    linear-gradient(to right, rgba(51, 65, 85, var(--grid-major-a)) 1.5px, transparent 1.5px),
+    linear-gradient(to bottom, rgba(51, 65, 85, var(--grid-major-a)) 1.5px, transparent 1.5px);
+  background-size: 24px 24px, 24px 24px, 96px 96px, 96px 96px;
+}
+
+.marginalia-theme .canvas-page-grid--live {
+  --grid-live-scale: 0.72;
+  --grid-minor-a: calc(var(--canvas-grid-strength) * var(--grid-live-scale) * 0.4);
+  --grid-major-a: calc(var(--canvas-grid-strength) * var(--grid-live-scale) * 0.69);
+}
+
+.marginalia-theme .canvas-grid-strength-control {
+  margin-top: 6px;
+  padding: 6px 4px 2px;
+  border-top: 1px solid color-mix(in srgb, var(--m-rule) 18%, transparent);
+}
+
+.marginalia-theme .canvas-grid-strength-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--m-graphite);
+  letter-spacing: 0.02em;
+}
+
+.marginalia-theme .canvas-grid-strength-value {
+  font-size: 9px;
+  font-weight: 800;
+  font-family: ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-grid-strength-slider {
+  height: 4px;
+  accent-color: var(--m-marker);
+  cursor: pointer;
+}
+
+.marginalia-theme .canvas-shortcut-kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 30%, transparent);
+  background: color-mix(in srgb, var(--m-paper) 90%, var(--m-elevate));
+  font-size: 9px;
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+}
+
+.marginalia-theme .canvas-shortcut-overlay {
+  background: rgba(15, 20, 25, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.marginalia-theme .canvas-shortcut-card {
+  background: color-mix(in srgb, var(--m-elevate) 98%, #fff);
+  border-color: color-mix(in srgb, var(--m-rule) 28%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-shortcut-header,
+.marginalia-theme .canvas-shortcut-footer {
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent);
+}
+
+.marginalia-theme .canvas-shortcut-row {
+  background: color-mix(in srgb, var(--m-paper) 90%, var(--m-elevate));
+}
+
+.marginalia-theme .canvas-shortcut-close {
+  padding: 4px;
+  border-radius: 6px;
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .canvas-shortcut-close:hover {
+  background: color-mix(in srgb, var(--m-marker) 10%, var(--m-elevate));
+}
+
+.marginalia-theme .canvas-studio-tool-btn--active {
+  background: color-mix(in srgb, var(--m-marker) 15%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-marker) 40%, transparent);
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-section-locked {
+  opacity: 0.88;
+}
+
+.marginalia-theme .canvas-page-sheet--drop-target {
+  outline: 2px dashed color-mix(in srgb, var(--m-mint) 65%, transparent);
+  outline-offset: 6px;
+}
+
+.marginalia-theme .canvas-page-snap-guide {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--m-marker) 75%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--m-marker) 40%, transparent);
+  z-index: 40;
+  pointer-events: none;
+}
+
+.marginalia-theme .canvas-page-snap-guide--top {
+  top: 10px;
+}
+
+.marginalia-theme .canvas-page-snap-guide--bottom {
+  bottom: 10px;
+}
+
+.marginalia-theme .canvas-layer-drag-handle--active {
+  border-color: color-mix(in srgb, var(--m-marker) 50%, transparent);
+  background: color-mix(in srgb, var(--m-marker) 12%, var(--m-elevate));
+  color: var(--m-ink);
+}
+
+.marginalia-theme .canvas-layer-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--m-rule) 22%, transparent);
+  color: var(--m-graphite);
+  cursor: grab;
+}
+
+.marginalia-theme .canvas-layer-drag-handle:active {
+  cursor: grabbing;
+}
+
+.marginalia-theme .canvas-layer-row--dragging {
+  opacity: 0.45;
+}
+
+.marginalia-theme .canvas-layer-drop-indicator {
+  height: 2px;
+  margin: 2px 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--m-marker) 70%, transparent);
+}
+
+/* ?? Marginalia resume template (modern-01 ???) ?? */
+.resume-marginalia-accent-bar-fill,
+.resume-template-marginalia .resume-theme-accent-bar,
+.resume-template-marginalia.resume-custom-active .resume-theme-accent-bar,
+.resume-template-marginalia .resume-marginalia-accent-bar {
+  background: #c0392b !important;
+  background-color: #c0392b !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.resume-template-marginalia {
+  --m-rule-step: 28px;
+  background-color: #faf6eb !important;
+  color: #1a2438;
+  border-left: 3px solid #c0392b;
+  box-shadow: none;
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(var(--m-rule-step) - 1px),
+    #c5d9e8 calc(var(--m-rule-step) - 1px),
+    #c5d9e8 var(--m-rule-step)
+  );
+  background-size: 100% var(--m-rule-step);
+  background-position: 0 0;
+  background-origin: content-box;
+  background-clip: border-box;
+  background-attachment: local;
+}
+
+.resume-template-marginalia:not(.resume-theme-has-padding) {
+  padding: var(--m-rule-step) 28px 0 3rem !important;
+}
+
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose p,
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose li,
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose ul,
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose ol,
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-marginalia-ruled-line {
+  line-height: var(--m-rule-step) !important;
+}
+
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose .text-xs,
+.resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose .text-sm {
+  line-height: var(--m-rule-step) !important;
+}
+
+.resume-template-marginalia .resume-marginalia-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-rule-step);
+}
+
+.resume-template-marginalia.resume-marginalia-ruled {
+  line-height: var(--m-rule-step) !important;
+  font-size: 14px;
+}
+
+.resume-template-marginalia.resume-marginalia-ruled .resume-theme-prose {
+  font-size: 14px;
+}
+
+.resume-template-marginalia .resume-marginalia-header {
+  margin-bottom: 0;
+  padding-bottom: var(--m-rule-step);
+  border-bottom: none;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: inset 0 -1px 0 #c5d9e8;
+}
+
+.resume-template-marginalia .resume-marginalia-header-row,
+.resume-template-marginalia .resume-marginalia-header-identity,
+.resume-template-marginalia .resume-marginalia-header-contact {
+  background: transparent;
+}
+
+.resume-template-marginalia .resume-marginalia-name {
+  line-height: var(--m-rule-step) !important;
+  height: calc(var(--m-rule-step) * 2);
+  min-height: calc(var(--m-rule-step) * 2);
+  max-height: calc(var(--m-rule-step) * 2);
+  display: block;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  font-size: 1.625rem;
+}
+
+.resume-template-marginalia .font-display:not(.resume-marginalia-name) {
+  font-family: var(--font-display);
+}
+
+.resume-template-marginalia .resume-marginalia-h2 {
+  line-height: var(--m-rule-step);
+  min-height: var(--m-rule-step);
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+  height: var(--m-rule-step);
+  overflow: hidden;
+  border: none !important;
+  border-bottom: none !important;
+  padding: 0;
+  background-color: #faf6eb;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ruled body text: each wrapped line snaps to 28px leading */
+.resume-template-marginalia .resume-marginalia-ruled-line {
+  display: block;
+  box-sizing: border-box;
+  line-height: var(--m-rule-step) !important;
+  margin: 0;
+  padding: 0;
+}
+
+/* Single-row cells locked to one grid line */
+.resume-template-marginalia .resume-marginalia-contact-row,
+.resume-template-marginalia .resume-marginalia-h2,
+.resume-template-marginalia .resume-marginalia-job-block > .resume-marginalia-ruled-line {
+  height: var(--m-rule-step);
+  min-height: var(--m-rule-step);
+  max-height: var(--m-rule-step);
+  overflow: hidden;
+}
+
+.resume-template-marginalia .resume-marginalia-contact-row {
+  display: flex;
+  align-items: flex-end;
+  box-sizing: border-box;
+  height: var(--m-rule-step);
+  min-height: var(--m-rule-step);
+  max-height: var(--m-rule-step);
+  line-height: var(--m-rule-step) !important;
+  margin: 0;
+  padding: 0;
+  gap: 0.375rem;
+}
+
+/* section-stack gap already separates blocks ??avoid double 28px */
+/* section-stack gap already separates blocks ??avoid double 28px */
+.resume-template-marginalia .resume-marginalia-section-stack > .resume-marginalia-subsection {
+  padding-top: 0;
+  border-top: none;
+}
+
+.resume-template-marginalia .resume-marginalia-section-stack > .resume-marginalia-subsection:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-section-stack > .resume-marginalia-subsection:last-child .resume-marginalia-chip-row {
+  margin-bottom: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-section-stack > .resume-marginalia-subsection:last-child .resume-marginalia-skills-panel {
+  margin-bottom: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-list > li {
+  box-sizing: border-box;
+  line-height: var(--m-rule-step) !important;
+  margin: 0;
+  padding: 0 0 0 1rem;
+  position: relative;
+}
+
+.resume-template-marginalia .resume-marginalia-list > li::before {
+  content: "?";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1rem;
+  text-align: center;
+  line-height: var(--m-rule-step);
+}
+
+.resume-template-marginalia .resume-marginalia-job-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-list > li + li {
+  margin-top: 0;
+}
+
+/* Offscreen PDF export staging ??isolated from playground UI */
+.resume-pdf-export-host {
+  overflow: visible;
+}
+
+.resume-pdf-export-host .resume-template-marginalia {
+  padding-bottom: var(--m-rule-step) !important;
+  box-shadow: none !important;
+}
+
+.resume-pdf-export-host .resume-marginalia-accent-bar-bleed,
+.resume-pdf-export-host .resume-theme-accent-bar-bleed {
+  margin-top: calc(-1 * var(--m-rule-step)) !important;
+  margin-right: calc(-1 * var(--m-rule-step)) !important;
+  margin-left: -3rem !important;
+}
+
+/* During PDF capture on live preview (legacy) */
+.resume-pdf-capture-active.resume-template-marginalia {
+  padding-bottom: var(--m-rule-step) !important;
+  overflow: visible !important;
+}
+
+/* PDF-only: trim trailing padding so full-width export fits one A4 page */
+.resume-pdf-export-compact.resume-template-marginalia {
+  padding: 0 28px 0 3rem !important;
+  padding-bottom: 0 !important;
+  background-origin: content-box !important;
+  background-clip: border-box !important;
+  background-position: 0 0 !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-accent-bar-bleed,
+.resume-pdf-export-compact .resume-theme-accent-bar-bleed {
+  margin-top: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-name {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: var(--m-rule-step) !important;
+  max-height: none !important;
+  display: flex !important;
+  align-items: flex-end !important;
+}
+
+.resume-template-marginalia .resume-marginalia-accent-bar {
+  height: var(--m-rule-step);
+  margin-bottom: 0;
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+
+.resume-marginalia-accent-bar-fill {
+  background: #c0392b !important;
+}
+
+.resume-template-marginalia .resume-marginalia-card {
+  box-sizing: border-box;
+  border: 1px solid rgba(197, 217, 232, 0.85);
+  border-left: 2px solid #c0392b;
+  border-radius: 0.375rem;
+  box-shadow: none;
+  isolation: isolate;
+}
+
+.resume-template-marginalia .resume-marginalia-card--mint {
+  background: #ecf5ee;
+  color: #1a2438;
+}
+
+.resume-template-marginalia .resume-marginalia-card--marker {
+  background: #faf0d4;
+  color: #1a2438;
+}
+
+.resume-template-marginalia .resume-marginalia-card-ruled .text-slate-400,
+.resume-template-marginalia .resume-marginalia-card-ruled .text-slate-500,
+.resume-template-marginalia .resume-marginalia-card-ruled .text-slate-600,
+.resume-template-marginalia .resume-marginalia-card-ruled .text-slate-700,
+.resume-template-marginalia .resume-marginalia-card-ruled .text-slate-900,
+.resume-template-marginalia .resume-marginalia-card-ruled .resume-marginalia-ruled-line {
+  color: #1a2438 !important;
+}
+
+.resume-template-marginalia mark {
+  border: none !important;
+  line-height: inherit;
+  vertical-align: baseline;
+}
+
+.resume-template-marginalia.resume-marginalia-ruled .resume-theme-prose p,
+.resume-template-marginalia.resume-marginalia-ruled .resume-theme-prose li,
+.resume-template-marginalia.resume-marginalia-ruled .resume-marginalia-ruled-line,
+.resume-template-marginalia.resume-marginalia-ruled .resume-marginalia-list > li {
+  font-family: Georgia, "Times New Roman", Times, serif;
+}
+
+.resume-template-marginalia .resume-marginalia-dual-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--m-rule-step);
+  align-items: start;
+}
+
+.resume-template-marginalia .resume-marginalia-dual-col-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-rule-step);
+  min-width: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-dual-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-rule-step);
+  min-height: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-dual-col-body .resume-marginalia-card-ruled {
+  flex: 0 0 auto;
+  min-height: calc(var(--m-rule-step) * 3);
+}
+
+/* Lock ruled grid even when theme customizer sets line-height / padding */
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-padding {
+  padding: var(--m-rule-step) 28px 0 3rem !important;
+}
+
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height,
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height .resume-theme-prose,
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height .resume-theme-prose p,
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height .resume-theme-prose li,
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height .resume-theme-prose ul,
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height .resume-theme-prose ol,
+.resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height .resume-marginalia-ruled-line {
+  line-height: var(--m-rule-step) !important;
+}
+
+.resume-template-marginalia .resume-marginalia-accent-bar-bleed,
+.resume-template-marginalia .resume-marginalia-accent-bar-bleed.resume-theme-accent-bar-bleed {
+  margin-top: calc(-1 * var(--m-rule-step)) !important;
+  margin-right: calc(-1 * var(--m-rule-step)) !important;
+  margin-left: -3rem !important;
+  margin-bottom: 0 !important;
+}
+
+.resume-template-marginalia .resume-marginalia-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--m-rule-step);
+  align-items: start;
+}
+
+.resume-template-marginalia .resume-marginalia-header-identity {
+  min-width: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-header-contact {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-align: right;
+  justify-self: end;
+}
+
+.resume-template-marginalia .resume-marginalia-job-title {
+  line-height: var(--m-rule-step) !important;
+  min-height: var(--m-rule-step);
+  margin: 0;
+  font-size: inherit;
+}
+
+.resume-template-marginalia .resume-marginalia-stack {
+  gap: var(--m-rule-step);
+}
+
+.resume-template-marginalia .resume-marginalia-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--m-rule-step);
+  padding-top: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-card-ruled {
+  padding: 0 0.75rem;
+  gap: 0;
+  overflow: hidden;
+}
+
+.resume-template-marginalia .resume-marginalia-card-ruled > * {
+  margin: 0 !important;
+  flex: 0 0 auto;
+}
+
+.resume-template-marginalia .resume-marginalia-card-min-1 {
+  min-height: var(--m-rule-step);
+}
+
+.resume-template-marginalia .resume-marginalia-chip-row {
+  line-height: var(--m-rule-step);
+  font-size: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-skills-panel {
+  padding: 0 0.75rem;
+  min-height: var(--m-rule-step);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.resume-template-marginalia .resume-marginalia-skills-panel .resume-marginalia-chip-row {
+  padding: 0;
+  margin: 0;
+  line-height: var(--m-rule-step);
+}
+
+.resume-template-marginalia .resume-marginalia-skills-panel .resume-marginalia-chip {
+  align-items: center;
+  vertical-align: top;
+  margin-bottom: 0;
+}
+
+.resume-template-marginalia .resume-marginalia-chip {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  box-sizing: border-box;
+  height: var(--m-rule-step);
+  line-height: var(--m-rule-step) !important;
+  padding: 0 0.35rem;
+  margin: 0 0.5rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+  border: none;
+  border-radius: 0;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: #1a2438;
+}
+
+.resume-template-marginalia .resume-marginalia-chip--mint {
+  background: #d4edda;
+}
+
+.resume-template-marginalia .resume-marginalia-chip--marker {
+  background: #f5d76e;
+}
+
+/* ?? UI chrome: catch all leftover emerald/amber utilities (exclude resume document) ?? */
+.marginalia-theme :is(
+  #config-col,
+  #playground-sidebar,
+  #playground-core,
+  #screen-overview,
+  #tour-guidance-popover,
+  #preview-util-header,
+  #app-sidebar,
+  #premium-tools-tab-view,
+  #preview-col-wrap,
+  #playground-split-divider
+) {
+  & [class~="bg-emerald-50"],
+  & [class*="bg-emerald-50/"],
+  & [class*="from-emerald"],
+  & [class*="to-emerald"] {
+    background-color: color-mix(in srgb, var(--m-mint) 75%, var(--m-paper)) !important;
+    background-image: none !important;
+  }
+
+  & [class~="bg-emerald-600"],
+  & [class~="bg-emerald-700"],
+  & [class*="hover:bg-emerald-700"]:hover,
+  & [class*="hover:bg-emerald-600"]:hover {
+    background-color: var(--m-red) !important;
+  }
+
+  & [class~="bg-emerald-500"]:not(button) {
+    background-color: var(--m-rule) !important;
+  }
+
+  & [class*="text-emerald-"] {
+    color: var(--m-red) !important;
+  }
+
+  & [class*="text-emerald-900"] {
+    color: var(--m-ink) !important;
+  }
+
+  & [class*="text-emerald-800"] {
+    color: var(--m-ink) !important;
+  }
+
+  & [class*="border-emerald-"] {
+    border-color: color-mix(in srgb, var(--m-rule) 40%, transparent) !important;
+  }
+
+  & [class~="border-emerald-600"],
+  & [class*="border-2"][class*="border-emerald-600"] {
+    border-color: var(--m-red) !important;
+  }
+
+  & [class*="ring-emerald-"] {
+    --tw-ring-color: color-mix(in srgb, var(--m-rule) 45%, transparent) !important;
+  }
+
+  & [class*="hover:border-emerald-"]:hover {
+    border-color: color-mix(in srgb, var(--m-rule) 55%, transparent) !important;
+  }
+
+  & [class*="hover:border-purple-"]:hover {
+    border-color: color-mix(in srgb, var(--m-marker) 70%, transparent) !important;
+  }
+
+  & [class*="hover:bg-emerald-50"]:hover,
+  & [class*="hover:bg-emerald-100"]:hover {
+    background-color: color-mix(in srgb, var(--m-mint) 90%, var(--m-elevate)) !important;
+  }
+
+  & [class*="hover:bg-blue-"]:hover {
+    background-color: color-mix(in srgb, var(--m-mint) 85%, var(--m-elevate)) !important;
+  }
+
+  & [class*="focus:border-emerald-"]:focus {
+    border-color: var(--m-red) !important;
+  }
+
+  & [class*="stroke-emerald-"] {
+    stroke: var(--m-red) !important;
+  }
+
+  & [class*="bg-amber-50"],
+  & [class*="bg-amber-50/"],
+  & [class*="from-amber"] {
+    background-color: color-mix(in srgb, var(--m-marker) 40%, var(--m-paper)) !important;
+    background-image: none !important;
+  }
+
+  & [class*="text-amber-"] {
+    color: var(--m-graphite) !important;
+  }
+
+  & [class*="border-amber-"] {
+    border-color: color-mix(in srgb, var(--m-marker) 55%, transparent) !important;
+  }
+
+  & [class*="bg-amber-500"],
+  & [class*="bg-amber-600"],
+  & [class*="hover:bg-amber-600"]:hover,
+  & [class*="hover:bg-amber-100"]:hover {
+    background-color: var(--m-red) !important;
+  }
+}
+
+.marginalia-theme .notebook-callout {
+  background-color: color-mix(in srgb, var(--m-marker) 38%, var(--m-paper));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 35%, transparent);
+  border-left: 3px solid var(--m-margin);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.marginalia-theme .notebook-chip {
+  background-color: var(--m-mint);
+  color: var(--m-ink);
+  border: 1px solid color-mix(in srgb, var(--m-rule) 35%, transparent);
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.marginalia-theme .notebook-chip:hover {
+  background-color: color-mix(in srgb, var(--m-mint) 80%, var(--m-elevate));
+}
+
+.marginalia-theme .notebook-node {
+  background-color: color-mix(in srgb, var(--m-paper) 94%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-ink) 10%, transparent);
+  border-left: 3px solid var(--m-margin);
+  border-radius: 0.75rem;
+}
+
+.marginalia-theme .notebook-node:hover {
+  background-color: var(--m-elevate);
+  border-color: color-mix(in srgb, var(--m-rule) 45%, transparent);
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .notebook-tip {
+  background-color: color-mix(in srgb, var(--m-marker) 42%, var(--m-paper));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 30%, transparent);
+  border-radius: 0.75rem;
+}
+
+/* ?? Semantic score / toggle / status (Marginalia) ?? */
+.marginalia-theme .score-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid;
+  font-size: 0.625rem;
+  font-weight: 700;
+  font-family: var(--font-sans);
+}
+
+.marginalia-theme .score-badge--high {
+  background-color: var(--m-mint);
+  color: var(--m-ink);
+  border-color: color-mix(in srgb, var(--m-rule) 40%, transparent);
+}
+
+.marginalia-theme .score-badge--mid {
+  background-color: color-mix(in srgb, var(--m-marker) 55%, var(--m-paper));
+  color: var(--m-ink);
+  border-color: color-mix(in srgb, var(--m-rule) 35%, transparent);
+}
+
+.marginalia-theme .score-badge--low {
+  background-color: color-mix(in srgb, var(--m-eraser) 45%, var(--m-paper));
+  color: var(--m-red);
+  border-color: color-mix(in srgb, var(--m-red) 25%, transparent);
+}
+
+.marginalia-theme .score-bar--high {
+  background-color: var(--m-rule);
+}
+
+.marginalia-theme .score-bar--mid {
+  background-color: color-mix(in srgb, var(--m-marker) 80%, var(--m-graphite));
+}
+
+.marginalia-theme .score-bar--low {
+  background-color: var(--m-red);
+}
+
+.marginalia-theme .score-text--high {
+  color: var(--m-ink);
+}
+
+.marginalia-theme .score-text--mid {
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .score-text--low {
+  color: var(--m-red);
+}
+
+.marginalia-theme .btn-toggle-active {
+  background-color: var(--m-mint);
+  color: var(--m-ink);
+  border: 1px solid color-mix(in srgb, var(--m-rule) 40%, transparent);
+}
+
+.marginalia-theme .btn-toggle-inactive {
+  background-color: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  color: var(--m-graphite);
+  border: 1px solid color-mix(in srgb, var(--m-ink) 10%, transparent);
+}
+
+.marginalia-theme .btn-segment-active {
+  background-color: var(--m-mint);
+  color: var(--m-ink);
+  font-weight: 700;
+}
+
+.marginalia-theme .btn-segment-idle {
+  background-color: transparent;
+  color: var(--m-graphite);
+}
+
+.marginalia-theme .btn-segment-idle:hover {
+  color: var(--m-ink);
+  background-color: color-mix(in srgb, var(--m-paper) 90%, var(--m-elevate));
+}
+
+.marginalia-theme .field-card {
+  background-color: color-mix(in srgb, var(--m-paper) 94%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-ink) 10%, transparent);
+  border-radius: 0.75rem;
+}
+
+.marginalia-theme .select-field {
+  background-color: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 35%, transparent);
+  color: var(--m-ink);
+  font-family: var(--font-sans);
+}
+
+.marginalia-theme .select-field:focus {
+  outline: none;
+  border-color: var(--m-red);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--m-red) 15%, transparent);
+}
+
+.marginalia-theme .btn-dock-active {
+  background-color: var(--m-red);
+  color: white;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--m-red) 30%, transparent);
+}
+
+.marginalia-theme .status-warn {
+  background-color: color-mix(in srgb, var(--m-marker) 38%, var(--m-paper));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 30%, transparent);
+  border-left: 3px solid var(--m-margin);
+  border-radius: 0.75rem;
+}
+
+.marginalia-theme .modal-header-notebook {
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--m-marker) 35%, var(--m-paper)),
+    color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate))
+  );
+  border-bottom: 1px solid color-mix(in srgb, var(--m-rule) 25%, transparent);
+}
+
+.marginalia-theme .utility-flyout {
+  background-color: color-mix(in srgb, var(--m-paper) 97%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 30%, transparent);
+  border-left: 3px solid var(--m-margin);
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .utility-dock {
+  background-color: color-mix(in srgb, var(--m-paper) 96%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-rule) 28%, transparent);
+}
+
+.marginalia-theme .nav-tab-active {
+  background-color: color-mix(in srgb, var(--m-paper) 98%, var(--m-elevate));
+  color: var(--m-red);
+  border: 1px solid color-mix(in srgb, var(--m-rule) 35%, transparent);
+  border-left: 2px solid var(--m-margin);
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .notebook-item {
+  background-color: color-mix(in srgb, var(--m-paper) 92%, var(--m-elevate));
+  border: 1px solid color-mix(in srgb, var(--m-ink) 10%, transparent);
+  border-radius: 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.marginalia-theme .notebook-item:hover {
+  border-color: color-mix(in srgb, var(--m-rule) 50%, transparent);
+  box-shadow: var(--m-card-shadow);
+}
+
+.marginalia-theme .wizard-step-done,
+.marginalia-theme .wizard-step-active {
+  background-color: var(--m-red);
+  color: white;
+}
+
+.marginalia-theme .wizard-step-idle {
+  background-color: color-mix(in srgb, var(--m-paper) 88%, var(--m-elevate));
+  color: var(--m-graphite);
+  border: 1px solid color-mix(in srgb, var(--m-ink) 12%, transparent);
+}
+
+.marginalia-theme #preview-col > .relative {
+  border-color: color-mix(in srgb, var(--m-rule) 25%, transparent);
+}
+
+/* Default utilities (dark mode / fallback) */
+.btn-accent {
+  @apply bg-emerald-600 text-white font-bold transition-all cursor-pointer hover:bg-emerald-700 active:scale-[0.98];
+}
+
+.panel-surface {
+  @apply rounded-xl border border-slate-200/80 bg-white;
+}
+
+.panel-muted {
+  @apply rounded-xl border border-slate-200/60 bg-slate-50/50;
+}
+
+.input-field {
+  @apply w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-300;
+}
+
+/* Resume theme customization ??only properties with explicit CSS vars apply */
+.resume-custom-active.resume-theme-has-padding {
+  padding: var(--resume-page-padding);
+}
+
+.resume-custom-active.resume-theme-has-sheet-radius {
+  border-radius: var(--resume-sheet-radius) !important;
+}
+
+.resume-custom-active.resume-theme-has-card-radius .resume-theme-card,
+.resume-custom-active.resume-theme-has-card-radius .resume-theme-chip {
+  border-radius: var(--resume-card-radius) !important;
+}
+
+.resume-custom-active.resume-theme-has-body-font {
+  font-family: var(--resume-body-font);
+}
+
+.resume-custom-active.resume-theme-has-base-size {
+  font-size: var(--resume-base-size);
+}
+
+.resume-custom-active.resume-theme-has-line-height {
+  line-height: var(--resume-line-height);
+}
+
+.resume-custom-active.resume-theme-has-body-color {
+  color: var(--resume-body-color);
+}
+
+.resume-custom-active.resume-theme-has-bg-color {
+  background-color: var(--resume-bg-color);
+}
+
+.resume-custom-active .resume-theme-accent-bar-bleed {
+  margin-left: calc(-1 * var(--resume-page-padding, 2rem));
+  margin-right: calc(-1 * var(--resume-page-padding, 2rem));
+  margin-top: calc(-1 * var(--resume-page-padding, 2rem));
+}
+
+.resume-custom-active .resume-theme-section-stack > * + * {
+  margin-top: var(--resume-section-gap);
+}
+
+.resume-custom-active .resume-theme-body-font {
+  font-family: var(--resume-body-font);
+}
+
+.resume-custom-active .resume-theme-accent {
+  color: var(--resume-accent) !important;
+}
+
+.resume-custom-active .resume-theme-muted {
+  color: var(--resume-muted-color) !important;
+}
+
+.resume-custom-active .resume-theme-border {
+  border-color: var(--resume-border-color) !important;
+}
+
+.resume-custom-active .resume-theme-section-heading-border {
+  border-bottom: 1px solid var(--resume-border-color, rgb(226 232 240));
+  padding-bottom: 0.25rem;
+}
+
+.resume-custom-active .resume-theme-section-title {
+  border-bottom: 1px solid var(--resume-border-color, rgb(226 232 240));
+  text-transform: var(--resume-section-title-transform, uppercase);
+}
+
+.resume-custom-active .resume-theme-accent-bar {
+  background: linear-gradient(to right, var(--resume-accent), var(--resume-accent-end, var(--resume-accent))) !important;
+  min-height: 0.625rem;
+  flex-shrink: 0;
+}
+
+.resume-custom-active .resume-theme-chip {
+  background-color: var(--resume-accent-soft) !important;
+  color: var(--resume-accent) !important;
+  border-color: var(--resume-accent-border) !important;
+}
+
+.resume-custom-active .resume-theme-dot {
+  background-color: var(--resume-accent) !important;
+}
+
+.resume-custom-active .resume-theme-card {
+  background-color: var(--resume-card-bg) !important;
+  border-color: var(--resume-border-color) !important;
+}
+
+.resume-custom-active.resume-theme-has-base-size .resume-theme-prose {
+  font-size: var(--resume-base-size);
+}
+
+.resume-custom-active.resume-theme-has-base-size .resume-theme-prose .text-xs {
+  font-size: calc(var(--resume-base-size) * 0.8571429) !important;
+}
+
+.resume-custom-active.resume-theme-has-base-size .resume-theme-prose .text-sm {
+  font-size: var(--resume-base-size) !important;
+}
+
+.resume-custom-active.resume-theme-has-base-size .resume-theme-prose .text-base {
+  font-size: calc(var(--resume-base-size) * 1.142857) !important;
+}
+
+.resume-custom-active.resume-theme-has-line-height .resume-theme-prose,
+.resume-custom-active.resume-theme-has-line-height .resume-theme-prose p,
+.resume-custom-active.resume-theme-has-line-height .resume-theme-prose li,
+.resume-custom-active.resume-theme-has-line-height .resume-theme-prose ul {
+  line-height: var(--resume-line-height) !important;
+}
+
+.resume-custom-active .resume-theme-highlight-bg {
+  background-color: var(--resume-accent-soft) !important;
+}
+
+.resume-custom-active .resume-theme-highlight-border {
+  border-color: var(--resume-accent) !important;
+}
+
+.resume-custom-active .resume-theme-tailored-bg {
+  background-color: color-mix(in srgb, var(--resume-accent) 8%, var(--m-elevate)) !important;
+}
+
+.resume-custom-active .resume-theme-tailored-border {
+  border-color: var(--resume-accent) !important;
+}
+
+.resume-custom-active .resume-theme-name {
+  font-family: var(--resume-heading-font, var(--resume-body-font));
+  font-size: var(--resume-name-size);
+  color: var(--resume-heading-color) !important;
+}
+
+.resume-custom-active .resume-theme-heading {
+  color: var(--resume-heading-color) !important;
+}
+
+.resume-custom-active .resume-theme-section-heading {
+  color: var(--resume-muted-color) !important;
+  text-transform: var(--resume-section-title-transform, uppercase);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Playground ????????Nav | ?? | ?? */
+#playground-core {
+  height: 100%;
+}
+
+#playground-split-divider {
+  touch-action: none;
+}
+
+#playground-split-pane[data-dragging="true"] {
+  cursor: col-resize;
+}
+
+#playground-split-pane[data-dragging="true"] * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+#config-col,
+#preview-col {
+  scrollbar-gutter: stable;
+}
+
+@media (min-width: 1024px) {
+  #preview-col #resume-container-box {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Custom transitions and scroll bars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

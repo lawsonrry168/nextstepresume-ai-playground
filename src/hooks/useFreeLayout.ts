@@ -1,0 +1,191 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ResumeData } from "../types";
+import { TemplateFamily } from "../lib/resumeTemplateCatalog";
+import {
+  FREE_LAYOUT_ENABLED_KEY,
+  FREE_LAYOUT_SNAP_KEY,
+  FREE_LAYOUT_LIVE_PREVIEW_KEY,
+  FreeLayoutPosition,
+  applyMagneticSnap,
+  buildFreeLayoutSections,
+  mergeFreeLayoutPositions,
+  createFamilyDefaultPositions,
+  FREE_LAYOUT_CANVAS,
+  createFreeLayoutPresetPositions,
+  FreeLayoutPresetId,
+  readFamilyLayoutStorage,
+  writeFamilyLayoutStorage,
+} from "../lib/resumeFreeLayout";
+import { CANVAS_PAGE_HEIGHT } from "../lib/canvasStudioTypes";
+import { clampPositionToA4Page } from "../lib/canvasPageSnap";
+import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
+
+function readBool(key: string, fallback: boolean): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return raw === "true";
+  } catch {
+    return fallback;
+  }
+}
+
+function loadPositionsForFamily(
+  family: TemplateFamily,
+  sectionIds: string[],
+): Record<string, FreeLayoutPosition> {
+  const storage = readFamilyLayoutStorage();
+  return mergeFreeLayoutPositions(storage[family] ?? null, sectionIds, family);
+}
+
+export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFamily) {
+  const sections = useMemo(() => buildFreeLayoutSections(resumeData), [resumeData]);
+  const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
+  const familyRef = useRef(templateFamily);
+
+  const [enabled, setEnabledState] = useState(() => readBool(FREE_LAYOUT_ENABLED_KEY, false));
+  const [snapEnabled, setSnapEnabledState] = useState(() => readBool(FREE_LAYOUT_SNAP_KEY, true));
+  const [livePreview, setLivePreviewState] = useState(() => readBool(FREE_LAYOUT_LIVE_PREVIEW_KEY, true));
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const skipNextPersistFlash = useRef(true);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const markSaved = useCallback(() => {
+    setLastSavedAt(Date.now());
+  }, []);
+
+  const [positions, setPositions] = useState<Record<string, FreeLayoutPosition>>(() =>
+    loadPositionsForFamily(templateFamily, sectionIds),
+  );
+
+  useEffect(() => {
+    if (familyRef.current === templateFamily) return;
+    familyRef.current = templateFamily;
+    skipNextPersistFlash.current = true;
+    setPositions(loadPositionsForFamily(templateFamily, sectionIds));
+  }, [templateFamily, sectionIds]);
+
+  useEffect(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      const storage = readFamilyLayoutStorage();
+      storage[templateFamily] = positions;
+      writeFamilyLayoutStorage(storage);
+      if (skipNextPersistFlash.current) {
+        skipNextPersistFlash.current = false;
+        return;
+      }
+      markSaved();
+    }, 320);
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
+  }, [positions, templateFamily, markSaved]);
+
+  useEffect(() => {
+    setPositions((prev) => mergeFreeLayoutPositions(prev, sectionIds, templateFamily));
+  }, [sectionIds, templateFamily]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FREE_LAYOUT_ENABLED_KEY, String(enabled));
+    } catch {
+      /* ignore */
+    }
+  }, [enabled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FREE_LAYOUT_SNAP_KEY, String(snapEnabled));
+    } catch {
+      /* ignore */
+    }
+  }, [snapEnabled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FREE_LAYOUT_LIVE_PREVIEW_KEY, String(livePreview));
+    } catch {
+      /* ignore */
+    }
+  }, [livePreview]);
+
+  const setEnabled = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setEnabledState(value);
+  }, []);
+
+  const setSnapEnabled = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setSnapEnabledState(value);
+  }, []);
+
+  const setLivePreview = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
+    setLivePreviewState(value);
+  }, []);
+
+  const updatePosition = useCallback(
+    (id: string, next: FreeLayoutPosition, options?: { skipSnap?: boolean; constrainA4?: boolean }) => {
+      setPositions((prev) => {
+        const pageHeight = options?.constrainA4 ? CANVAS_PAGE_HEIGHT : undefined;
+        const merged = { ...prev[id], ...next };
+        const candidate = options?.skipSnap
+          ? merged
+          : snapEnabled
+            ? applyMagneticSnap(id, merged, prev, FREE_LAYOUT_CANVAS.width, {
+                pageHeight,
+                pageId: merged.pageId ?? prev[id]?.pageId,
+                margin: options?.constrainA4 ? CANVAS_PAGE_MARGIN : 0,
+              })
+            : merged;
+        const final = options?.constrainA4 ? clampPositionToA4Page(candidate) : candidate;
+        return { ...prev, [id]: final };
+      });
+    },
+    [snapEnabled],
+  );
+
+  const applyPositionsBatch = useCallback(
+    (updates: Record<string, FreeLayoutPosition>, options?: { constrainA4?: boolean }) => {
+      setPositions((prev) => {
+        const next = { ...prev };
+        for (const [id, pos] of Object.entries(updates)) {
+          next[id] = options?.constrainA4 ? clampPositionToA4Page(pos) : pos;
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  const resetLayout = useCallback(() => {
+    setPositions(createFamilyDefaultPositions(templateFamily, sectionIds));
+  }, [sectionIds, templateFamily]);
+
+  const applyPreset = useCallback(
+    (presetId: FreeLayoutPresetId) => {
+      setPositions(createFreeLayoutPresetPositions(presetId, sectionIds));
+    },
+    [sectionIds],
+  );
+
+  const applyFamilyLayout = useCallback(() => {
+    setPositions(createFamilyDefaultPositions(templateFamily, sectionIds));
+  }, [sectionIds, templateFamily]);
+
+  return {
+    sections,
+    positions,
+    enabled,
+    setEnabled,
+    snapEnabled,
+    setSnapEnabled,
+    livePreview,
+    setLivePreview,
+    updatePosition,
+    applyPositionsBatch,
+    resetLayout,
+    applyPreset,
+    applyFamilyLayout,
+    templateFamily,
+    lastSavedAt,
+  };
+}

@@ -1,0 +1,59 @@
+import React, { CSSProperties, ReactNode } from "react";
+import { ResolvedResumeTheme } from "../../lib/resumeThemeCustomization";
+
+export interface ResumeThemeRootProps {
+  resolved: ResolvedResumeTheme;
+  id?: string;
+  className?: string;
+  style?: CSSProperties;
+  exportPage?: boolean;
+  children: ReactNode;
+}
+
+function hasVar(cssVars: CSSProperties, key: string): boolean {
+  return key in (cssVars as Record<string, string>);
+}
+
+export default function ResumeThemeRoot({
+  resolved,
+  id = "resume-printable-sheet",
+  className = "",
+  style,
+  exportPage = false,
+  children,
+}: ResumeThemeRootProps) {
+  const sectionTitleTransform = resolved.uppercaseSectionTitles ? "uppercase" : "none";
+  const vars = resolved.cssVars;
+
+  const flagClasses = resolved.active
+    ? [
+        "resume-custom-active",
+        hasVar(vars, "--resume-page-padding") ? "resume-theme-has-padding" : "",
+        hasVar(vars, "--resume-sheet-radius") ? "resume-theme-has-sheet-radius" : "",
+        hasVar(vars, "--resume-card-radius") ? "resume-theme-has-card-radius" : "",
+        hasVar(vars, "--resume-body-font") ? "resume-theme-has-body-font" : "",
+        hasVar(vars, "--resume-base-size") ? "resume-theme-has-base-size" : "",
+        hasVar(vars, "--resume-line-height") ? "resume-theme-has-line-height" : "",
+        hasVar(vars, "--resume-body-color") ? "resume-theme-has-body-color" : "",
+        hasVar(vars, "--resume-bg-color") ? "resume-theme-has-bg-color" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
+
+  return (
+    <div
+      id={id}
+      className={`resume-theme-root ${flagClasses} ${className}`.trim()}
+      style={{
+        ...resolved.cssVars,
+        ...style,
+        ["--resume-section-title-transform" as string]: sectionTitleTransform,
+      }}
+      data-theme-custom={resolved.active ? "true" : "false"}
+      {...(exportPage ? { "data-resume-export-page": "" } : {})}
+    >
+      {children}
+    </div>
+  );
+}

@@ -1,0 +1,153 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ResumeData } from "../types";
+import { initialResumeData, initialJobDescription } from "../data";
+import { normalizeTemplateStyle, type TemplateStyle } from "../lib/resumeTemplateCatalog";
+
+import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
+
+const STORAGE_KEYS = {
+  resume: NSR_STORAGE_KEYS.workspaceResume,
+  jd: NSR_STORAGE_KEYS.workspaceJd,
+  template: NSR_STORAGE_KEYS.workspaceTemplate,
+} as const;
+
+export type SaveStatus = "saved" | "saving" | "idle" | "error";
+
+export function useResumeWorkspace(options?: {
+  onAutoSaved?: () => void;
+  onAutoSaveFailed?: (message: string) => void;
+}) {
+  const [resumeData, setResumeData] = useState<ResumeData>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.resume);
+      if (saved) return JSON.parse(saved);
+    } catch {
+      /* ignore */
+    }
+    return initialResumeData;
+  });
+
+  const [jobDescription, setJobDescription] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.jd);
+      if (saved) return saved;
+    } catch {
+      /* ignore */
+    }
+    return initialJobDescription;
+  });
+
+  const [activeTemplate, setActiveTemplate] = useState<TemplateStyle>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.template);
+      return normalizeTemplateStyle(saved);
+    } catch {
+      /* ignore */
+    }
+    return "modern-01";
+  });
+
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [lastSavedTime, setLastSavedTime] = useState<string>(() => {
+    try {
+      if (localStorage.getItem(STORAGE_KEYS.resume)) {
+        return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  });
+
+  const [autoSaveShouldFail, setAutoSaveShouldFail] = useState(false);
+  const skipInitialAutoSaveRef = useRef(true);
+  const onAutoSavedRef = useRef(options?.onAutoSaved);
+  const onAutoSaveFailedRef = useRef(options?.onAutoSaveFailed);
+
+  useEffect(() => {
+    onAutoSavedRef.current = options?.onAutoSaved;
+    onAutoSaveFailedRef.current = options?.onAutoSaveFailed;
+  }, [options?.onAutoSaved, options?.onAutoSaveFailed]);
+
+  const persistWorkspace = useCallback(() => {
+    localStorage.setItem(STORAGE_KEYS.resume, JSON.stringify(resumeData));
+    localStorage.setItem(STORAGE_KEYS.jd, jobDescription);
+    localStorage.setItem(STORAGE_KEYS.template, activeTemplate);
+    const formattedTime = new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+    setLastSavedTime(formattedTime);
+    setSaveStatus("saved");
+  }, [resumeData, jobDescription, activeTemplate]);
+
+  const handleManualSave = useCallback(() => {
+    try {
+      persistWorkspace();
+      return true;
+    } catch {
+      setSaveStatus("error");
+      return false;
+    }
+  }, [persistWorkspace]);
+
+  const handleResetToDefault = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.resume);
+    localStorage.removeItem(STORAGE_KEYS.jd);
+    localStorage.removeItem(STORAGE_KEYS.template);
+    setResumeData(initialResumeData);
+    setJobDescription(initialJobDescription);
+    setActiveTemplate("modern-01");
+    setSaveStatus("saved");
+    setLastSavedTime("");
+  }, []);
+
+  useEffect(() => {
+    if (saveStatus === "idle") {
+      setSaveStatus("saved");
+    }
+  }, [saveStatus]);
+
+  useEffect(() => {
+    if (skipInitialAutoSaveRef.current) {
+      skipInitialAutoSaveRef.current = false;
+      return;
+    }
+
+    setSaveStatus("saving");
+    const timer = setTimeout(() => {
+      if (autoSaveShouldFail) {
+        setSaveStatus("error");
+        onAutoSaveFailedRef.current?.("自動存檔失敗：偵測到啟用攔截模擬。");
+        return;
+      }
+      try {
+        persistWorkspace();
+        onAutoSavedRef.current?.();
+      } catch (err: unknown) {
+        setSaveStatus("error");
+        onAutoSaveFailedRef.current?.(err instanceof Error ? err.message : String(err));
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [resumeData, jobDescription, activeTemplate, autoSaveShouldFail, persistWorkspace]);
+
+  return {
+    resumeData,
+    setResumeData,
+    jobDescription,
+    setJobDescription,
+    activeTemplate,
+    setActiveTemplate,
+    saveStatus,
+    setSaveStatus,
+    lastSavedTime,
+    autoSaveShouldFail,
+    setAutoSaveShouldFail,
+    handleManualSave,
+    handleResetToDefault,
+    persistWorkspace,
+  };
+}

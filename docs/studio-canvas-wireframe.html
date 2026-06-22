@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Studio Canvas — Phase 0 + 1 Wireframe</title>
+  <style>
+    :root {
+      --desk: #0f1419;
+      --desk-grid: rgba(255,255,255,0.04);
+      --toolbar: #151b28;
+      --toolbar-border: #2a3344;
+      --accent: #10b981;
+      --paper: #faf6eb;
+      --ink: #1a2438;
+      --muted: #8b9cb3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0a0e14;
+      color: #e8edf5;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 { font-size: 1.25rem; margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 24px; }
+    .frame {
+      max-width: 1100px;
+      margin: 0 auto;
+      border: 1px solid var(--toolbar-border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45);
+    }
+    /* Studio header */
+    .studio-header {
+      background: var(--toolbar);
+      border-bottom: 1px solid var(--toolbar-border);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+    }
+    .studio-logo { color: var(--accent); font-weight: 800; letter-spacing: 0.05em; }
+    .tabs { display: flex; gap: 4px; }
+    .tab {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      color: var(--muted);
+      background: transparent;
+    }
+    .tab.active {
+      background: rgba(16,185,129,0.15);
+      border-color: rgba(16,185,129,0.35);
+      color: #6ee7b7;
+      font-weight: 700;
+    }
+    .tab.canvas-tab.active {
+      background: rgba(99,102,241,0.15);
+      border-color: rgba(99,102,241,0.35);
+      color: #a5b4fc;
+    }
+    .spacer { flex: 1; }
+    .chip { padding: 3px 8px; border-radius: 6px; border: 1px solid var(--toolbar-border); font-family: monospace; font-size: 10px; }
+
+    /* Canvas viewport */
+    .viewport {
+      position: relative;
+      height: 520px;
+      background: var(--desk);
+      background-image:
+        radial-gradient(circle at 1px 1px, var(--desk-grid) 1px, transparent 0);
+      background-size: 24px 24px;
+      overflow: hidden;
+    }
+    .hint {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--muted);
+      background: rgba(21,27,40,0.85);
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--toolbar-border);
+      z-index: 2;
+    }
+  /* A4 sheet on desk */
+    .transform-layer {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0.72);
+      transform-origin: center center;
+    }
+    .a4 {
+      width: 280px;
+      height: 396px;
+      background: var(--paper);
+      border-left: 3px solid #c0392b;
+      border-radius: 4px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      padding: 20px 18px;
+      color: var(--ink);
+      position: relative;
+    }
+    .a4::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(transparent 27px, #c5d9e8 28px);
+      background-size: 100% 28px;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .block {
+      height: 28px;
+      background: rgba(26,36,56,0.08);
+      border-radius: 3px;
+      margin-bottom: 8px;
+    }
+    .block.wide { width: 85%; }
+    .block.mid { width: 60%; }
+    .block.sm { width: 40%; }
+    /* Free layout blocks */
+    .section {
+      position: absolute;
+      border: 1.5px dashed rgba(16,185,129,0.5);
+      border-radius: 6px;
+      background: rgba(255,255,255,0.6);
+      font-size: 8px;
+      font-weight: 700;
+      color: #047857;
+      display: flex;
+      align-items: flex-start;
+      padding: 4px;
+    }
+    .section.header { left: 18px; top: 18px; width: 244px; height: 52px; }
+    .section.exp { left: 18px; top: 82px; width: 244px; height: 120px; }
+    .section.skills { left: 18px; top: 214px; width: 110px; height: 70px; }
+    .section.edu { left: 140px; top: 214px; width: 122px; height: 70px; }
+
+    /* Bottom toolbar */
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px;
+      background: var(--toolbar);
+      border-top: 1px solid var(--toolbar-border);
+      font-size: 11px;
+    }
+    .tool-btn {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--toolbar-border);
+      background: #1c2433;
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+    }
+    .zoom { font-family: monospace; font-weight: 700; min-width: 48px; text-align: center; }
+
+    /* Legend */
+  .legend {
+      max-width: 1100px;
+      margin: 28px auto 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--toolbar);
+      border: 1px solid var(--toolbar-border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card h3 { font-size: 0.8rem; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card ul { font-size: 0.82rem; color: #c5d0e0; line-height: 1.6; padding-left: 18px; }
+    .phase-tag {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .p0 { background: #1e3a5f; color: #93c5fd; }
+    .p1 { background: #3b1f4a; color: #d8b4fe; }
+  </style>
+</head>
+<body>
+  <h1>NextStepResume.ai — Studio Canvas</h1>
+  <p class="subtitle">Phase 0 + Phase 1 線框圖 · Marginalia Night Desk</p>
+
+  <div class="frame">
+    <div class="studio-header">
+      <span class="studio-logo">STUDIO</span>
+      <div class="tabs">
+        <span class="tab">單頁</span>
+        <span class="tab">三欄</span>
+        <span class="tab canvas-tab active">Canvas</span>
+      </div>
+      <span style="color:var(--toolbar-border)">|</span>
+      <span class="tab" style="opacity:0.7">佈局 · 磁吸 · 預設</span>
+      <span class="spacer"></span>
+      <span class="chip">ATS 78%</span>
+      <span class="tab">Exit</span>
+    </div>
+
+    <div class="viewport">
+      <div class="hint">滾輪平移 · Ctrl+滾輪縮放 · 空白鍵拖曳 · 中鍵拖曳</div>
+      <div class="transform-layer">
+        <div class="a4">
+          <div class="section header">HEADER</div>
+          <div class="section exp">EXPERIENCE</div>
+          <div class="section skills">SKILLS</div>
+          <div class="section edu">EDUCATION</div>
+          <div class="block wide" style="margin-top:300px; opacity:0.3"></div>
+          <div class="block mid" style="opacity:0.25"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-toolbar">
+      <span class="tool-btn">−</span>
+      <span class="zoom">72%</span>
+      <span class="tool-btn">+</span>
+      <span style="color:var(--toolbar-border)">|</span>
+      <span class="tool-btn" title="適合畫面">⤢</span>
+      <span class="tool-btn" title="重設">↺</span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="card">
+      <h3><span class="phase-tag p0">Phase 0</span>Canvas Tab</h3>
+      <ul>
+        <li>Studio 第四個分頁：Canvas</li>
+        <li>整合 FreeLayoutStudioCanvas 為進階佈局</li>
+        <li>進入 Canvas 自動啟用自由佈局</li>
+        <li>工具列與單頁模式共用（模板、主題、匯出）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="phase-tag p1">Phase 1</span>Viewport</h3>
+      <ul>
+        <li>無限深色 desk + 中央 A4 畫布</li>
+        <li>平移：滾輪 / 空白鍵+拖曳 / 中鍵</li>
+        <li>縮放：Ctrl+滾輪 + 底部工具列</li>
+        <li>適合畫面 · 重設視角</li>
+        <li>持久化：<code>nsr_canvas_viewport</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="phase-tag p1">Phase 2</span>完整 Canvas</h3>
+      <ul>
+        <li>左側圖層面板：顯示/隱藏、鎖定、排序、跨頁指派</li>
+        <li>底部頁面列：多頁 A4、新增/刪除/重新命名</li>
+        <li>快捷鍵覆蓋層：<code>?</code> 開啟完整快捷鍵表</li>
+        <li>持久化：<code>nsr_canvas_pages</code>、<code>nsr_canvas_layers</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="phase-tag p1" style="background:#1a3d2e;color:#6ee7b7">Phase 4</span>進階互動</h3>
+      <ul>
+        <li>分頁線吸附：拖至頁面頂/底緣自動跨頁</li>
+        <li>觸控長按圖層握把拖曳排序</li>
+        <li>PDF 超長內容自動分頁（不再裁切）</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>架構</h3>
+      <ul>
+        <li><code>StudioViewMode</code>：single | compare | canvas</li>
+        <li><code>CanvasStudioViewport</code> 包裝內容</li>
+        <li><code>useCanvasViewport</code> 管理 pan/zoom</li>
+        <li>DOM + motion/react（PDF 相容）</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,670 @@
+html.dark {
+  color-scheme: dark;
+  background-color: #0a0e14;
+}
+
+html:not(.dark) {
+  color-scheme: light;
+  background-color: #faf6eb;
+}
+
+html.dark body,
+html.dark #root {
+  background-color: #0a0e14;
+}
+
+html:not(.dark) body,
+html:not(.dark) #root {
+  background-color: #faf6eb;
+}
+
+/**
+ * Marginalia Night Desk — full-site dark mode
+ * UI chrome uses deep ink surfaces; resume preview stays paper-white (WYSIWYG).
+ */
+
+html.dark .marginalia-theme {
+  --m-paper: #0a0e14;
+  --m-paper-line: #1a2438;
+  --m-margin: #e8635a;
+  --m-rule: #4a7faa;
+  --m-ink: #e8edf4;
+  --m-marker: #b8943a;
+  --m-mint: #142820;
+  --m-mint-ink: #8fd4a8;
+  --m-eraser: #3a2228;
+  --m-graphite: #8b9cb3;
+  --m-red: #e8635a;
+  --m-red-hover: #ff7a71;
+  --m-elevate: #121a26;
+  --m-chrome: #0d1219;
+  --m-card-shadow:
+    0 4px 20px -6px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(74, 127, 170, 0.1);
+  --color-surface: #0a0e14;
+  --color-ink: #e8edf4;
+  --color-accent-muted: #121a26;
+
+  color: var(--m-ink);
+}
+
+/* ── App regions: ruled notebook on dark paper ── */
+html.dark .marginalia-theme .notebook-bg {
+  background-color: var(--m-paper);
+  background-image: linear-gradient(
+    transparent 27px,
+    color-mix(in srgb, var(--m-paper-line) 65%, transparent) 28px,
+    transparent 29px
+  );
+  background-size: 100% 28px;
+  background-position: 0 12px;
+}
+
+html.dark .marginalia-theme .notebook-margin {
+  box-shadow: inset 3rem 0 0 -2.85rem color-mix(in srgb, var(--m-margin) 88%, #000);
+}
+
+html.dark .marginalia-theme #config-col {
+  background-image: linear-gradient(
+    transparent 27px,
+    color-mix(in srgb, var(--m-paper-line) 55%, transparent) 28px,
+    transparent 29px
+  );
+}
+
+html.dark .marginalia-theme .preview-canvas {
+  background-color: color-mix(in srgb, var(--m-chrome) 72%, var(--m-paper));
+  background-image: linear-gradient(
+    transparent 27px,
+    color-mix(in srgb, var(--m-paper-line) 50%, transparent) 28px,
+    transparent 29px
+  );
+}
+
+html.dark .marginalia-theme .preview-canvas:has(.resume-template-marginalia),
+html.dark .marginalia-theme .preview-canvas:has(.preview-resume-sheet),
+html.dark .marginalia-theme .preview-canvas:has(.preview-comparison-slot) {
+  background-color: #151b28;
+  background-image: none;
+}
+
+html.dark .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) {
+  background-color: var(--m-chrome);
+}
+
+html.dark .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) #canvas-studio-viewport,
+html.dark .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) .canvas-studio-stage {
+  background-color: #151b28;
+}
+
+html.dark .marginalia-theme #immersive-preview-studio {
+  background-color: color-mix(in srgb, var(--m-chrome) 88%, var(--m-paper));
+}
+
+html.dark .marginalia-theme .preview-comparison-tray,
+html.dark .marginalia-theme :is(
+  #resume-container-box,
+  #resume-container-box-workspace,
+  #resume-container-box-comparison
+) {
+  background-color: #151b28 !important;
+  background-image: none !important;
+}
+
+html.dark .marginalia-theme .preview-comparison-tray {
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent) !important;
+}
+
+html.dark .marginalia-theme .preview-comparison-chip {
+  background-color: color-mix(in srgb, var(--m-elevate) 92%, var(--m-paper));
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent);
+  color: var(--m-ink);
+}
+
+html.dark .marginalia-theme .preview-comparison-slot {
+  background-color: transparent !important;
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent) !important;
+  box-shadow: none !important;
+}
+
+html.dark .marginalia-theme .preview-comparison-slot :is(
+  .resume-template-marginalia,
+  .resume-theme-prose.bg-white,
+  .bg-white.resume-theme-prose
+) {
+  box-shadow:
+    0 8px 28px -8px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+html.dark .marginalia-theme :is(
+  #resume-container-box-comparison,
+  #resume-container-box-workspace,
+  #resume-container-box
+) .bg-white.resume-theme-prose {
+  background-color: #ffffff !important;
+}
+
+html.dark .marginalia-theme :is(
+  #resume-container-box,
+  #resume-container-box-workspace
+) .resume-template-marginalia {
+  box-shadow:
+    0 12px 40px -12px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+html.dark .marginalia-theme #app_footer {
+  background-color: transparent;
+  border-top-color: color-mix(in srgb, var(--m-rule) 22%, transparent);
+  color: var(--m-graphite);
+}
+
+html.dark .marginalia-theme #app-main-shell {
+  background-color: var(--m-paper);
+  background-image: linear-gradient(
+    transparent 27px,
+    color-mix(in srgb, var(--m-paper-line) 65%, transparent) 28px,
+    transparent 29px
+  );
+  background-size: 100% 28px;
+  background-position: 0 12px;
+}
+
+html.dark .marginalia-theme #app-sidebar {
+  background-color: var(--m-chrome) !important;
+  border-right-color: color-mix(in srgb, var(--m-rule) 22%, transparent) !important;
+}
+
+html.dark .marginalia-theme #app-sidebar :is(.border-slate-100, .border-b, .border-t) {
+  border-color: color-mix(in srgb, var(--m-rule) 18%, transparent) !important;
+}
+
+html.dark .marginalia-theme #app-sidebar .sticker-marker {
+  background-color: color-mix(in srgb, var(--m-marker) 22%, var(--m-elevate)) !important;
+  color: color-mix(in srgb, var(--m-marker) 75%, var(--m-ink)) !important;
+}
+
+/* ── Resume document: lit paper on dark desk ── */
+html.dark .marginalia-theme :is(
+  .preview-resume-sheet:not(:has(.resume-template-marginalia)),
+  #resume-printable-sheet:not(.resume-template-marginalia),
+  #resume-container-box .preview-resume-sheet:not(:has(.resume-template-marginalia)),
+  #resume-container-box-workspace .preview-resume-sheet:not(:has(.resume-template-marginalia))
+) {
+  box-shadow:
+    0 12px 40px -12px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.07) !important;
+}
+
+html.dark .marginalia-theme .preview-resume-sheet:not(:has(.resume-template-marginalia)),
+html.dark .marginalia-theme #resume-printable-sheet:not(.resume-template-marginalia) {
+  background-color: #ffffff !important;
+  color: #1a2438 !important;
+}
+
+html.dark .marginalia-theme #preview-col .preview-resume-sheet:has(.resume-template-marginalia),
+html.dark .marginalia-theme #preview-col .preview-resume-sheet--marginalia,
+html.dark .marginalia-theme #resume-container-box-workspace .preview-resume-sheet:has(.resume-template-marginalia),
+html.dark .marginalia-theme #resume-container-box-workspace .preview-resume-sheet--marginalia {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html.dark .marginalia-theme #resume-container-box-workspace .preview-resume-stage {
+  background-color: #151b28;
+  min-height: 100%;
+  padding: 1.5rem 1rem;
+}
+
+html.dark .marginalia-theme #resume-container-box .preview-resume-stage {
+  background-color: #151b28;
+  min-height: 100%;
+  padding: 0.75rem 0.5rem;
+}
+
+/* Resume document: always print-ready ink on paper (immune to UI dark remaps) */
+html.dark .marginalia-theme .resume-template-marginalia {
+  background-color: #faf6eb !important;
+  color: #1a2438 !important;
+}
+
+html.dark .marginalia-theme .resume-template-marginalia :is(
+  .text-slate-900,
+  .text-slate-800,
+  .text-slate-700
+) {
+  color: #1a2438 !important;
+}
+
+html.dark .marginalia-theme .resume-template-marginalia :is(
+  .text-slate-600,
+  .text-slate-500
+) {
+  color: #535c68 !important;
+}
+
+html.dark .marginalia-theme .resume-template-marginalia :is(
+  .text-slate-400
+) {
+  color: #6b7a8f !important;
+}
+
+html.dark .marginalia-theme .preview-panel-frame {
+  background-color: color-mix(in srgb, var(--m-chrome) 92%, var(--m-elevate));
+  border-color: color-mix(in srgb, var(--m-rule) 22%, transparent);
+}
+
+html.dark .marginalia-theme #preview-col-wrap {
+  background-color: color-mix(in srgb, var(--m-chrome) 88%, var(--m-paper));
+}
+
+/* ── Mint chips / stickers in dark ── */
+html.dark .marginalia-theme .sticker-mint,
+html.dark .marginalia-theme .notebook-chip {
+  background-color: var(--m-mint);
+  color: var(--m-mint-ink);
+  border-color: color-mix(in srgb, var(--m-mint-ink) 25%, transparent);
+}
+
+html.dark .marginalia-theme .sticker-marker {
+  background-color: color-mix(in srgb, var(--m-marker) 35%, var(--m-elevate));
+  color: var(--m-ink);
+}
+
+html.dark .marginalia-theme .notebook-chip:hover {
+  background-color: color-mix(in srgb, var(--m-mint) 75%, var(--m-elevate));
+}
+
+/* ── Status badges (rose/amber on dark) ── */
+html.dark .marginalia-theme :is(
+  .bg-rose-50,
+  [class*="bg-rose-50"]
+) {
+  background-color: color-mix(in srgb, #e8635a 18%, var(--m-elevate)) !important;
+}
+
+html.dark .marginalia-theme :is(
+  .text-rose-700,
+  .text-rose-600,
+  [class*="text-rose-7"]
+) {
+  color: #ff9a94 !important;
+}
+
+html.dark .marginalia-theme :is(
+  .border-rose-200,
+  [class*="border-rose-2"]
+) {
+  border-color: color-mix(in srgb, #e8635a 35%, transparent) !important;
+}
+
+/* ── Slate utility remap (app chrome only) ── */
+html.dark .marginalia-theme :is(
+  #app_root,
+  #app-main-shell,
+  #app_main,
+  #app_sidebar,
+  #app-sidebar,
+  #playground-core,
+  #playground-sidebar,
+  #config-col,
+  #preview-col-wrap,
+  #screen-overview,
+  #app_footer,
+  #tour-guidance-popover,
+  #premium-tools-tab-view,
+  #graph-panel,
+  #findings-decompiled,
+  #api-specs-section,
+  #system-diagnostic-panel,
+  #template-config-panel,
+  #preview-util-header,
+  #studio-preview-header,
+  .utility-flyout,
+  .utility-dock,
+  #floating-ats-compliance-widget,
+  [id$="-modal"]
+) {
+  & :is(.text-slate-900, .text-slate-800, .text-slate-850) {
+    color: var(--m-ink) !important;
+  }
+
+  & :is(.text-slate-700, .text-slate-600) {
+    color: color-mix(in srgb, var(--m-ink) 88%, var(--m-graphite)) !important;
+  }
+
+  & :is(.text-slate-500, .text-slate-400) {
+    color: var(--m-graphite) !important;
+  }
+
+  & .text-slate-300 {
+    color: color-mix(in srgb, var(--m-graphite) 80%, transparent) !important;
+  }
+
+  & :is(.bg-white, [class*="bg-white"]) {
+    background-color: color-mix(in srgb, var(--m-paper) 90%, var(--m-elevate)) !important;
+  }
+
+  & :is(.bg-slate-50, .bg-slate-50\/80, .bg-slate-50\/50, [class*="bg-slate-50"]) {
+    background-color: color-mix(in srgb, var(--m-paper) 85%, var(--m-elevate)) !important;
+  }
+
+  & :is(.bg-slate-100, [class*="bg-slate-100"]) {
+    background-color: color-mix(in srgb, var(--m-paper) 78%, var(--m-elevate)) !important;
+  }
+
+  & :is(.border-slate-100, .border-slate-200, .border-slate-200\/60, .border-slate-200\/80) {
+    border-color: color-mix(in srgb, var(--m-rule) 22%, transparent) !important;
+  }
+
+  & :is(.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover, .hover\:bg-white:hover) {
+    background-color: color-mix(in srgb, var(--m-elevate) 92%, var(--m-rule)) !important;
+  }
+
+  & :is(.shadow-sm, .shadow-md, .shadow-lg, .shadow-2xl) {
+    --tw-shadow-color: rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* ── Modals & overlays ── */
+html.dark .marginalia-theme :is(
+  [class*="bg-slate-900/"],
+  [class*="bg-black/"]
+) {
+  --tw-bg-opacity: 1;
+}
+
+html.dark .marginalia-theme .modal-header-notebook {
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--m-marker) 22%, var(--m-elevate)),
+    color-mix(in srgb, var(--m-paper) 88%, var(--m-elevate))
+  );
+}
+
+/* ── Inputs & selects ── */
+html.dark .marginalia-theme .input-field {
+  color: var(--m-ink);
+  border-bottom-color: color-mix(in srgb, var(--m-rule) 55%, transparent);
+}
+
+html.dark .marginalia-theme .input-field::placeholder {
+  color: color-mix(in srgb, var(--m-graphite) 70%, transparent);
+}
+
+html.dark .marginalia-theme .select-field {
+  background-color: var(--m-elevate);
+}
+
+/* ── Code / mono blocks ── */
+html.dark .marginalia-theme pre,
+html.dark .marginalia-theme code {
+  background-color: color-mix(in srgb, var(--m-paper) 70%, #000) !important;
+  border-color: color-mix(in srgb, var(--m-rule) 20%, transparent) !important;
+  color: color-mix(in srgb, var(--m-ink) 92%, var(--m-mint-ink)) !important;
+}
+
+/* ── Scrollbars ── */
+html.dark ::-webkit-scrollbar-track {
+  background: var(--m-chrome, #0d1219);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--m-rule, #4a7faa) 45%, #1a2438);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--m-rule, #4a7faa) 65%, #1a2438);
+}
+
+/* ── Focus rings ── */
+html.dark .marginalia-theme :focus-visible {
+  outline-color: color-mix(in srgb, var(--m-red) 55%, transparent);
+}
+
+/* ── Studio Canvas viewport (dark desk) ── */
+html.dark .marginalia-theme .canvas-studio-viewport {
+  background-color: #0f1419;
+  border-color: color-mix(in srgb, var(--m-rule) 22%, #1a2438);
+}
+
+html.dark .marginalia-theme .canvas-studio-stage {
+  background-color: #0f1419;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+html.dark .marginalia-theme .canvas-studio-hint span {
+  background: rgba(21, 27, 40, 0.88);
+  border-color: #2a3344;
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-studio-right-nav,
+html.dark .marginalia-theme .canvas-studio-right-nav-footer {
+  background-color: #151b28;
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-nav-tool-btn {
+  background: #1a2438;
+  border-color: #2a3344;
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-nav-tool-btn:hover:not(:disabled) {
+  background: #243044;
+  border-color: color-mix(in srgb, var(--m-mint) 28%, #2a3344);
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-nav-tool-btn--active {
+  background: color-mix(in srgb, var(--m-mint) 14%, #243044);
+  border-color: color-mix(in srgb, var(--m-mint) 55%, #2a3344);
+  color: #f0f4fa;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--m-mint) 22%, transparent),
+    0 0 10px color-mix(in srgb, var(--m-mint) 18%, transparent);
+}
+
+html.dark .marginalia-theme .canvas-nav-tool-btn--active::before {
+  background: color-mix(in srgb, var(--m-mint) 80%, #e8edf5);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--m-mint) 50%, transparent);
+}
+
+html.dark .marginalia-theme .canvas-nav-tool-btn--active svg {
+  color: color-mix(in srgb, var(--m-mint) 70%, #f0f4fa);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--m-mint) 40%, transparent));
+}
+
+html.dark .marginalia-theme .canvas-nav-tool-btn--active .canvas-nav-tool-label {
+  color: #f0f4fa;
+  font-weight: 800;
+}
+
+html.dark .marginalia-theme .canvas-nav-section {
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-grid-strength-control {
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-grid-strength-label {
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-grid-strength-value {
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-grid-strength-slider {
+  accent-color: var(--m-mint);
+}
+
+html.dark .marginalia-theme .canvas-auto-save-status {
+  color: color-mix(in srgb, var(--m-mint) 70%, #c5d4e8);
+}
+
+html.dark .marginalia-theme .canvas-nav-section-drag {
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-nav-section-drag:hover,
+html.dark .marginalia-theme .canvas-nav-section-drag--active {
+  background: color-mix(in srgb, var(--m-mint) 14%, #243044);
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-nav-drop-indicator {
+  background: color-mix(in srgb, var(--m-mint) 75%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--m-mint) 35%, transparent);
+}
+
+html.dark .marginalia-theme .canvas-studio-toolbar {
+  background-color: #151b28;
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-studio-tool-btn {
+  background: #1c2433;
+  border-color: #2a3344;
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-studio-tool-btn:hover {
+  background: #243044;
+  border-color: color-mix(in srgb, var(--m-mint) 35%, #2a3344);
+  color: #c5d0e0;
+}
+
+html.dark .marginalia-theme .canvas-studio-zoom-label {
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-studio-toolbar-divider {
+  background: #2a3344;
+}
+
+html.dark .marginalia-theme #resume-container-box-canvas.canvas-studio-node-host {
+  background: transparent !important;
+}
+
+/* ── Canvas Phase 2 (dark) ── */
+html.dark .marginalia-theme .canvas-layer-panel {
+  background-color: #151b28;
+  border-color: #2a3344;
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-layer-panel-header {
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-layer-row {
+  border-color: #2a3344;
+  background: #1c2433;
+}
+
+html.dark .marginalia-theme .canvas-layer-row--selected {
+  border-color: color-mix(in srgb, var(--m-mint) 45%, #2a3344);
+  background: #243044;
+}
+
+html.dark .marginalia-theme .canvas-layer-icon-btn {
+  border-color: #2a3344;
+  background: #1c2433;
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-layer-page-select {
+  border-color: #2a3344;
+  background: #1c2433;
+  color: #c5d0e0;
+}
+
+html.dark .marginalia-theme .canvas-page-strip {
+  background-color: #151b28;
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-page-tab {
+  border-color: #2a3344;
+  background: #1c2433;
+}
+
+html.dark .marginalia-theme .canvas-page-tab--active {
+  border-color: color-mix(in srgb, var(--m-mint) 50%, #2a3344);
+}
+
+html.dark .marginalia-theme .canvas-page-tab-label {
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-page-add-btn,
+html.dark .marginalia-theme .canvas-page-tab-remove {
+  border-color: #2a3344;
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-page-sheet--active {
+  outline-color: color-mix(in srgb, var(--m-mint) 55%, transparent);
+}
+
+html.dark .marginalia-theme .canvas-page-sheet-label {
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-shortcut-kbd {
+  border-color: #2a3344;
+  background: #1c2433;
+  color: #c5d0e0;
+}
+
+html.dark .marginalia-theme .canvas-shortcut-card {
+  background: #151b28;
+  border-color: #2a3344;
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-shortcut-header,
+html.dark .marginalia-theme .canvas-shortcut-footer {
+  border-color: #2a3344;
+}
+
+html.dark .marginalia-theme .canvas-shortcut-row {
+  background: #1c2433;
+}
+
+html.dark .marginalia-theme .canvas-studio-tool-btn--active {
+  background: #243044;
+  border-color: color-mix(in srgb, var(--m-mint) 40%, #2a3344);
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-page-sheet--drop-target {
+  outline-color: color-mix(in srgb, var(--m-mint) 70%, transparent);
+}
+
+html.dark .marginalia-theme .canvas-page-snap-guide {
+  background: color-mix(in srgb, var(--m-mint) 80%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--m-mint) 35%, transparent);
+}
+
+html.dark .marginalia-theme .canvas-layer-drag-handle--active {
+  border-color: color-mix(in srgb, var(--m-mint) 55%, #2a3344);
+  background: #243044;
+  color: #e8edf5;
+}
+
+html.dark .marginalia-theme .canvas-layer-drag-handle {
+  border-color: #2a3344;
+  color: #8b9cb3;
+}
+
+html.dark .marginalia-theme .canvas-layer-drop-indicator {
+  background: color-mix(in srgb, var(--m-mint) 75%, transparent);
+}
