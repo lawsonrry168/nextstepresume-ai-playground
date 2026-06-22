@@ -7,6 +7,8 @@ import { initialResumeData } from "../data";
 import { ensureLocaleLoaded, setActiveLocale } from "../i18n/translate";
 import type { MessageTree } from "../i18n/types";
 import zhTW from "../i18n/locales/zh-TW";
+import templateThemesEn from "../i18n/locales/data/templateThemes.en";
+import templateThemesZhTW from "../i18n/locales/data/templateThemes.zh-TW";
 
 const zhMessages = zhTW as MessageTree;
 
@@ -14,12 +16,14 @@ describe("template theme labels", () => {
   beforeEach(async () => {
     setActiveLocale("zh-TW");
     await ensureLocaleLoaded("zh-TW");
+    setActiveLocale("en");
+    await ensureLocaleLoaded("en");
   });
 
-  it("returns Chinese label for zh locales and English otherwise", () => {
+  it("returns locale labels for zh-TW and en", () => {
     const theme = getResumeTemplateTheme("modern-01");
-    expect(getTemplateThemeLabel(theme, "zh-TW")).toBe(theme.labelZh);
-    expect(getTemplateThemeLabel(theme, "en")).toBe(theme.label);
+    expect(getTemplateThemeLabel(theme, "zh-TW")).toBe(templateThemesZhTW["modern-01"]);
+    expect(getTemplateThemeLabel(theme, "en")).toBe(templateThemesEn["modern-01"]);
   });
 });
 

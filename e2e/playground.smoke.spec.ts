@@ -21,4 +21,11 @@ test.describe("playground smoke", () => {
     expect(body.status).toBe("ok");
     expect(typeof body.ai_enabled).toBe("boolean");
   });
+
+  test("locale switcher is visible", async ({ page }) => {
+    await page.goto("/");
+    const switcher = page.locator("#locale-switcher");
+    await expect(switcher).toBeVisible();
+    await expect(switcher).toBeEnabled();
+  });
 });
