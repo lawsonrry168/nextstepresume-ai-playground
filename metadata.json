@@ -1,0 +1,8 @@
+{
+  "name": "NextStepResume.ai Playground",
+  "description": "Ready for what's next? Craft your NextStep Resume. ATS resume optimization, tailoring, and template rendering powered by Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
