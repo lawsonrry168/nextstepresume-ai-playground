@@ -8,6 +8,31 @@ export function resolveRedisUrl(): string | undefined {
   return raw || undefined;
 }
 
+/** Probe Redis reachability — used by integration tests for fast failure. */
+export async function pingRedis(url: string, timeoutMs = 1_000): Promise<void> {
+  const client = createClient({
+    url,
+    socket: {
+      connectTimeout: timeoutMs,
+      reconnectStrategy: () => new Error("Redis ping failed"),
+    },
+  });
+  client.on("error", () => {
+    /* swallow probe errors; connect() will reject */
+  });
+  try {
+    await client.connect();
+    const pong = await client.ping();
+    if (pong !== "PONG") {
+      throw new Error(`Unexpected Redis ping response: ${pong}`);
+    }
+  } finally {
+    if (client.isOpen) {
+      await client.quit();
+    }
+  }
+}
+
 async function getRedisClient(url: string): Promise<RedisClientType> {
   let client = clients.get(url);
   if (!client) {

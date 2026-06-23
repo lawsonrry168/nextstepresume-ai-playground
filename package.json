@@ -10,6 +10,7 @@
     "start": "node dist/server.cjs",
     "clean": "node scripts/clean.mjs",
     "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:redis": "node scripts/test-redis.mjs",
     "test:e2e": "node ./node_modules/@playwright/test/cli.js test",
     "lint": "node ./node_modules/typescript/bin/tsc --noEmit"
   },

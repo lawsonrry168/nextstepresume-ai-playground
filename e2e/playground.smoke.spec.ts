@@ -84,4 +84,18 @@ test.describe("playground smoke", () => {
       .poll(async () => page.evaluate(() => localStorage.getItem("nsr_workspace_jd") ?? ""))
       .toContain("frontend");
   });
+
+  test("opens studio fullscreen from sidebar", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("#workspace-btn-preview-mode").click();
+    await expect(page.locator("#immersive-preview-studio")).toBeVisible();
+    await expect(page.locator("#canvas-studio-viewport")).toBeVisible();
+  });
+
+  test("export menu lists pdf visual option", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("#header-btn-export-menu").click();
+    await expect(page.locator("#export-pdf-visual")).toBeVisible();
+    await expect(page.locator("#export-json")).toBeVisible();
+  });
 });

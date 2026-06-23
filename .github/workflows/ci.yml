@@ -37,7 +37,7 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm test -- src/__tests__/redisQuota.integration.test.ts
+      - run: npm run test:redis
         env:
           NSR_REDIS_URL: redis://127.0.0.1:6379
 
