@@ -112,11 +112,19 @@ export default function PlaygroundSidebarNav({
       <div className={`border-b border-slate-200/80 ${collapsed ? "px-1 py-2" : "px-2.5 py-2.5"}`}>
         <div className={`flex items-center mb-1.5 ${collapsed ? "justify-center flex-col gap-1" : "justify-between"}`}>
           {collapsed ? (
-            <span className="p-1.5 rounded-lg btn-accent font-display text-sm font-bold" title={BRAND_NAME}>
+            <span
+              className="p-1.5 rounded-lg btn-accent font-display text-sm font-bold"
+              title={`${BRAND_NAME} · ${t("market.banner")}`}
+            >
               N
             </span>
           ) : (
-            <p className="font-display text-lg font-bold text-[var(--m-ink,#1a2438)] leading-none">{BRAND_SHORT}</p>
+            <p
+              className="font-display text-lg font-bold text-[var(--m-ink,#1a2438)] leading-none"
+              title={t("market.banner")}
+            >
+              {BRAND_SHORT}
+            </p>
           )}
           <button
             type="button"

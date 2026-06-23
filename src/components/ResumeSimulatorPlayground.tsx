@@ -14,7 +14,6 @@ import { useMeasuredApi } from "../hooks/useMeasuredApi";
 import { useResumeWorkspace } from "../hooks/useResumeWorkspace";
 import type { PlaygroundTab } from "./playground/PlaygroundTabNav";
 import PlaygroundSidebarNav from "./playground/PlaygroundSidebarNav";
-import MarketBanner from "./layout/MarketBanner";
 import { useI18n } from "../i18n";
 import { useSubscription } from "../context/SubscriptionProvider";
 import { usePlaygroundAudits } from "../hooks/usePlaygroundAudits";
@@ -389,7 +388,6 @@ export default function ResumeSimulatorPlayground({
       }
       id="playground-core"
     >
-      <MarketBanner />
       {!isPreviewMode ? (
         <PlaygroundSidebarNav
           activeTab={activeTab}
