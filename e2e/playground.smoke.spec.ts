@@ -1,16 +1,32 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+async function seedPlaygroundStorage(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("nsr_tour_seen", "true");
+    localStorage.setItem("nsr_subscription_plan", "pro");
+    localStorage.setItem("nsr_playground_sidebar_collapsed", "false");
+  });
+}
+
+async function gotoSimulator(page: Page) {
+  await page.goto("/");
+  await expect(page.locator("#screen-simulator")).toBeVisible();
+  await expect(page.locator("#preview-col")).toBeVisible();
+}
 
 test.describe("playground smoke", () => {
+  test.beforeEach(async ({ page }) => {
+    await seedPlaygroundStorage(page);
+  });
+
   test("loads app shell and resume preview", async ({ page }) => {
-    await page.goto("/");
+    await gotoSimulator(page);
     await expect(page).toHaveTitle(/NextStepResume/i);
 
     const root = page.locator("#root");
     await expect(root).not.toBeEmpty();
 
-    const preview = page.locator(
-      "#resume-container-box, #resume-container-box-workspace, .resume-template-marginalia",
-    );
+    const preview = page.locator("#resume-container-box, #resume-container-box-workspace");
     await expect(preview.first()).toBeVisible();
   });
 
@@ -23,7 +39,7 @@ test.describe("playground smoke", () => {
   });
 
   test("locale switcher is visible", async ({ page }) => {
-    await page.goto("/");
+    await gotoSimulator(page);
     const switcher = page.locator("#locale-switcher");
     await expect(switcher).toBeVisible();
     await expect(switcher).toBeEnabled();
@@ -36,7 +52,7 @@ test.describe("playground smoke", () => {
 
     await expect(page.locator("html")).toHaveAttribute("lang", "en-HK");
     await expect(page.locator('[data-testid="locale-switcher-label"]')).toHaveText("English");
-    await expect(page.locator("#subtab-content")).toContainText("Resume Editor");
+    await expect(page.locator("#content-tab-view")).toBeVisible();
 
     await page.locator("#locale-switcher").click();
 
@@ -49,7 +65,7 @@ test.describe("playground smoke", () => {
   });
 
   test("switches resume template from preview tab", async ({ page }) => {
-    await page.goto("/");
+    await gotoSimulator(page);
     await page.locator("#subtab-preview").click();
     const picker = page.locator("#preview-tab-template-picker");
     await expect(picker).toBeVisible();
@@ -65,11 +81,7 @@ test.describe("playground smoke", () => {
   });
 
   test("jobsdb import smoke with simulated listings", async ({ page }) => {
-    await page.goto("/");
-    await page.evaluate(() => {
-      localStorage.setItem("nsr_subscription_plan", "pro");
-    });
-    await page.reload();
+    await gotoSimulator(page);
 
     await page.locator("#subtab-applications").click();
     await page.locator("#job-import-mode-jobsdb").click();
@@ -86,14 +98,15 @@ test.describe("playground smoke", () => {
   });
 
   test("opens studio fullscreen from sidebar", async ({ page }) => {
-    await page.goto("/");
+    await gotoSimulator(page);
     await page.locator("#workspace-btn-preview-mode").click();
     await expect(page.locator("#immersive-preview-studio")).toBeVisible();
     await expect(page.locator("#canvas-studio-viewport")).toBeVisible();
   });
 
   test("export menu lists pdf visual option", async ({ page }) => {
-    await page.goto("/");
+    await gotoSimulator(page);
+    await page.locator('#preview-util-header button[title="Export"]').click();
     await page.locator("#header-btn-export-menu").click();
     await expect(page.locator("#export-pdf-visual")).toBeVisible();
     await expect(page.locator("#export-json")).toBeVisible();
