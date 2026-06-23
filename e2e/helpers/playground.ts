@@ -32,6 +32,13 @@ export async function gotoSimulator(page: Page) {
   await expect(page.locator("#preview-col")).toBeVisible();
 }
 
+export async function gotoStudio(page: Page) {
+  await gotoSimulator(page);
+  await page.locator("#workspace-btn-preview-mode").click();
+  await expect(page.locator("#immersive-preview-studio")).toBeVisible();
+  await expect(page.locator("#canvas-studio-viewport")).toBeVisible();
+}
+
 export async function openExportMenu(page: Page) {
   await page.locator('#preview-util-header button[title="Export"]').click();
   await page.locator("#header-btn-export-menu").click();
@@ -39,6 +46,13 @@ export async function openExportMenu(page: Page) {
 
 export async function clickExportOption(page: Page, optionId: string) {
   await openExportMenu(page);
+  const option = page.locator(`#${optionId}`);
+  await expect(option).toBeVisible();
+  await option.click();
+}
+
+export async function clickStudioExportOption(page: Page, optionId: string) {
+  await page.locator("#studio-btn-export-menu").click();
   const option = page.locator(`#${optionId}`);
   await expect(option).toBeVisible();
   await option.click();

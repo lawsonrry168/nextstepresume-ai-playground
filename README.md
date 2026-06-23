@@ -56,3 +56,18 @@ View your app in AI Studio: https://ai.studio/apps/a22693ce-827d-4c8c-8e19-0debc
 ## Windows Note
 
 If the project folder path contains special characters (e.g. `&`), npm scripts invoke Node directly to avoid path parsing issues on Windows.
+
+## PR stack merge order
+
+Merge open stacked PRs into `main` in order (**#1 → #2 → …**). Recent tail of the stack:
+
+| PR | Phase | Branch |
+|----|-------|--------|
+| #15 | 14 Market banner | `pr/16-phase14-market-banner-ui` |
+| #16 | 15 Redis script + E2E | `pr/17-phase15-redis-script-e2e` |
+| #17 | 16 E2E helpers + Redis docs | `pr/18-phase16-redis-docs-e2e-helpers` |
+| #18 | 17 JSON + visual PDF export | `pr/19-phase17-export-download-e2e` |
+| #19 | 18 DOCX + ATS PDF export | `pr/20-phase18-docx-ats-export-e2e` |
+| #20 | 19 Studio export E2E | `pr/21-phase19-studio-export-e2e` |
+
+After each merge, rebase or retarget the next PR if GitHub shows conflicts.
