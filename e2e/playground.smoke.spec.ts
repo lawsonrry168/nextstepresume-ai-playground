@@ -1,18 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
-
-async function seedPlaygroundStorage(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("nsr_tour_seen", "true");
-    localStorage.setItem("nsr_subscription_plan", "pro");
-    localStorage.setItem("nsr_playground_sidebar_collapsed", "false");
-  });
-}
-
-async function gotoSimulator(page: Page) {
-  await page.goto("/");
-  await expect(page.locator("#screen-simulator")).toBeVisible();
-  await expect(page.locator("#preview-col")).toBeVisible();
-}
+import { test, expect } from "@playwright/test";
+import { gotoSimulator, openExportMenu, seedPlaygroundStorage } from "./helpers/playground";
 
 test.describe("playground smoke", () => {
   test.beforeEach(async ({ page }) => {
@@ -106,8 +93,7 @@ test.describe("playground smoke", () => {
 
   test("export menu lists pdf visual option", async ({ page }) => {
     await gotoSimulator(page);
-    await page.locator('#preview-util-header button[title="Export"]').click();
-    await page.locator("#header-btn-export-menu").click();
+    await openExportMenu(page);
     await expect(page.locator("#export-pdf-visual")).toBeVisible();
     await expect(page.locator("#export-json")).toBeVisible();
   });

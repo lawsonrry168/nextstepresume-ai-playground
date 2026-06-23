@@ -47,6 +47,9 @@ View your app in AI Studio: https://ai.studio/apps/a22693ce-827d-4c8c-8e19-0debc
 | `npm run build` | Build frontend and server bundle |
 | `npm run start` | Run production server |
 | `npm test` | Run Vitest unit tests |
+| `npm run test:e2e` | Playwright smoke tests (starts dev server) |
+| `npm run test:redis` | Redis quota integration tests (requires Redis) |
+| `npm run redis:start` | Start local Redis (Windows winget path auto-detect) |
 | `npm run lint` | TypeScript type check |
 | `npm run clean` | Remove build artifacts |
 
