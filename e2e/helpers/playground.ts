@@ -5,20 +5,18 @@ export async function seedPlaygroundStorage(page: Page) {
     localStorage.setItem("nsr_tour_seen", "true");
     localStorage.setItem("nsr_subscription_plan", "pro");
     localStorage.setItem("nsr_playground_sidebar_collapsed", "false");
+    localStorage.setItem("nsr_ui_locale", "en");
 
     const win = window as Window & {
-      __nsrJsonExportClicked?: boolean;
+      __NSR_E2E_TRACK_EXPORTS__?: boolean;
       __NSR_E2E_STUB_PDF__?: boolean;
+      __NSR_E2E_JSON_EXPORTED__?: boolean;
+      __NSR_E2E_PDF_EXPORTED__?: boolean;
     };
-    win.__nsrJsonExportClicked = false;
+    win.__NSR_E2E_TRACK_EXPORTS__ = true;
     win.__NSR_E2E_STUB_PDF__ = true;
-    const originalClick = HTMLAnchorElement.prototype.click;
-    HTMLAnchorElement.prototype.click = function anchorClick() {
-      if (this.getAttribute("download") === "data.json") {
-        win.__nsrJsonExportClicked = true;
-      }
-      return originalClick.call(this);
-    };
+    win.__NSR_E2E_JSON_EXPORTED__ = false;
+    win.__NSR_E2E_PDF_EXPORTED__ = false;
   });
 }
 
@@ -38,4 +36,19 @@ export async function clickExportOption(page: Page, optionId: string) {
   const option = page.locator(`#${optionId}`);
   await expect(option).toBeVisible();
   await option.click();
+}
+
+type E2eExportFlags = {
+  __NSR_E2E_JSON_EXPORTED__?: boolean;
+  __NSR_E2E_PDF_EXPORTED__?: boolean;
+};
+
+export async function readE2eExportFlags(page: Page): Promise<E2eExportFlags> {
+  return page.evaluate(() => {
+    const win = window as Window & E2eExportFlags;
+    return {
+      __NSR_E2E_JSON_EXPORTED__: win.__NSR_E2E_JSON_EXPORTED__ === true,
+      __NSR_E2E_PDF_EXPORTED__: win.__NSR_E2E_PDF_EXPORTED__ === true,
+    };
+  });
 }

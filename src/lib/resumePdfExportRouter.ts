@@ -1,11 +1,7 @@
 import type { ResumeData } from "../types";
 import type { TemplateStyle } from "./resumeTemplateCatalog";
 import type { PdfExportMode } from "./resumePdfTypes";
-
-function isE2ePdfStubEnabled(): boolean {
-  if (typeof window === "undefined") return false;
-  return (window as Window & { __NSR_E2E_STUB_PDF__?: boolean }).__NSR_E2E_STUB_PDF__ === true;
-}
+import { isE2ePdfStubEnabled } from "./e2eExportTrack";
 
 export function buildResumePdfFilename(resumeData: ResumeData): string {
   return `NextStepResume_${resumeData.personalInfo.name.trim().replace(/\s+/g, "_") || "ATS_Resume"}.pdf`;

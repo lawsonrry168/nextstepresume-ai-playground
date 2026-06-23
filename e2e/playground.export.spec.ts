@@ -1,28 +1,30 @@
 import { test, expect } from "@playwright/test";
-import { clickExportOption, gotoSimulator, seedPlaygroundStorage } from "./helpers/playground";
+import {
+  clickExportOption,
+  gotoSimulator,
+  readE2eExportFlags,
+  seedPlaygroundStorage,
+} from "./helpers/playground";
 
 test.describe("playground export downloads", () => {
   test.beforeEach(async ({ page }) => {
     await seedPlaygroundStorage(page);
   });
 
-  test("json export triggers client-side download anchor", async ({ page }) => {
+  test("json export completes from preview menu", async ({ page }) => {
     await gotoSimulator(page);
     await clickExportOption(page, "export-json");
 
-    await expect
-      .poll(async () =>
-        page.evaluate(() => (window as Window & { __nsrJsonExportClicked?: boolean }).__nsrJsonExportClicked),
-      )
-      .toBe(true);
+    await expect.poll(async () => (await readE2eExportFlags(page)).__NSR_E2E_JSON_EXPORTED__).toBe(true);
   });
 
-  test("visual pdf export shows success toast", async ({ page }) => {
+  test("visual pdf export completes with success toast", async ({ page }) => {
     test.setTimeout(90_000);
 
     await gotoSimulator(page);
     await clickExportOption(page, "export-pdf-visual");
 
-    await expect(page.getByText(/Visual PDF downloaded/i)).toBeVisible({ timeout: 60_000 });
+    await expect.poll(async () => (await readE2eExportFlags(page)).__NSR_E2E_PDF_EXPORTED__).toBe(true);
+    await expect(page.getByText(/Visual PDF downloaded/i)).toBeVisible({ timeout: 15_000 });
   });
 });

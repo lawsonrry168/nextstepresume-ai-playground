@@ -3,6 +3,7 @@ import { t } from "../i18n/translate";
 import { ResumeData } from "../types";
 import { extractJdKeywords } from "../lib/atsKeywords";
 import type { TemplateStyle } from "../lib/resumeTemplateCatalog";
+import { markE2eJsonExportComplete } from "../lib/e2eExportTrack";
 
 export type AtsLogEntry = {
   id: string;
@@ -249,6 +250,7 @@ export function usePlaygroundTools({
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
+      markE2eJsonExportComplete();
     } catch (err) {
       console.error("Failed to export JSON", err);
     }
