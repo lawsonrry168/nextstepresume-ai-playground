@@ -10,6 +10,7 @@
     "start": "node dist/server.cjs",
     "clean": "node scripts/clean.mjs",
     "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:ci": "node scripts/test-ci.mjs",
     "test:redis": "node scripts/test-redis.mjs",
     "redis:start": "node scripts/start-redis.mjs",
     "test:e2e": "node ./node_modules/@playwright/test/cli.js test",

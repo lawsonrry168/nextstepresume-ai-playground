@@ -47,6 +47,7 @@ View your app in AI Studio: https://ai.studio/apps/a22693ce-827d-4c8c-8e19-0debc
 | `npm run build` | Build frontend and server bundle |
 | `npm run start` | Run production server |
 | `npm test` | Run Vitest unit tests |
+| `npm run test:ci` | Local mirror of CI unit job (lint + unit tests) |
 | `npm run test:e2e` | Playwright smoke tests (starts dev server) |
 | `npm run test:redis` | Redis quota integration tests (requires Redis) |
 | `npm run redis:start` | Start local Redis (Windows winget path auto-detect) |
@@ -69,5 +70,14 @@ Merge open stacked PRs into `main` in order (**#1 → #2 → …**). Recent tail
 | #18 | 17 JSON + visual PDF export | `pr/19-phase17-export-download-e2e` |
 | #19 | 18 DOCX + ATS PDF export | `pr/20-phase18-docx-ats-export-e2e` |
 | #20 | 19 Studio export E2E | `pr/21-phase19-studio-export-e2e` |
+| #21 | 20 CI hygiene + local test:ci | `pr/22-phase20-ci-hygiene` |
 
 After each merge, rebase or retarget the next PR if GitHub shows conflicts.
+
+### Pre-merge smoke (local)
+
+```bash
+npm run test:ci          # lint + unit (CI unit job)
+npm run test:redis       # requires Redis (CI redis job)
+npm run test:e2e         # Playwright (CI e2e job)
+```
