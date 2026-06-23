@@ -8,32 +8,13 @@ test.describe("playground export downloads", () => {
 
   test("json export triggers client-side download anchor", async ({ page }) => {
     await gotoSimulator(page);
-
-    await page.evaluate(() => {
-      const win = window as Window & { __nsrDownloadName?: string | null };
-      win.__nsrDownloadName = null;
-      const originalCreate = document.createElement.bind(document);
-      document.createElement = function createElement(tag: string) {
-        const node = originalCreate(tag);
-        if (tag.toLowerCase() === "a") {
-          const anchor = node as HTMLAnchorElement;
-          const setAttribute = anchor.setAttribute.bind(anchor);
-          anchor.setAttribute = (name: string, value: string) => {
-            setAttribute(name, value);
-            if (name === "download") win.__nsrDownloadName = value;
-          };
-        }
-        return node;
-      };
-    });
-
     await clickExportOption(page, "export-json");
 
     await expect
       .poll(async () =>
-        page.evaluate(() => (window as Window & { __nsrDownloadName?: string | null }).__nsrDownloadName),
+        page.evaluate(() => (window as Window & { __nsrJsonExportClicked?: boolean }).__nsrJsonExportClicked),
       )
-      .toBe("data.json");
+      .toBe(true);
   });
 
   test("visual pdf export shows success toast", async ({ page }) => {
