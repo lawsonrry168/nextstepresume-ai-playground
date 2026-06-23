@@ -22,6 +22,14 @@ export async function downloadResumePdfByMode(
     return;
   }
 
+  if (mode === "ats" && isE2ePdfStubEnabled()) {
+    const { jsPDF } = await import("jspdf");
+    const pdf = new jsPDF();
+    pdf.text("NextStepResume ATS E2E", 10, 10);
+    pdf.save(filename);
+    return;
+  }
+
   if (mode === "ats") {
     const { downloadResumeAtsPdf } = await import("./resumeAtsPdfExport");
     downloadResumeAtsPdf(resumeData, filename, templateStyle);

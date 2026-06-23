@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { buildResumePdfFilename, downloadResumePdfByMode } from "../lib/resumePdfExportRouter";
-import { markE2ePdfExportComplete } from "../lib/e2eExportTrack";
+import { markE2eAtsPdfExportComplete, markE2ePdfExportComplete } from "../lib/e2eExportTrack";
 import type { PdfExportMode } from "../lib/resumePdfTypes";
 import type { ResumeData, TemplateStyle } from "../types";
 
@@ -34,7 +34,11 @@ export function usePlaygroundPdfExport({
             ? "NextStepResume.ai"
             : undefined;
         await downloadResumePdfByMode(mode, resumeData, filename, activeTemplate, { watermark });
-        markE2ePdfExportComplete();
+        if (mode === "ats") {
+          markE2eAtsPdfExportComplete();
+        } else {
+          markE2ePdfExportComplete();
+        }
         pushToast(
           "success",
           mode === "ats" ? t("toast.export.atsPdfDownloaded") : t("toast.export.visualPdfDownloaded"),

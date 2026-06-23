@@ -3,7 +3,7 @@ import { t } from "../i18n/translate";
 import { ResumeData } from "../types";
 import { extractJdKeywords } from "../lib/atsKeywords";
 import type { TemplateStyle } from "../lib/resumeTemplateCatalog";
-import { markE2eJsonExportComplete } from "../lib/e2eExportTrack";
+import { markE2eDocxExportComplete, markE2eJsonExportComplete, isE2eDocxStubEnabled, runE2eDocxExportStub } from "../lib/e2eExportTrack";
 
 export type AtsLogEntry = {
   id: string;
@@ -258,6 +258,11 @@ export function usePlaygroundTools({
 
   const exportToDocx = useCallback(async () => {
     try {
+      if (isE2eDocxStubEnabled()) {
+        runE2eDocxExportStub(resumeData.personalInfo.name || "resume");
+        markE2eDocxExportComplete();
+        return;
+      }
       const { downloadResumeOoxml } = await import("../lib/ooxmlApplicationExport");
       await downloadResumeOoxml(resumeData, "resume", activeTemplate);
     } catch (err) {

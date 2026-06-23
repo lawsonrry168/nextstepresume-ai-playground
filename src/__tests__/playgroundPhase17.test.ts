@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildResumePdfFilename } from "../lib/resumePdfExportRouter";
 import { initialResumeData } from "../data";
-import { isE2eExportTrackingEnabled, isE2ePdfStubEnabled } from "../lib/e2eExportTrack";
+import { isE2eExportTrackingEnabled, isE2ePdfStubEnabled, isE2eDocxStubEnabled } from "../lib/e2eExportTrack";
 
 describe("phase 17 pdf export helpers", () => {
   it("builds a stable pdf filename from resume name", () => {
@@ -22,5 +22,6 @@ describe("phase 17 pdf export helpers", () => {
   it("keeps e2e export hooks disabled outside the browser harness", () => {
     expect(isE2eExportTrackingEnabled()).toBe(false);
     expect(isE2ePdfStubEnabled()).toBe(false);
+    expect(isE2eDocxStubEnabled()).toBe(false);
   });
 });

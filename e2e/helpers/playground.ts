@@ -10,13 +10,19 @@ export async function seedPlaygroundStorage(page: Page) {
     const win = window as Window & {
       __NSR_E2E_TRACK_EXPORTS__?: boolean;
       __NSR_E2E_STUB_PDF__?: boolean;
+      __NSR_E2E_STUB_DOCX__?: boolean;
       __NSR_E2E_JSON_EXPORTED__?: boolean;
       __NSR_E2E_PDF_EXPORTED__?: boolean;
+      __NSR_E2E_ATS_PDF_EXPORTED__?: boolean;
+      __NSR_E2E_DOCX_EXPORTED__?: boolean;
     };
     win.__NSR_E2E_TRACK_EXPORTS__ = true;
     win.__NSR_E2E_STUB_PDF__ = true;
+    win.__NSR_E2E_STUB_DOCX__ = true;
     win.__NSR_E2E_JSON_EXPORTED__ = false;
     win.__NSR_E2E_PDF_EXPORTED__ = false;
+    win.__NSR_E2E_ATS_PDF_EXPORTED__ = false;
+    win.__NSR_E2E_DOCX_EXPORTED__ = false;
   });
 }
 
@@ -38,9 +44,11 @@ export async function clickExportOption(page: Page, optionId: string) {
   await option.click();
 }
 
-type E2eExportFlags = {
+export type E2eExportFlags = {
   __NSR_E2E_JSON_EXPORTED__?: boolean;
   __NSR_E2E_PDF_EXPORTED__?: boolean;
+  __NSR_E2E_ATS_PDF_EXPORTED__?: boolean;
+  __NSR_E2E_DOCX_EXPORTED__?: boolean;
 };
 
 export async function readE2eExportFlags(page: Page): Promise<E2eExportFlags> {
@@ -49,6 +57,8 @@ export async function readE2eExportFlags(page: Page): Promise<E2eExportFlags> {
     return {
       __NSR_E2E_JSON_EXPORTED__: win.__NSR_E2E_JSON_EXPORTED__ === true,
       __NSR_E2E_PDF_EXPORTED__: win.__NSR_E2E_PDF_EXPORTED__ === true,
+      __NSR_E2E_ATS_PDF_EXPORTED__: win.__NSR_E2E_ATS_PDF_EXPORTED__ === true,
+      __NSR_E2E_DOCX_EXPORTED__: win.__NSR_E2E_DOCX_EXPORTED__ === true,
     };
   });
 }
