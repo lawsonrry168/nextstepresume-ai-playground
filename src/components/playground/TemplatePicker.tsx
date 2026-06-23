@@ -6,6 +6,7 @@ import {
   getResumeTemplateTheme,
   getTemplateFamily,
   getTemplatesByFamily,
+  getTemplateThemeLabel,
   TEMPLATE_FAMILIES,
 } from "../../lib/resumeTemplateCatalog";
 import { useI18n } from "../../i18n";
@@ -48,11 +49,9 @@ export default function TemplatePicker({
     family === "custom" ? activeFamily : family,
   ).filter((item) => plan === "starter" ? STARTER_TEMPLATE_IDS.includes(item.id) : canUseTemplate(item.id));
   const isCustom = family === "custom";
-  const isZh = locale === "zh-TW" || locale === "zh-HK";
 
-  const themeLabel = isZh ? activeTheme.labelZh : activeTheme.label;
-  const variantLabel = (item: { label: string; labelZh: string }) =>
-    isZh ? item.labelZh : item.label;
+  const themeLabel = getTemplateThemeLabel(activeTheme, locale);
+  const variantLabel = (item: { id: TemplateStyle }) => getTemplateThemeLabel(item, locale);
 
   useEffect(() => {
     setFamily(freeLayoutEnabled ? "custom" : getTemplateFamily(activeTemplate));
@@ -117,6 +116,7 @@ export default function TemplatePicker({
           </label>
           <select
             id={familyId}
+            data-testid="template-family-select"
             value={family}
             onChange={(e) => selectFamily(e.target.value as LayoutPickerMode)}
             className={`${selectClass} w-full ${isCustom ? (isDark ? "border-violet-500/50" : "border-violet-300") : ""}`}
@@ -137,6 +137,7 @@ export default function TemplatePicker({
           </label>
           <select
             id={variantId}
+            data-testid="template-variant-select"
             value={activeTemplate}
             onChange={(e) => {
               const style = e.target.value as TemplateStyle;

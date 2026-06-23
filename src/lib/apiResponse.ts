@@ -1,4 +1,5 @@
 import type { ApiResponseMeta } from "../types";
+import { t } from "../i18n/translate";
 import { QuotaError, type QuotaErrorCode } from "./api/quotaError";
 import { emitQuotaBlocked, mapQuotaCodeToReason } from "../lib/subscription/quotaEvents";
 
@@ -31,7 +32,7 @@ export async function parseApiJson<T>(response: Response): Promise<ParsedApiResu
   const raw = await response.json();
 
   if (response.status === 429) {
-    throw new Error("請求過於頻繁，請稍後再試（每分鐘上限 60 次）");
+    throw new Error(t("apiErrors.rateLimitMinute"));
   }
 
   if (response.status === 402) {
@@ -72,7 +73,7 @@ export async function parseAskGeminiReply(response: Response): Promise<{ reply: 
   const raw = await response.json();
 
   if (response.status === 429) {
-    throw new Error("請求過於頻繁，請稍後再試");
+    throw new Error(t("apiErrors.rateLimit"));
   }
 
   if (response.status === 402) {
@@ -95,5 +96,5 @@ export async function parseAskGeminiReply(response: Response): Promise<{ reply: 
     return { reply: raw.reply, usedFallback };
   }
 
-  throw new Error("Invalid ask-gemini response");
+  throw new Error(t("apiErrors.askGeminiInvalid"));
 }

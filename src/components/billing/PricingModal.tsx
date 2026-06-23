@@ -2,21 +2,13 @@ import { Check, X } from "lucide-react";
 import { useI18n } from "../../i18n";
 import { useSubscription } from "../../context/SubscriptionProvider";
 import { getPlanCatalog, formatPlanPrice, getSprintPassPrice } from "../../lib/subscription/planCatalog";
-import { PLAN_ENTITLEMENTS } from "../../lib/subscription/entitlements";
+import { PLAN_ENTITLEMENTS, buildPlanCompareRows } from "../../lib/subscription/entitlements";
 import type { SubscriptionPlan } from "../../lib/subscription/types";
 
-const COMPARE_ROWS: Array<{ key: string; starter: string; pro: string; max: string }> = [
-  { key: "aiCredits", starter: "3", pro: "80", max: "300" },
-  { key: "templates", starter: "3", pro: "30", max: "30" },
-  { key: "exports", starter: "watermark", pro: "full", max: "full" },
-  { key: "jobsdb", starter: "no", pro: "30", max: "100" },
-  { key: "tracker", starter: "no", pro: "20", max: "unlimited" },
-  { key: "canvas", starter: "no", pro: "no", max: "yes" },
-  { key: "gemini", starter: "no", pro: "flash", max: "flash+thinking" },
-];
+const COMPARE_ROWS = buildPlanCompareRows();
 
 function cellLabel(t: (k: string) => string, value: string): string {
-  if (value === "30" || value === "100") return value;
+  if (/^\d+$/.test(value)) return value;
   return t(`billing.compare.${value}`);
 }
 

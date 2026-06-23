@@ -1,4 +1,5 @@
 import type { ApplicationPackage, ResumeData, TemplateStyle } from "../types";
+import { t } from "../i18n/translate";
 import { createApplicationEvent } from "./applicationTimeline";
 
 export interface ImportedJobInput {
@@ -13,9 +14,15 @@ export interface ImportedJobInput {
 export function buildDraftApplicationPackage(
   input: ImportedJobInput
 ): Omit<ApplicationPackage, "id" | "createdAt" | "updatedAt"> {
-  const companyName = input.companyName.trim() || "待確認公司";
-  const jobTitle = input.jobTitle.trim() || "待確認職缺";
-  const sourceNote = input.sourceUrl ? `來源：${input.sourceUrl}` : undefined;
+  const companyName = input.companyName.trim() || t("applicationDraft.companyTbd");
+  const jobTitle = input.jobTitle.trim() || t("applicationDraft.jobTbd");
+  const sourceNote = input.sourceUrl
+    ? t("applicationDraft.sourcePrefix", { url: input.sourceUrl })
+    : undefined;
+
+  const detail = sourceNote
+    ? t("applicationDraft.createdDetailWithSource", { company: companyName, jobTitle, source: sourceNote })
+    : t("applicationDraft.createdDetail", { company: companyName, jobTitle });
 
   return {
     status: "draft",
@@ -31,11 +38,7 @@ export function buildDraftApplicationPackage(
     companyResearch: null,
     notes: sourceNote,
     timeline: [
-      createApplicationEvent(
-        "created",
-        "從職缺匯入建立草稿",
-        `${companyName} · ${jobTitle}${sourceNote ? ` · ${sourceNote}` : ""}`
-      ),
+      createApplicationEvent("created", t("applicationDraft.createdFromImport"), detail),
     ],
   };
 }

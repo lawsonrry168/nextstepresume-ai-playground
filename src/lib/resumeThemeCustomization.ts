@@ -82,25 +82,23 @@ export const DEFAULT_THEME_CUSTOMIZATION: ResumeThemeCustomization = {
 
 export interface ResumeFontOption {
   id: ResumeFontId;
-  labelZh: string;
-  labelEn: string;
   family: string;
   googleFont: string | null;
 }
 
 export const RESUME_FONT_OPTIONS: ResumeFontOption[] = [
-  { id: "inherit", labelZh: "跟隨版型", labelEn: "Template Default", family: "", googleFont: null },
-  { id: "inter", labelZh: "Inter", labelEn: "Inter", family: "Inter", googleFont: "Inter:wght@400;500;600;700;800" },
-  { id: "system-sans", labelZh: "系統無襯線", labelEn: "System Sans", family: "ui-sans-serif, system-ui, sans-serif", googleFont: null },
-  { id: "system-serif", labelZh: "系統襯線", labelEn: "System Serif", family: "ui-serif, Georgia, serif", googleFont: null },
-  { id: "georgia", labelZh: "Georgia", labelEn: "Georgia", family: "Georgia, serif", googleFont: null },
-  { id: "playfair", labelZh: "Playfair Display", labelEn: "Playfair Display", family: '"Playfair Display", Georgia, serif', googleFont: "Playfair+Display:wght@400;600;700" },
-  { id: "merriweather", labelZh: "Merriweather", labelEn: "Merriweather", family: "Merriweather, Georgia, serif", googleFont: "Merriweather:wght@400;700" },
-  { id: "lora", labelZh: "Lora", labelEn: "Lora", family: "Lora, Georgia, serif", googleFont: "Lora:wght@400;600;700" },
-  { id: "roboto", labelZh: "Roboto", labelEn: "Roboto", family: "Roboto, sans-serif", googleFont: "Roboto:wght@400;500;700" },
-  { id: "open-sans", labelZh: "Open Sans", labelEn: "Open Sans", family: '"Open Sans", sans-serif', googleFont: "Open+Sans:wght@400;600;700" },
-  { id: "source-serif", labelZh: "Source Serif 4", labelEn: "Source Serif 4", family: '"Source Serif 4", Georgia, serif', googleFont: "Source+Serif+4:wght@400;600;700" },
-  { id: "jetbrains", labelZh: "JetBrains Mono", labelEn: "JetBrains Mono", family: '"JetBrains Mono", monospace', googleFont: "JetBrains+Mono:wght@400;500;600" },
+  { id: "inherit", family: "", googleFont: null },
+  { id: "inter", family: "Inter", googleFont: "Inter:wght@400;500;600;700;800" },
+  { id: "system-sans", family: "ui-sans-serif, system-ui, sans-serif", googleFont: null },
+  { id: "system-serif", family: "ui-serif, Georgia, serif", googleFont: null },
+  { id: "georgia", family: "Georgia, serif", googleFont: null },
+  { id: "playfair", family: '"Playfair Display", Georgia, serif', googleFont: "Playfair+Display:wght@400;600;700" },
+  { id: "merriweather", family: "Merriweather, Georgia, serif", googleFont: "Merriweather:wght@400;700" },
+  { id: "lora", family: "Lora, Georgia, serif", googleFont: "Lora:wght@400;600;700" },
+  { id: "roboto", family: "Roboto, sans-serif", googleFont: "Roboto:wght@400;500;700" },
+  { id: "open-sans", family: '"Open Sans", sans-serif', googleFont: "Open+Sans:wght@400;600;700" },
+  { id: "source-serif", family: '"Source Serif 4", Georgia, serif', googleFont: "Source+Serif+4:wght@400;600;700" },
+  { id: "jetbrains", family: '"JetBrains Mono", monospace', googleFont: "JetBrains+Mono:wght@400;500;600" },
 ];
 
 const TAILWIND_TEXT_HEX: Record<string, string> = {
@@ -151,8 +149,6 @@ export function extractAccentHex(theme: ResumeTemplateTheme): string {
 }
 
 export interface ThemeFieldMeta {
-  labelZh: string;
-  hintZh: string;
   previewHex?: (theme: ResumeTemplateTheme) => string;
 }
 
@@ -168,22 +164,18 @@ export const THEME_COLOR_FIELDS: Record<
   ThemeFieldMeta
 > = {
   accentColor: {
-    labelZh: "主色",
-    hintZh: "圖示、連結、技能標籤等強調色",
-    previewHex: (t) => extractAccentHex(t),
+    previewHex: (theme) => extractAccentHex(theme),
   },
-  bodyColor: { labelZh: "正文色", hintZh: "段落與列表內文", previewHex: () => "#334155" },
-  headingColor: { labelZh: "標題色", hintZh: "姓名與大標題", previewHex: () => "#0f172a" },
-  mutedColor: { labelZh: "次要文字", hintZh: "區塊小標與輔助說明", previewHex: () => "#64748b" },
-  backgroundColor: { labelZh: "頁面背景", hintZh: "履歷紙張底色", previewHex: () => "#ffffff" },
-  cardBackgroundColor: { labelZh: "卡片背景", hintZh: "學歷／專案卡片區塊", previewHex: () => "#f8fafc" },
-  borderColor: { labelZh: "邊框色", hintZh: "區塊底線、分隔線與卡片邊框", previewHex: () => "#e2e8f0" },
+  bodyColor: { previewHex: () => "#334155" },
+  headingColor: { previewHex: () => "#0f172a" },
+  mutedColor: { previewHex: () => "#64748b" },
+  backgroundColor: { previewHex: () => "#ffffff" },
+  cardBackgroundColor: { previewHex: () => "#f8fafc" },
+  borderColor: { previewHex: () => "#e2e8f0" },
 };
 
 export const ACCENT_BAR_GRADIENT_FIELD: ThemeFieldMeta = {
-  labelZh: "色條右側色",
-  hintZh: "僅 Modern 頂部色條；左側自動沿用主色",
-  previewHex: (t) => extractAccentHex(t),
+  previewHex: (theme) => extractAccentHex(theme),
 };
 
 export function getColorFieldPreview(

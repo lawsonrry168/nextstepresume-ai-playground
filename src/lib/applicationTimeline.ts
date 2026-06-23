@@ -3,6 +3,7 @@ import type {
   ApplicationEventType,
   ApplicationPackage,
 } from "../types";
+import { t } from "../i18n/translate";
 
 export function createApplicationEvent(
   type: ApplicationEventType,
@@ -29,21 +30,18 @@ export function appendTimelineEvent(
 }
 
 export function timelineLabel(type: ApplicationEventType): string {
-  const map: Record<ApplicationEventType, string> = {
-    created: "建立套件",
-    status_change: "狀態更新",
-    applied: "已投遞",
-    interview_scheduled: "面試排程",
-    follow_up: "追蹤提醒",
-    note: "備註",
-  };
-  return map[type];
+  const key = `applicationTimeline.${type}` as const;
+  return t(key);
 }
 
 export function ensurePackageTimeline(pkg: ApplicationPackage): ApplicationPackage {
   if (pkg.timeline?.length) return pkg;
   return appendTimelineEvent(
     pkg,
-    createApplicationEvent("created", "建立應徵套件", `${pkg.companyName} · ${pkg.jobTitle}`)
+    createApplicationEvent(
+      "created",
+      t("applicationDraft.createdPackage"),
+      t("applicationDraft.createdDetail", { company: pkg.companyName, jobTitle: pkg.jobTitle }),
+    ),
   );
 }

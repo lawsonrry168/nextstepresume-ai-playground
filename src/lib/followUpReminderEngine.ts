@@ -1,4 +1,5 @@
 import type { ApplicationPackage } from "../types";
+import { t } from "../i18n/translate";
 import { NSR_STORAGE_KEYS } from "./storageKeys";
 
 export type FollowUpReminderKind = "follow_up_due" | "follow_up_overdue" | "interview_today" | "interview_tomorrow";
@@ -154,11 +155,11 @@ export function collectFollowUpReminders(
           kind,
           targetDate: pkg.followUpDate,
           title: overdue
-            ? `追蹤已逾期 — ${pkg.companyName}`
-            : `今日追蹤提醒 — ${pkg.companyName}`,
+            ? t("followUpNotifications.followUpOverdueTitle", { company: pkg.companyName })
+            : t("followUpNotifications.followUpDueTitle", { company: pkg.companyName }),
           body: overdue
-            ? `${pkg.jobTitle} 的 follow-up 已逾期，請儘快聯繫 HR 或更新應徵狀態。`
-            : `${pkg.jobTitle} 的 follow-up 日期為今日，請確認是否已聯繫 HR 或更新應徵狀態。`,
+            ? t("followUpNotifications.followUpOverdueBody", { jobTitle: pkg.jobTitle })
+            : t("followUpNotifications.followUpDueBody", { jobTitle: pkg.jobTitle }),
           notifyKey: `${pkg.id}:${kind}:${dk}`,
         });
       }
@@ -175,8 +176,8 @@ export function collectFollowUpReminders(
           jobTitle: pkg.jobTitle,
           kind: "interview_today",
           targetDate: pkg.interviewDate,
-          title: `今日面試 — ${pkg.companyName}`,
-          body: `${pkg.jobTitle} 面試就在今天，記得複習面試準備與公司研究。`,
+          title: t("followUpNotifications.interviewTodayTitle", { company: pkg.companyName }),
+          body: t("followUpNotifications.interviewTodayBody", { jobTitle: pkg.jobTitle }),
           notifyKey: `${pkg.id}:interview_today:${dk}`,
         });
       } else if (interviewDay.getTime() === tomorrow.getTime()) {
@@ -186,8 +187,8 @@ export function collectFollowUpReminders(
           jobTitle: pkg.jobTitle,
           kind: "interview_tomorrow",
           targetDate: pkg.interviewDate,
-          title: `明日面試 — ${pkg.companyName}`,
-          body: `${pkg.jobTitle} 面試將在明天舉行，建議今晚完成最後準備。`,
+          title: t("followUpNotifications.interviewTomorrowTitle", { company: pkg.companyName }),
+          body: t("followUpNotifications.interviewTomorrowBody", { jobTitle: pkg.jobTitle }),
           notifyKey: `${pkg.id}:interview_tomorrow:${dk}`,
         });
       }

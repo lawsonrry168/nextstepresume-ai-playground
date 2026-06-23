@@ -1,5 +1,8 @@
 /** Apify actor: shahidirfan/jobsdb-scraper — https://apify.com/shahidirfan/jobsdb-scraper */
 
+import { getActiveLocale, t } from "../i18n/translate";
+import type { AppLocale } from "../i18n/types";
+
 export type JobsdbCountry = "hk" | "th";
 export type JobsdbPostedDate = "anytime" | "24h" | "7d" | "30d";
 
@@ -32,22 +35,27 @@ export type JobsdbListing = {
 export type JobsdbSearchResponse = {
   jobs: JobsdbListing[];
   meta: {
-    source: "jobsdb-apify";
+    source: "jobsdb-apify" | "jobsdb-simulation";
     count: number;
-    simulated: false;
+    simulated: boolean;
   };
 };
 
-export function jobsdbListingToJobDescription(job: JobsdbListing): string {
+function jdLabel(key: string, locale?: AppLocale): string {
+  return t(`jobsdbJd.${key}`, undefined, locale ?? getActiveLocale());
+}
+
+export function jobsdbListingToJobDescription(job: JobsdbListing, locale?: AppLocale): string {
+  const loc = locale ?? getActiveLocale();
   const lines: string[] = [];
 
-  if (job.title) lines.push(`職位：${job.title}`);
-  if (job.company) lines.push(`公司：${job.company}`);
-  if (job.location) lines.push(`地點：${job.location}`);
-  if (job.workType) lines.push(`工作型態：${job.workType}`);
-  if (job.classification) lines.push(`分類：${job.classification}`);
-  if (job.salary) lines.push(`薪資：${job.salary}`);
-  if (job.postedAt_relative) lines.push(`刊登：${job.postedAt_relative}`);
+  if (job.title) lines.push(`${jdLabel("role", loc)}：${job.title}`);
+  if (job.company) lines.push(`${jdLabel("company", loc)}：${job.company}`);
+  if (job.location) lines.push(`${jdLabel("location", loc)}：${job.location}`);
+  if (job.workType) lines.push(`${jdLabel("workType", loc)}：${job.workType}`);
+  if (job.classification) lines.push(`${jdLabel("classification", loc)}：${job.classification}`);
+  if (job.salary) lines.push(`${jdLabel("salary", loc)}：${job.salary}`);
+  if (job.postedAt_relative) lines.push(`${jdLabel("posted", loc)}：${job.postedAt_relative}`);
 
   lines.push("");
 
@@ -58,7 +66,7 @@ export function jobsdbListingToJobDescription(job: JobsdbListing): string {
 
   if (job.bulletPoints?.length) {
     lines.push("");
-    lines.push("重點：");
+    lines.push(`${jdLabel("highlights", loc)}：`);
     for (const point of job.bulletPoints) {
       if (point.trim()) lines.push(`• ${point.trim()}`);
     }
@@ -66,20 +74,23 @@ export function jobsdbListingToJobDescription(job: JobsdbListing): string {
 
   if (job.url) {
     lines.push("");
-    lines.push(`來源：${job.url}`);
+    lines.push(t("jobsdbJd.source", { url: job.url }, loc));
   }
 
   return lines.join("\n").trim();
 }
 
-export function jobsdbListingToImportedJob(job: JobsdbListing): {
+export function jobsdbListingToImportedJob(
+  job: JobsdbListing,
+  locale?: AppLocale,
+): {
   jobDescription: string;
   jobTitle: string;
   companyName: string;
   sourceUrl: string;
 } {
   return {
-    jobDescription: jobsdbListingToJobDescription(job),
+    jobDescription: jobsdbListingToJobDescription(job, locale),
     jobTitle: job.title?.trim() || "",
     companyName: job.company?.trim() || "",
     sourceUrl: job.url?.trim() || "",

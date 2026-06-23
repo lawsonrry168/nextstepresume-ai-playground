@@ -367,6 +367,12 @@ describe("jdHtmlExtract", () => {
 
 describe("createDraftApplicationPackage", () => {
   it("builds draft package with source url in notes", async () => {
+    const { ensureLocaleLoaded, setActiveLocale } = await import("../i18n/translate");
+    const zhTW = (await import("../i18n/locales/zh-TW")).default;
+    const zhMessages = zhTW as import("../i18n/types").MessageTree;
+    setActiveLocale("zh-TW");
+    await ensureLocaleLoaded("zh-TW");
+
     const { buildDraftApplicationPackage } = await import("../lib/createDraftApplicationPackage");
     const draft = buildDraftApplicationPackage({
       companyName: "Acme",
@@ -378,7 +384,9 @@ describe("createDraftApplicationPackage", () => {
     });
     expect(draft.status).toBe("draft");
     expect(draft.notes).toContain("https://example.com/jobs/1");
-    expect(draft.timeline?.[0]?.title).toContain("匯入");
+    expect(draft.timeline?.[0]?.title).toBe(
+      String((zhMessages.applicationDraft as import("../i18n/types").MessageTree).createdFromImport),
+    );
   });
 });
 
@@ -394,6 +402,10 @@ describe("importJdFromPaste", () => {
 
 describe("jobsdbApifyScraper", () => {
   it("maps listing to imported job description", async () => {
+    const { ensureLocaleLoaded, setActiveLocale } = await import("../i18n/translate");
+    setActiveLocale("zh-TW");
+    await ensureLocaleLoaded("zh-TW");
+
     const { jobsdbListingToImportedJob, normalizeJobsdbListings } = await import(
       "../lib/jobsdbApifyScraper"
     );
@@ -409,10 +421,11 @@ describe("jobsdbApifyScraper", () => {
       },
     ]);
     expect(jobs).toHaveLength(1);
-    const imported = jobsdbListingToImportedJob(jobs[0]);
+    const imported = jobsdbListingToImportedJob(jobs[0], "zh-TW");
     expect(imported.jobTitle).toBe("Frontend Engineer");
     expect(imported.companyName).toBe("Acme HK");
     expect(imported.jobDescription).toContain("Build React apps.");
+    expect(imported.jobDescription).toContain("職位");
     expect(imported.sourceUrl).toContain("jobsdb.com");
   });
 });

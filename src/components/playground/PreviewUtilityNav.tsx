@@ -116,6 +116,7 @@ export default function PreviewUtilityNav(props: PreviewUtilityNavProps) {
     const onPointerDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (dockRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest('[role="menu"]')) return;
       setOpenPanel(null);
     };
     window.addEventListener("keydown", onKey);

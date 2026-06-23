@@ -9,3 +9,8 @@ coverage/
 __pycache__/
 *.pyc
 .cursor/
+playwright-report/
+test-results/
+blob-report/
+dump.rdb
+*.rdb

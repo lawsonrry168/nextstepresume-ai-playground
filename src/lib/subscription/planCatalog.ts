@@ -40,16 +40,8 @@ export function getPlanCatalog(): PlanPricing[] {
   ];
 }
 
-/** @deprecated Use getPlanCatalog() — kept for imports that expect static catalog. */
-export const PLAN_CATALOG: PlanPricing[] = getPlanCatalog();
-
 export function formatPlanPrice(amount: number, locale: AppLocale): string {
   return formatMarketCurrency(amount, locale);
-}
-
-/** @deprecated Use formatPlanPrice */
-export function formatTwd(amount: number, locale: "zh-TW" | "en"): string {
-  return formatMarketCurrency(amount, locale === "en" ? "en" : "zh-HK");
 }
 
 export function getSprintPassPrice(): number {

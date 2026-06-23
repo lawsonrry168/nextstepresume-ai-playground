@@ -1,6 +1,8 @@
 import { useCallback, useState } from "react";
+import { t } from "../i18n/translate";
 import { getActiveLocale } from "../i18n/translate";
 import { getActiveMarket } from "../lib/market/config";
+import { apiResponseLogLevel, apiResponseOutcomeKey } from "../lib/apiLogMessages";
 import { getOrCreateClientId } from "../lib/subscription/clientId";
 import { getSubscriptionSnapshot } from "../lib/subscriptionSnapshot";
 import {
@@ -9,6 +11,8 @@ import {
 } from "../lib/subscription/usageLedger";
 
 export type SystemLogType = "info" | "warn" | "error";
+
+export { apiResponseLogLevel, apiResponseOutcomeKey } from "../lib/apiLogMessages";
 
 export interface SystemLogEntry {
   id: string;
@@ -27,12 +31,12 @@ export interface ApiLogEntry {
 export function useMeasuredApi(onLog?: (type: SystemLogType, message: string) => void) {
   const [apiLatency, setApiLatency] = useState<number | null>(null);
   const [apiLogs, setApiLogs] = useState<ApiLogEntry[]>([]);
-  const [systemLogs, setSystemLogs] = useState<SystemLogEntry[]>([
+  const [systemLogs, setSystemLogs] = useState<SystemLogEntry[]>(() => [
     {
       id: "init",
       timestamp: new Date().toLocaleTimeString(),
       type: "info",
-      message: "NextStepResume.ai Engine 核心引擎就緒：工作區已載入基礎模組。",
+      message: t("systemLog.engineReady"),
     },
   ]);
 
@@ -50,7 +54,7 @@ export function useMeasuredApi(onLog?: (type: SystemLogType, message: string) =>
   const measuredFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const startTime = performance.now();
     const urlStr = typeof input === "string" ? input : (input as Request).url || String(input);
-    addSystemLog("info", `正在呼叫 API 請求: ${urlStr}`);
+    addSystemLog("info", t("systemLog.apiCalling", { url: urlStr }));
 
     try {
       const headers = new Headers(init?.headers);
@@ -75,7 +79,16 @@ export function useMeasuredApi(onLog?: (type: SystemLogType, message: string) =>
         { url: urlStr, latency: latencyValue, status: response.status, timestamp: new Date().toLocaleTimeString() },
         ...prev.slice(0, 24),
       ]);
-      addSystemLog("info", `API 回應成功 ← ${urlStr} 耗時 ${latencyValue}ms (狀態碼: ${response.status})`);
+      const outcomeKey = apiResponseOutcomeKey(response.status);
+      addSystemLog(
+        apiResponseLogLevel(response.status),
+        t("systemLog.apiResponse", {
+          outcome: t(`systemLog.outcome.${outcomeKey}`),
+          url: urlStr,
+          latency: latencyValue,
+          status: response.status,
+        }),
+      );
       return response;
     } catch (err: unknown) {
       const latencyValue = Math.round(performance.now() - startTime);
@@ -85,29 +98,25 @@ export function useMeasuredApi(onLog?: (type: SystemLogType, message: string) =>
         ...prev.slice(0, 24),
       ]);
       const message = err instanceof Error ? err.message : String(err);
-      addSystemLog("error", `API 異常 ❌ ${urlStr} 耗時 ${latencyValue}ms: ${message}`);
+      addSystemLog("error", t("systemLog.apiError", { url: urlStr, latency: latencyValue, message }));
       throw err;
     }
   }, [addSystemLog]);
 
   const exportSystemLogs = useCallback(() => {
-    addSystemLog("info", "開始匯出系統效能及操作日誌。");
-    const timestampString = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `system_logs_${timestampString}.log`;
-    const logContent =
-      `=====================================================\nNEXTSTEPRESUME.AI SYSTEM DIAGNOSTIC LOGS\nExported: ${new Date().toLocaleString()}\n=====================================================\n\n` +
-      systemLogs.map((log) => `[${log.timestamp}] [${log.type.toUpperCase()}] ${log.message}`).join("\n");
-
-    const blob = new Blob([logContent], { type: "text/plain;charset=utf-8" });
+    addSystemLog("info", t("systemLog.exportLogsStart"));
+    const logText = systemLogs.map((log) => `[${log.timestamp}] [${log.type.toUpperCase()}] ${log.message}`).join("\n");
+    const blob = new Blob([logText], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const a = document.createElement("a");
+    const filename = `nextstepresume-system-logs-${Date.now()}.txt`;
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    addSystemLog("info", `日誌備份完成 💾 檔案名: ${filename}`);
+    addSystemLog("info", t("systemLog.exportLogsDone", { filename }));
   }, [addSystemLog, systemLogs]);
 
   return {

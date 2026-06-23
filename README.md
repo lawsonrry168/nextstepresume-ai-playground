@@ -47,9 +47,40 @@ View your app in AI Studio: https://ai.studio/apps/a22693ce-827d-4c8c-8e19-0debc
 | `npm run build` | Build frontend and server bundle |
 | `npm run start` | Run production server |
 | `npm test` | Run Vitest unit tests |
+| `npm run test:ci` | Local mirror of CI unit job (lint + unit tests) |
+| `npm run test:ci:full` | Run unit + optional redis + e2e (full pre-merge smoke) |
+| `npm run test:e2e` | Playwright smoke tests (starts dev server) |
+| `npm run test:redis` | Redis quota integration tests (requires Redis) |
+| `npm run redis:start` | Start local Redis (Windows winget path auto-detect) |
 | `npm run lint` | TypeScript type check |
 | `npm run clean` | Remove build artifacts |
 
 ## Windows Note
 
 If the project folder path contains special characters (e.g. `&`), npm scripts invoke Node directly to avoid path parsing issues on Windows.
+
+## PR stack merge order
+
+Merge open stacked PRs into `main` in order (**#1 → #2 → …**). Recent tail of the stack:
+
+| PR | Phase | Branch |
+|----|-------|--------|
+| #15 | 14 Market banner | `pr/16-phase14-market-banner-ui` |
+| #16 | 15 Redis script + E2E | `pr/17-phase15-redis-script-e2e` |
+| #17 | 16 E2E helpers + Redis docs | `pr/18-phase16-redis-docs-e2e-helpers` |
+| #18 | 17 JSON + visual PDF export | `pr/19-phase17-export-download-e2e` |
+| #19 | 18 DOCX + ATS PDF export | `pr/20-phase18-docx-ats-export-e2e` |
+| #20 | 19 Studio export E2E | `pr/21-phase19-studio-export-e2e` |
+| #21 | 20 CI hygiene + local test:ci | `pr/22-phase20-ci-hygiene` |
+| #22 | 21 Full CI runner + workflow concurrency | `pr/23-phase21-ci-full-workflow` |
+
+After each merge, rebase or retarget the next PR if GitHub shows conflicts.
+
+### Pre-merge smoke (local)
+
+```bash
+npm run test:ci          # lint + unit (CI unit job)
+npm run test:ci:full     # unit + redis (skip if down) + e2e
+npm run test:redis       # requires Redis (CI redis job)
+npm run test:e2e         # Playwright (CI e2e job)
+```

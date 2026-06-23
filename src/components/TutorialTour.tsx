@@ -15,7 +15,7 @@ const TOUR_STEP_CONFIG: TourStepConfig[] = [
   { id: "welcome", targetId: "app-sidebar", view: "overview" },
   { id: "sidebar", targetId: "app-sidebar-nav", view: "overview" },
   { id: "apiStatus", targetId: "navigation-side-status", view: "overview" },
-  { id: "resumeMatch", targetId: "subtab-content", view: "simulator" },
+  { id: "resumeMatch", targetId: "content-tab-view", view: "simulator" },
   { id: "diagnostics", targetId: "system-diagnostic-panel", view: "simulator" },
   { id: "atsKeywords", targetId: "floating-ats-compliance-widget", view: "simulator" },
 ];

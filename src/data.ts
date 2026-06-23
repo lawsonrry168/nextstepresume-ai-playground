@@ -198,7 +198,7 @@ export const COMPILED_ENDPOINTS = [
   { path: "/api/resume/parse-pdf", method: "POST", localeKey: "parsePdf" },
   { path: "/api/analyze", method: "POST", localeKey: "analyze" },
   { path: "/api/jobsdb/search", method: "POST", localeKey: "jobsdb" },
-  { path: "/api/resume/download", method: "POST", localeKey: "download" },
+  { path: "/api/health", method: "GET", localeKey: "health" },
 ] as const;
 
 /** @deprecated Prefer COMPILED_ENDPOINTS — only path/method remain for legacy imports */

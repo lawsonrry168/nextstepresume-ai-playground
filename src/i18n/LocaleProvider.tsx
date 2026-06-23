@@ -10,6 +10,7 @@ import {
 import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
 import { getActiveMarket } from "../lib/market/config";
 import { ensureLocaleLoaded, setActiveLocale, translate } from "./translate";
+import { htmlLangForLocale } from "./htmlLang";
 import type { AppLocale } from "./types";
 import { DEFAULT_LOCALE, getMarketLocales } from "./types";
 
@@ -32,12 +33,6 @@ function readStoredLocale(): AppLocale {
     /* ignore */
   }
   return DEFAULT_LOCALE;
-}
-
-function htmlLangForLocale(locale: AppLocale): string {
-  if (locale === "en") return "en-HK";
-  if (locale === "zh-HK") return "zh-HK";
-  return "zh-Hant";
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {

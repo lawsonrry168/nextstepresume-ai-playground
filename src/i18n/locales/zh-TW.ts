@@ -1,4 +1,5 @@
 import type { MessageTree } from "../types";
+import templateThemes from "./data/templateThemes.zh-TW";
 
 const zhTW: MessageTree = {
   brand: {
@@ -516,6 +517,8 @@ const zhTW: MessageTree = {
     classic: "經典",
     minimalist: "極簡",
   },
+
+  templateThemes,
 
   export: {
     menuTitle: "匯出 PDF（ATS / 影像型）、Word 或 JSON",
@@ -1316,6 +1319,36 @@ const zhTW: MessageTree = {
     subtitle: "字型 · 配色 · 間距 · 顯示",
     enable: "啟用",
     enabled: "已啟用",
+    colorFields: {
+      accentColor: {
+        label: "主色",
+        hint: "圖示、連結、技能標籤等強調色",
+      },
+      bodyColor: { label: "正文色", hint: "段落與列表內文" },
+      headingColor: { label: "標題色", hint: "姓名與大標題" },
+      mutedColor: { label: "次要文字", hint: "區塊小標與輔助說明" },
+      backgroundColor: { label: "頁面背景", hint: "履歷紙張底色" },
+      cardBackgroundColor: { label: "卡片背景", hint: "學歷／專案卡片區塊" },
+      borderColor: { label: "邊框色", hint: "區塊底線、分隔線與卡片邊框" },
+    },
+    accentBarGradient: {
+      label: "色條右側色",
+      hint: "僅 Modern 頂部色條；左側自動沿用主色",
+    },
+    fonts: {
+      inherit: "跟隨版型",
+      inter: "Inter",
+      "system-sans": "系統無襯線",
+      "system-serif": "系統襯線",
+      georgia: "Georgia",
+      playfair: "Playfair Display",
+      merriweather: "Merriweather",
+      lora: "Lora",
+      roboto: "Roboto",
+      "open-sans": "Open Sans",
+      "source-serif": "Source Serif 4",
+      jetbrains: "JetBrains Mono",
+    },
   },
 
   interviewPrep: {
@@ -1527,6 +1560,16 @@ const zhTW: MessageTree = {
         payloadSchema: "{ resumeId: string, styleConfig: { font: string, spacing: string, colorTheme: string } }",
         responseSchema: "瀏覽器內直接開啟列印視窗",
       },
+      jobsdb: {
+        role: "透過 Apify actor 代理 JobsDB HK 職缺，並驗證 startUrl 以防 SSRF。",
+        payloadSchema: '{ keyword?: string, startUrl?: string, maxResults?: number }',
+        responseSchema: "{ jobs: JobListing[], meta: ApiResponseMeta }",
+      },
+      health: {
+        role: "Express API 存活探測與 Gemini 可用性旗標。",
+        payloadSchema: "（無）",
+        responseSchema: '{ status: "ok", ai_enabled: boolean, timestamp: string }',
+      },
     },
   },
 
@@ -1608,6 +1651,114 @@ const zhTW: MessageTree = {
     appliedSummary: "已將建議段落追加填入至履歷「個人簡介」尾端！",
     copiedGrammar: "已複製該專業術語段落至「語法檢查區」，您可以一鍵點擊上方進行語法診斷！",
     addedSkill: "已將核心技能 [ {{skill}} ] 新增添加到您的履歷技能矩陣中！",
+    autoSaveSuccess: "系統成功背景執行自動存檔備份作業。",
+    autoSaveFailed: "系統背景存檔備份作業失敗：{{message}}",
+    manualSaveSuccess: "使用者手動觸發儲存作業 (Ctrl+S) 成功且備份檔案已寫入。",
+    manualSaveFailed: "使用者儲存作業系統失敗",
+    workspaceReset: "工作區已重設為預設範例資料。",
+    resumeImported: "使用者透過文字解析匯入履歷資料。",
+  },
+
+  systemLog: {
+    engineReady: "NextStepResume.ai 核心引擎就緒：工作區已載入基礎模組。",
+    apiCalling: "正在呼叫 API 請求：{{url}}",
+    apiResponse: "API 回應{{outcome}} ← {{url}} 耗時 {{latency}}ms（狀態碼：{{status}}）",
+    apiError: "API 異常 ← {{url}} 耗時 {{latency}}ms：{{message}}",
+    exportLogsStart: "開始匯出系統效能及操作日誌。",
+    exportLogsDone: "日誌備份完成 — 檔案：{{filename}}",
+    shortcutsToggle: "觸發鍵盤快捷鍵說明面板切換。",
+    escapeClose: "Esc 鍵關閉所有浮落控制區。",
+    tabSwitch: "使用者切換功能分頁為：[{{tab}}]",
+    templateSwitch: "使用者更換履歷排版為：{{label}}（{{id}}）",
+    outcome: {
+      success: "成功",
+      rejected: "被拒",
+      failed: "失敗",
+    },
+  },
+
+  apiErrors: {
+    rateLimitMinute: "請求過於頻繁，請稍後再試（每分鐘上限 60 次）",
+    rateLimit: "請求過於頻繁，請稍後再試",
+    jdExtractInsufficient: "無法從此網址提取足夠的職缺內容，請改貼上 JD 全文",
+    jdPasteMinLength: "JD 至少需要 20 字元",
+    jobsdbSearchFailed: "JobsDB 搜尋失敗（HTTP {{status}}）",
+    askGeminiInvalid: "ask-gemini 回應格式無效",
+  },
+
+  geminiChatInitial: {
+    message:
+      "你好！我是你的 AI 職涯教練與 ATS 優化顧問。\n\n我已對照你的履歷與目標職缺 JD 做過初步評估。\n\n你可以問我任何問題，例如：\n- 「幫我改寫摘要，突出系統設計能力」\n- 「用 STAR 法優化我的成就 bullet」\n- 「我還缺哪些關鍵字？」",
+  },
+
+  voiceInput: {
+    unsupported: "您的瀏覽器暫不支援 Web Speech API 語音辨識。請使用 Google Chrome 進行測試。",
+    stopped: "語音辨識已關閉",
+    listening: "錄音聆聽中… 請開始說話…",
+    disconnected: "語音連線已斷開",
+    startError: "開啟辨識模組時發生錯誤",
+  },
+
+  exportErrors: {
+    snapshotReadFailed: "無法讀取履歷快照",
+    snapshotNoInk: "履歷快照無內容，請確認預覽已載入後再匯出",
+    snapshotEmpty: "履歷快照為空",
+    contentTooShort: "履歷內容高度不足，請確認預覽已完整載入",
+    previewNotFound: "找不到履歷預覽元素",
+    colorFormatUnsupported: "PDF 匯出失敗：色彩格式不相容（oklch）。請重新整理頁面後再匯出。",
+  },
+
+  pdfExportModes: {
+    visual: {
+      title: "匯出 PDF（影像型）",
+      hint: "直接擷取預覽畫面，與所見即所得",
+    },
+    ats: {
+      title: "匯出 PDF（ATS）",
+      hint: "可選文字，ATS 友善結構",
+    },
+  },
+
+  followUpNotifications: {
+    followUpOverdueTitle: "追蹤已逾期 — {{company}}",
+    followUpDueTitle: "今日追蹤提醒 — {{company}}",
+    followUpOverdueBody: "{{jobTitle}} 的 follow-up 已逾期，請儘快聯繫 HR 或更新應徵狀態。",
+    followUpDueBody: "{{jobTitle}} 的 follow-up 日期為今日，請確認是否已聯繫 HR 或更新應徵狀態。",
+    interviewTodayTitle: "今日面試 — {{company}}",
+    interviewTodayBody: "{{jobTitle}} 面試就在今天，記得複習面試準備與公司研究。",
+    interviewTomorrowTitle: "明日面試 — {{company}}",
+    interviewTomorrowBody: "{{jobTitle}} 面試將在明天舉行，建議今晚完成最後準備。",
+  },
+
+  applicationDraft: {
+    companyTbd: "待確認公司",
+    jobTbd: "待確認職缺",
+    sourcePrefix: "來源：{{url}}",
+    createdFromImport: "從職缺匯入建立草稿",
+    createdPackage: "建立應徵套件",
+    createdDetail: "{{company}} · {{jobTitle}}",
+    createdDetailWithSource: "{{company}} · {{jobTitle}} · {{source}}",
+  },
+
+  applicationTimeline: {
+    created: "建立套件",
+    status_change: "狀態更新",
+    applied: "已投遞",
+    interview_scheduled: "面試排程",
+    follow_up: "追蹤提醒",
+    note: "備註",
+  },
+
+  jobsdbJd: {
+    role: "職位",
+    company: "公司",
+    location: "地點",
+    workType: "工作型態",
+    classification: "分類",
+    salary: "薪資",
+    posted: "刊登",
+    highlights: "重點",
+    source: "來源：{{url}}",
   },
 
   applicationsTimeline: {
@@ -1729,6 +1880,8 @@ const zhTW: MessageTree = {
       feature: "功能",
       "3": "3 款",
       "30": "30 款",
+      "100": "100 次/月",
+      all: "全部模板",
       watermark: "浮水印",
       full: "完整",
       no: "—",
@@ -1740,6 +1893,7 @@ const zhTW: MessageTree = {
         aiCredits: "AI 點數 / 月",
         templates: "模板",
         exports: "PDF 匯出",
+        jobsdb: "JobsDB HK 搜尋",
         tracker: "申請追蹤",
         canvas: "Canvas Studio",
         gemini: "Gemini 導師",

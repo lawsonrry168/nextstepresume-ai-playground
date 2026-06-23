@@ -1,4 +1,5 @@
 import type { MessageTree } from "../types";
+import templateThemes from "./data/templateThemes.en";
 
 const en: MessageTree = {
   brand: {
@@ -521,6 +522,8 @@ const en: MessageTree = {
     classic: "Classic",
     minimalist: "Minimalist",
   },
+
+  templateThemes,
 
   export: {
     menuTitle: "Export PDF (ATS / visual), Word, or JSON",
@@ -1321,6 +1324,36 @@ const en: MessageTree = {
     subtitle: "Fonts · colors · spacing · display",
     enable: "Enable",
     enabled: "Enabled",
+    colorFields: {
+      accentColor: {
+        label: "Accent",
+        hint: "Icons, links, skill chips, and other emphasis colors",
+      },
+      bodyColor: { label: "Body text", hint: "Paragraph and list content" },
+      headingColor: { label: "Headings", hint: "Name and major section titles" },
+      mutedColor: { label: "Muted text", hint: "Section subtitles and helper copy" },
+      backgroundColor: { label: "Page background", hint: "Resume sheet background" },
+      cardBackgroundColor: { label: "Card background", hint: "Education and project card blocks" },
+      borderColor: { label: "Borders", hint: "Section rules, dividers, and card outlines" },
+    },
+    accentBarGradient: {
+      label: "Bar right color",
+      hint: "Modern top bar only; left side syncs with accent color",
+    },
+    fonts: {
+      inherit: "Template default",
+      inter: "Inter",
+      "system-sans": "System sans-serif",
+      "system-serif": "System serif",
+      georgia: "Georgia",
+      playfair: "Playfair Display",
+      merriweather: "Merriweather",
+      lora: "Lora",
+      roboto: "Roboto",
+      "open-sans": "Open Sans",
+      "source-serif": "Source Serif 4",
+      jetbrains: "JetBrains Mono",
+    },
   },
 
   interviewPrep: {
@@ -1535,6 +1568,16 @@ const en: MessageTree = {
         payloadSchema: "{ resumeId: string, styleConfig: { font: string, spacing: string, colorTheme: string } }",
         responseSchema: "In-Browser direct printer window prompt",
       },
+      jobsdb: {
+        role: "Proxy JobsDB HK listings via Apify actor with SSRF-safe startUrl validation.",
+        payloadSchema: '{ keyword?: string, startUrl?: string, maxResults?: number }',
+        responseSchema: "{ jobs: JobListing[], meta: ApiResponseMeta }",
+      },
+      health: {
+        role: "Liveness probe for the Express API and Gemini availability flag.",
+        payloadSchema: "(none)",
+        responseSchema: '{ status: "ok", ai_enabled: boolean, timestamp: string }',
+      },
     },
   },
 
@@ -1616,6 +1659,118 @@ const en: MessageTree = {
     appliedSummary: "Suggestion appended to your resume summary!",
     copiedGrammar: "Copied to grammar check area — run the check above.",
     addedSkill: "Added core skill [ {{skill}} ] to your skills matrix!",
+    autoSaveSuccess: "Background auto-save completed successfully.",
+    autoSaveFailed: "Background auto-save failed: {{message}}",
+    manualSaveSuccess: "Manual save (Ctrl+S) succeeded and backup was written.",
+    manualSaveFailed: "Manual save failed.",
+    workspaceReset: "Workspace reset to default sample data.",
+    resumeImported: "Resume imported via text parse.",
+  },
+
+  systemLog: {
+    engineReady: "NextStepResume.ai engine ready — workspace modules loaded.",
+    apiCalling: "Calling API: {{url}}",
+    apiResponse:
+      "API {{outcome}} ← {{url}} in {{latency}}ms (HTTP {{status}})",
+    apiError: "API error ← {{url}} in {{latency}}ms: {{message}}",
+    exportLogsStart: "Exporting system performance and operation logs.",
+    exportLogsDone: "Log backup complete — file: {{filename}}",
+    shortcutsToggle: "Keyboard shortcuts panel toggled.",
+    escapeClose: "Esc closed all floating panels.",
+    tabSwitch: "User switched tab: [{{tab}}]",
+    templateSwitch: "User changed template: {{label}} ({{id}})",
+    outcome: {
+      success: "response OK",
+      rejected: "rejected",
+      failed: "failed",
+    },
+  },
+
+  apiErrors: {
+    rateLimitMinute: "Too many requests — please wait (limit 60 per minute).",
+    rateLimit: "Too many requests — please try again later.",
+    jdExtractInsufficient: "Could not extract enough job content from this URL — paste the full JD instead.",
+    jdPasteMinLength: "Job description must be at least 20 characters.",
+    jobsdbSearchFailed: "JobsDB search failed (HTTP {{status}})",
+    askGeminiInvalid: "Invalid ask-gemini response",
+  },
+
+  geminiChatInitial: {
+    message:
+      "Hello! I'm your elite AI Career Coach and ATS optimizer.\n\nI've reviewed your resume against the target job description.\n\nAsk me anything — for example:\n- \"Rewrite my summary to highlight system design\"\n- \"Optimize my bullets with STAR metrics\"\n- \"Which keywords am I missing?\"",
+  },
+
+  voiceInput: {
+    unsupported: "Your browser does not support Web Speech API. Try Google Chrome.",
+    stopped: "Voice recognition stopped.",
+    listening: "Listening… start speaking.",
+    disconnected: "Voice connection lost.",
+    startError: "Error starting speech recognition.",
+  },
+
+  exportErrors: {
+    snapshotReadFailed: "Could not read resume snapshot.",
+    snapshotNoInk: "Resume snapshot has no visible content — ensure preview is loaded before exporting.",
+    snapshotEmpty: "Resume snapshot is empty.",
+    contentTooShort: "Resume content is too short — ensure preview is fully loaded.",
+    previewNotFound: "Resume preview element not found.",
+    colorFormatUnsupported:
+      "PDF export failed: unsupported color format (oklch). Refresh the page and try again.",
+  },
+
+  pdfExportModes: {
+    visual: {
+      title: "Export PDF (visual)",
+      hint: "Captures the preview as shown (WYSIWYG)",
+    },
+    ats: {
+      title: "Export PDF (ATS)",
+      hint: "Selectable text, ATS-friendly structure",
+    },
+  },
+
+  followUpNotifications: {
+    followUpOverdueTitle: "Follow-up overdue — {{company}}",
+    followUpDueTitle: "Follow-up due today — {{company}}",
+    followUpOverdueBody:
+      "Follow-up for {{jobTitle}} is overdue. Contact HR or update your application status.",
+    followUpDueBody:
+      "Follow-up for {{jobTitle}} is due today. Confirm whether you have contacted HR.",
+    interviewTodayTitle: "Interview today — {{company}}",
+    interviewTodayBody: "Interview for {{jobTitle}} is today. Review your prep and company research.",
+    interviewTomorrowTitle: "Interview tomorrow — {{company}}",
+    interviewTomorrowBody: "Interview for {{jobTitle}} is tomorrow. Finish your final prep tonight.",
+  },
+
+  applicationDraft: {
+    companyTbd: "Company TBD",
+    jobTbd: "Role TBD",
+    sourcePrefix: "Source: {{url}}",
+    createdFromImport: "Draft created from job import",
+    createdPackage: "Application package created",
+    createdDetail: "{{company}} · {{jobTitle}}",
+    createdDetailWithSource: "{{company}} · {{jobTitle}} · {{source}}",
+  },
+
+  applicationTimeline: {
+    created: "Package created",
+    status_change: "Status updated",
+    applied: "Applied",
+    interview_scheduled: "Interview scheduled",
+    follow_up: "Follow-up reminder",
+    note: "Note",
+  },
+
+  jobsdbJd: {
+    role: "Role",
+    company: "Company",
+    location: "Location",
+    workType: "Work type",
+    classification: "Classification",
+    salary: "Salary",
+    posted: "Posted",
+    highlights: "Highlights",
+    source: "Source: {{url}}",
   },
 
   applicationsTimeline: {
@@ -1737,6 +1892,8 @@ const en: MessageTree = {
       feature: "Feature",
       "3": "3 templates",
       "30": "30 templates",
+      "100": "100 / mo",
+      all: "All templates",
       watermark: "Watermarked",
       full: "Full",
       no: "—",
@@ -1748,6 +1905,7 @@ const en: MessageTree = {
         aiCredits: "AI credits / mo",
         templates: "Templates",
         exports: "PDF export",
+        jobsdb: "JobsDB HK search",
         tracker: "Application tracker",
         canvas: "Canvas Studio",
         gemini: "Gemini coach",
