@@ -1,0 +1,25 @@
+# Paste into Railway → Web service → Variables → Raw Editor
+# 1) Add a Redis database to the same project first (name it "Redis")
+# 2) Replace <...> placeholders; never commit real secrets
+
+NODE_ENV=production
+NSR_APP_MODE=production
+NSR_QUOTA_STORE=redis
+NSR_RATE_LIMIT_STORE=redis
+REDIS_URL=${{Redis.REDIS_URL}}
+NSR_REDIS_URL=${{Redis.REDIS_URL}}
+APP_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
+PORT=${{PORT}}
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=<supabase-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
+NSR_AUTH_REQUIRED=1
+
+STRIPE_SECRET_KEY=<stripe-secret-key>
+STRIPE_WEBHOOK_SECRET=<stripe-webhook-secret>
+STRIPE_PRICE_PRO_MONTHLY=<price_pro>
+STRIPE_PRICE_MAX_MONTHLY=<price_max>
+
+GEMINI_API_KEY=<gemini-api-key>
+APIFY_API_TOKEN=

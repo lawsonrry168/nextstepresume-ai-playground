@@ -1,0 +1,54 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Dashboard → New → Blueprint → connect this repo
+
+services:
+  - type: web
+    name: nextstepresume
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NSR_APP_MODE
+        value: production
+      - key: NSR_QUOTA_STORE
+        value: redis
+      - key: NSR_RATE_LIMIT_STORE
+        value: redis
+      - key: REDIS_URL
+        fromService:
+          name: nextstepresume-redis
+          type: redis
+          property: connectionString
+      - key: NSR_REDIS_URL
+        fromService:
+          name: nextstepresume-redis
+          type: redis
+          property: connectionString
+      - key: APP_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NSR_AUTH_REQUIRED
+        value: "1"
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO_MONTHLY
+        sync: false
+      - key: STRIPE_PRICE_MAX_MONTHLY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: redis
+    name: nextstepresume-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru

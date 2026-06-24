@@ -1,0 +1,35 @@
+# Fly.io: fly launch --no-deploy then fly redis create (or attach Upstash)
+# Docs: https://fly.io/docs/languages-and-frameworks/dockerfile/
+
+app = "nextstepresume-ai"
+primary_region = "hkg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  NSR_APP_MODE = "production"
+  NSR_QUOTA_STORE = "redis"
+  NSR_RATE_LIMIT_STORE = "redis"
+  NSR_AUTH_REQUIRED = "1"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "20s"
+    interval = "30s"
+    method = "GET"
+    path = "/api/health"
+    timeout = "5s"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

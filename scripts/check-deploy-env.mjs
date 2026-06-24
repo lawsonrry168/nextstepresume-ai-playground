@@ -23,9 +23,16 @@ function present(key) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function redisConfigured() {
+  return present("NSR_REDIS_URL") || present("REDIS_URL");
+}
+
 const mode = process.env.NSR_APP_MODE ?? "playground";
 const missing = mode === "production" ? requiredInProduction.filter((key) => !present(key)) : [];
-const weak = recommended.filter((key) => !present(key));
+const weak = recommended.filter((key) => {
+  if (key === "NSR_REDIS_URL") return !redisConfigured();
+  return !present(key);
+});
 
 console.log(`NSR_APP_MODE=${mode}`);
 if (missing.length > 0) {

@@ -134,7 +134,32 @@ curl http://127.0.0.1:3000/api/health
 
 `docker-compose.prod.yml` sets `NSR_QUOTA_STORE=redis`, `NSR_RATE_LIMIT_STORE=redis`, and `NSR_REDIS_URL=redis://redis:6379` on the app service.
 
-### Production checklist
+### Railway (recommended — Docker + managed Redis)
+
+1. Open [Railway](https://railway.com/new) → **Deploy from GitHub** → select `nextstepresume-ai-playground` (uses root `Dockerfile` + `railway.toml`).
+2. In the same project: **+ New** → **Database** → **Add Redis** (note the service name, e.g. `Redis`).
+3. Open the **web service** → **Variables** → **Raw Editor** → paste `deploy/railway.variables.example`, replace `<...>` secrets, ensure `REDIS_URL=${{Redis.REDIS_URL}}` matches your Redis service name.
+4. **Settings** → **Networking** → **Generate Domain**; redeploy if `APP_URL` was set before the domain existed.
+5. Stripe Dashboard → Webhooks → `https://<your-railway-domain>/api/billing/webhook`.
+6. Verify: `curl https://<domain>/api/health`.
+
+CLI (optional): `npx @railway/cli login` → `npx @railway/cli link` → `npx @railway/cli up`.
+
+### Render
+
+**New → Blueprint** → connect repo (`render.yaml` provisions web + Redis). Set `APP_URL` to your Render URL and add Stripe/Supabase/Gemini secrets in the dashboard.
+
+### Fly.io
+
+`npx flyctl launch --no-deploy` (uses `fly.toml`, region `hkg`) → attach Redis (`fly redis create` or Upstash) → `fly secrets set` for Stripe/Supabase → `fly deploy`. Set `APP_URL=https://<app>.fly.dev`.
+
+### Pre-deploy check
+
+```bash
+# Load production .env first, then:
+npm run check:deploy-env
+```
+
 
 - [x] Stripe Checkout + webhook → server plan authority
 - [x] Lock client `/api/subscription/sync` for paid upgrades in production
