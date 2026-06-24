@@ -4,11 +4,14 @@ import { fileURLToPath } from "url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const vitestCli = path.join(root, "node_modules", "vitest", "vitest.mjs");
-const target = "src/__tests__/redisQuota.integration.test.ts";
+const targets = [
+  "src/__tests__/redisQuota.integration.test.ts",
+  "src/__tests__/redisRateLimit.integration.test.ts",
+];
 
 const child = spawn(
   "node",
-  [vitestCli, "run", target],
+  [vitestCli, "run", ...targets],
   {
     cwd: root,
     stdio: "inherit",

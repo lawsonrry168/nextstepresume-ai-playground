@@ -4,6 +4,7 @@ import { getActiveLocale } from "../i18n/translate";
 import { getActiveMarket } from "../lib/market/config";
 import { apiResponseLogLevel, apiResponseOutcomeKey } from "../lib/apiLogMessages";
 import { getOrCreateClientId } from "../lib/subscription/clientId";
+import { withApiAuthHeaders } from "../lib/apiAuthHeaders";
 import { getSubscriptionSnapshot } from "../lib/subscriptionSnapshot";
 import {
   buildSubscriptionHeaders,
@@ -57,7 +58,7 @@ export function useMeasuredApi(onLog?: (type: SystemLogType, message: string) =>
     addSystemLog("info", t("systemLog.apiCalling", { url: urlStr }));
 
     try {
-      const headers = new Headers(init?.headers);
+      const headers = withApiAuthHeaders(init?.headers);
       headers.set("X-Locale", getActiveLocale());
       headers.set("X-Market", getActiveMarket().id);
       const clientId = getOrCreateClientId();

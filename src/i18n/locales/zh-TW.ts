@@ -67,6 +67,22 @@ const zhTW: MessageTree = {
     collapsePanel: "收合面板",
   },
 
+  auth: {
+    loading: "檢查登入狀態…",
+    signIn: "登入",
+    signUp: "註冊",
+    signOut: "登出",
+    signInTitle: "登入 NextStep",
+    signUpTitle: "建立帳號",
+    subtitle: "同步方案與配額至你的帳號。",
+    email: "電子郵件",
+    password: "密碼",
+    submitting: "處理中…",
+    noAccount: "還沒有帳號？",
+    hasAccount: "已有帳號？",
+    signedIn: "已登入",
+  },
+
   status: {
     connecting: "連線中…",
     apiOffline: "API 離線",
@@ -1848,7 +1864,10 @@ const zhTW: MessageTree = {
     perMonth: "/ 月",
     currentPlan: "目前方案",
     selectPlan: "選擇方案",
+    checkoutCta: "以 Stripe 訂閱",
+    checkoutLoading: "正在前往結帳…",
     demoNote: "示範模式：方案儲存於本機，正式版將串接 Stripe。",
+    productionNote: "透過 Stripe（HKD）安全結帳，方案由付款 webhook 同步。",
     usage: {
       aiCredits: "AI 點數",
       unlimited: "無限",

@@ -37,6 +37,9 @@ const ROUTE_USAGE_METRIC: Record<string, keyof import("./types").MonthlyUsage> =
 };
 
 export function attachClientId(req: Request): string {
+  const existing = getRequestClientId(req);
+  if (existing) return existing;
+
   const clientId = resolveClientId(req);
   (req as Request & { nsrClientId?: string }).nsrClientId = clientId;
   return clientId;

@@ -23,9 +23,16 @@ function readAll(): ApplicationPackage[] {
   }
 }
 
+let packagesChangeListener: (() => void) | null = null;
+
+export function setApplicationPackagesChangeListener(listener: (() => void) | null): void {
+  packagesChangeListener = listener;
+}
+
 function writeAll(packages: ApplicationPackage[]): void {
   if (!isStorageAvailable()) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(packages));
+  packagesChangeListener?.();
 }
 
 export function listApplicationPackages(): ApplicationPackage[] {

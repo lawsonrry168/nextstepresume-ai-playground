@@ -10,6 +10,9 @@ import ReverseAnalysisDashboard from "./components/ReverseAnalysisDashboard";
 import ResumeSimulatorPlayground from "./components/ResumeSimulatorPlayground";
 import TutorialTour from "./components/TutorialTour";
 import AppSidebar, { type MainViewMode } from "./components/layout/AppSidebar";
+import LegalPage from "./components/legal/LegalPage";
+import LegalFooterLinks from "./components/legal/LegalFooterLinks";
+import { resolveLegalPageFromPath } from "./lib/legal/pages";
 import { useI18n } from "./i18n";
 import { hasSeenTour } from "./lib/brand";
 
@@ -33,6 +36,15 @@ export default function App() {
   });
 
   const [isTourOpen, setIsTourOpen] = useState<boolean>(false);
+  const [legalPage, setLegalPage] = useState(() => resolveLegalPageFromPath(window.location.pathname));
+
+  useEffect(() => {
+    const syncLegalRoute = () => {
+      setLegalPage(resolveLegalPageFromPath(window.location.pathname));
+    };
+    window.addEventListener("popstate", syncLegalRoute);
+    return () => window.removeEventListener("popstate", syncLegalRoute);
+  }, []);
 
   useEffect(() => {
     try {
@@ -73,6 +85,10 @@ export default function App() {
     };
     checkServerHealth();
   }, []);
+
+  if (legalPage) {
+    return <LegalPage pageId={legalPage} />;
+  }
 
   return (
     <div
@@ -163,6 +179,7 @@ export default function App() {
           >
             <p className="font-medium">{t("overview.footer.copyright")}</p>
             <p className="mt-1 text-[10px] text-slate-500">{t("brand.slogan")}</p>
+            <LegalFooterLinks />
           </footer>
         ) : null}
       </div>

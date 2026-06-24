@@ -60,6 +60,14 @@ export function createRedisKv(url: string): RedisKv {
       }
       await client.set(key, value);
     },
+    async incr(key) {
+      const client = await getRedisClient(url);
+      return client.incr(key);
+    },
+    async expire(key, seconds) {
+      const client = await getRedisClient(url);
+      await client.expire(key, seconds);
+    },
     async keys(pattern) {
       const client = await getRedisClient(url);
       return client.keys(pattern);

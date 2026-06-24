@@ -1,4 +1,4 @@
-import type { MonthlyUsage } from "../../src/lib/subscription/types.ts";
+import type { MonthlyUsage, SubscriptionPlan } from "../../src/lib/subscription/types.ts";
 import { InMemoryQuotaStore } from "./inMemoryQuotaStore.ts";
 import type { ClientSubscriptionRecord, QuotaStore } from "./types.ts";
 import type { RedisKv } from "./redisKv.ts";
@@ -26,6 +26,22 @@ export class RedisQuotaStore implements QuotaStore {
   get(clientId: string, month: string, emptyUsage: () => MonthlyUsage): ClientSubscriptionRecord {
     void this.ensureHydrated(clientId, month, emptyUsage);
     return this.l1.get(clientId, month, emptyUsage);
+  }
+
+  updatePlan(
+    clientId: string,
+    plan: SubscriptionPlan,
+    month: string,
+    emptyUsage: () => MonthlyUsage,
+  ): ClientSubscriptionRecord {
+    const record = this.l1.updatePlan(clientId, plan, month, emptyUsage);
+    this.persist(clientId, record);
+    return record;
+  }
+
+  replaceRecord(clientId: string, record: ClientSubscriptionRecord): void {
+    this.l1.replaceRecord(clientId, record);
+    this.persist(clientId, record);
   }
 
   applyDeltas(

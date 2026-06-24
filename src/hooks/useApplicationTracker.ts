@@ -9,8 +9,14 @@ import {
   updateApplicationPackageCoverLetter,
   updateApplicationPackageFields,
   getApplicationPackage,
+  setApplicationPackagesChangeListener,
   type ApplicationPackageFieldUpdate,
 } from "../lib/applicationPackageStorage";
+import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
+import {
+  registerPackagesHydrateHandler,
+  scheduleApplicationPackagesCloudPush,
+} from "../lib/sync/cloudSyncCoordinator";
 import { appendTimelineEvent, createApplicationEvent, ensurePackageTimeline } from "../lib/applicationTimeline";
 import { clearNotificationKeysForPackage } from "../lib/followUpReminderEngine";
 import {
@@ -29,6 +35,20 @@ export function useApplicationTracker() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    return registerPackagesHydrateHandler((snapshot) => {
+      localStorage.setItem(NSR_STORAGE_KEYS.applicationPackages, JSON.stringify(snapshot.packages));
+      refresh();
+    });
+  }, [refresh]);
+
+  useEffect(() => {
+    setApplicationPackagesChangeListener(() => {
+      scheduleApplicationPackagesCloudPush(listApplicationPackages());
+    });
+    return () => setApplicationPackagesChangeListener(null);
+  }, []);
 
   const selected = selectedId ? getApplicationPackage(selectedId) : null;
 

@@ -19,6 +19,14 @@ function createFakeRedisKv(): RedisKv & { store: Map<string, string> } {
     async set(key, value) {
       store.set(key, value);
     },
+    async incr(key) {
+      const next = Number(store.get(key) ?? "0") + 1;
+      store.set(key, String(next));
+      return next;
+    },
+    async expire() {
+      /* no-op for fake kv */
+    },
     async keys(pattern) {
       const prefix = pattern.replace("*", "");
       return [...store.keys()].filter((key) => key.startsWith(prefix));

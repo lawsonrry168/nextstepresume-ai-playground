@@ -42,10 +42,14 @@ if (redisStatus !== 0) {
   console.warn("\nCI full: redis job skipped (start Redis with npm run redis:start and retry).");
 }
 
-const e2eStatus = runNpmScript("test:e2e", "e2e job", {
-  CI: "true",
+const e2eEnv = {
   NSR_JOBSDB_SIMULATE: "1",
-});
+};
+// Mirror CI retries/reporter only in GitHub Actions; local runs stay readable.
+if (process.env.GITHUB_ACTIONS === "true") {
+  e2eEnv.CI = "true";
+}
+const e2eStatus = runNpmScript("test:e2e", "e2e job", e2eEnv);
 if (e2eStatus !== 0) {
   failed = true;
 }

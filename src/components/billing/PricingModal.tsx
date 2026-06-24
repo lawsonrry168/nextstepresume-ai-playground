@@ -1,6 +1,11 @@
 import { Check, X } from "lucide-react";
+import { useState } from "react";
 import { useI18n } from "../../i18n";
+import LegalFooterLinks from "../legal/LegalFooterLinks";
 import { useSubscription } from "../../context/SubscriptionProvider";
+import { useAppConfig } from "../../hooks/useAppConfig";
+import { getOrCreateClientId } from "../../lib/subscription/clientId";
+import { withApiAuthHeaders } from "../../lib/apiAuthHeaders";
 import { getPlanCatalog, formatPlanPrice, getSprintPassPrice } from "../../lib/subscription/planCatalog";
 import { PLAN_ENTITLEMENTS, buildPlanCompareRows } from "../../lib/subscription/entitlements";
 import type { SubscriptionPlan } from "../../lib/subscription/types";
@@ -15,8 +20,46 @@ function cellLabel(t: (k: string) => string, value: string): string {
 export default function PricingModal() {
   const { t, locale } = useI18n();
   const { pricingOpen, closePricing, plan, setPlan } = useSubscription();
+  const { billing } = useAppConfig();
+  const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionPlan | null>(null);
   const catalog = getPlanCatalog();
   const sprintPass = getSprintPassPrice();
+
+  async function handleSelectPlan(itemPlan: SubscriptionPlan) {
+    if (itemPlan === "starter") {
+      setPlan("starter");
+      closePricing();
+      return;
+    }
+
+    if (billing.checkoutEnabled) {
+      setCheckoutLoading(itemPlan);
+      try {
+        const clientId = getOrCreateClientId();
+        const response = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: withApiAuthHeaders({
+            "Content-Type": "application/json",
+            "X-NSR-Client-Id": clientId,
+          }),
+          body: JSON.stringify({ plan: itemPlan }),
+        });
+        const payload = (await response.json()) as { url?: string };
+        if (response.ok && payload.url) {
+          window.location.assign(payload.url);
+          return;
+        }
+      } catch {
+        /* fall through — user stays on modal */
+      } finally {
+        setCheckoutLoading(null);
+      }
+      return;
+    }
+
+    setPlan(itemPlan);
+    closePricing();
+  }
 
   if (!pricingOpen) return null;
 
@@ -123,11 +166,8 @@ export default function PricingModal() {
                 </ul>
                 <button
                   type="button"
-                  disabled={isCurrent}
-                  onClick={() => {
-                    setPlan(item.plan);
-                    closePricing();
-                  }}
+                  disabled={isCurrent || checkoutLoading === item.plan}
+                  onClick={() => void handleSelectPlan(item.plan)}
                   className={`w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition-all ${
                     isCurrent
                       ? "bg-slate-100 text-slate-400 cursor-default"
@@ -136,9 +176,17 @@ export default function PricingModal() {
                         : "bg-slate-900 text-white hover:bg-slate-800"
                   }`}
                 >
-                  {isCurrent ? t("billing.currentPlan") : t("billing.selectPlan")}
+                  {checkoutLoading === item.plan
+                    ? t("billing.checkoutLoading")
+                    : isCurrent
+                      ? t("billing.currentPlan")
+                      : billing.checkoutEnabled && item.plan !== "starter"
+                        ? t("billing.checkoutCta")
+                        : t("billing.selectPlan")}
                 </button>
-                <p className="text-[9px] text-slate-400 text-center mt-2">{t("billing.demoNote")}</p>
+                <p className="text-[9px] text-slate-400 text-center mt-2">
+                  {billing.checkoutEnabled ? t("billing.productionNote") : t("billing.demoNote")}
+                </p>
               </div>
             );
           })}
@@ -167,6 +215,9 @@ export default function PricingModal() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="px-6 pb-5 border-t border-slate-100 pt-4">
+          <LegalFooterLinks />
         </div>
       </div>
     </div>

@@ -5,16 +5,27 @@ import {
   setClientPlan,
 } from "../../src/lib/subscription/serverClientStore.ts";
 import { parsePlanHeader } from "../../src/lib/subscription/usageLedger.ts";
+import { canClientSyncPlan } from "../billing/subscriptionSyncPolicy.ts";
+import { writeSubscriptionHeaders } from "./billing.ts";
 
 export function registerSubscriptionRoutes(app: Express): void {
   app.post("/api/subscription/sync", (req, res) => {
     const clientId = resolveClientId(req);
     const plan = parsePlanHeader(typeof req.body?.plan === "string" ? req.body.plan : undefined);
+    const current = getClientRecord(clientId);
+    const policy = canClientSyncPlan(plan, current.plan);
+
+    if (policy.ok === false) {
+      res.status(403).json({
+        error: policy.code,
+        message: "Paid plans require Stripe checkout in production.",
+        plan: current.plan,
+      });
+      return;
+    }
+
     const record = setClientPlan(clientId, plan);
-    res.setHeader("X-NSR-Client-Id", clientId);
-    res.setHeader("X-NSR-Plan", record.plan);
-    res.setHeader("X-NSR-Usage-Month", record.month);
-    res.setHeader("X-NSR-Usage", JSON.stringify(record.usage));
+    writeSubscriptionHeaders(res, clientId, record);
     res.json({
       ok: true,
       clientId,
@@ -27,10 +38,7 @@ export function registerSubscriptionRoutes(app: Express): void {
   app.get("/api/subscription/status", (req, res) => {
     const clientId = resolveClientId(req);
     const record = getClientRecord(clientId);
-    res.setHeader("X-NSR-Client-Id", clientId);
-    res.setHeader("X-NSR-Plan", record.plan);
-    res.setHeader("X-NSR-Usage-Month", record.month);
-    res.setHeader("X-NSR-Usage", JSON.stringify(record.usage));
+    writeSubscriptionHeaders(res, clientId, record);
     res.json({
       clientId,
       plan: record.plan,

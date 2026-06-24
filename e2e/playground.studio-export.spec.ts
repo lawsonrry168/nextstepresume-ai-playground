@@ -4,9 +4,14 @@ import {
   gotoStudio,
   readE2eExportFlags,
   seedPlaygroundStorage,
+  syncE2eServerPlan,
 } from "./helpers/playground";
 
 test.describe("studio export", () => {
+  test.beforeAll(async ({ request }) => {
+    await syncE2eServerPlan(request);
+  });
+
   test.beforeEach(async ({ page }) => {
     await seedPlaygroundStorage(page);
   });
