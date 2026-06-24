@@ -5,6 +5,7 @@ import {
   estimateSectionHeightForContent,
   estimateSectionWidthForContent,
   getSectionTextLength,
+  buildThemeFitSignature,
 } from "../lib/canvasSectionContentSizing";
 import { applyMagneticSnap } from "../lib/resumeFreeLayout";
 import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
@@ -411,6 +412,17 @@ describe("canvasLayoutTools", () => {
     expect(getSectionTextLength("experience", initialResumeData)).toBeGreaterThan(
       getSectionTextLength("header", initialResumeData),
     );
+  });
+});
+
+describe("buildThemeFitSignature", () => {
+  it("changes when template or theme font size changes", () => {
+    const base = { enabled: true, baseFontSize: 14, bodyFont: null, headingFont: null, lineHeight: null, sectionSpacing: null };
+    const a = buildThemeFitSignature("modern-01", "modern", base);
+    const b = buildThemeFitSignature("classic-01", "classic", base);
+    const c = buildThemeFitSignature("modern-01", "modern", { ...base, baseFontSize: 18 });
+    expect(a).not.toBe(b);
+    expect(a).not.toBe(c);
   });
 });
 

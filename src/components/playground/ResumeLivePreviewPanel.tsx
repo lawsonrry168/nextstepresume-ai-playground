@@ -32,7 +32,7 @@ import {
   syncSectionSizesToContentAllPages,
   type CanvasPageLayoutAction,
 } from "../../lib/canvasLayoutTools";
-import { buildContentFitSignature } from "../../lib/canvasSectionContentSizing";
+import { buildContentFitSignature, buildThemeFitSignature } from "../../lib/canvasSectionContentSizing";
 import type { FreeLayoutPresetId, FreeLayoutPosition } from "../../lib/resumeFreeLayout";
 import { createFamilyDefaultPositions, createFreeLayoutPresetPositions, estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
 
@@ -135,6 +135,7 @@ export default function ResumeLivePreviewPanel({
 
   const showFreeLayoutCanvas = freeLayout.enabled && (!isPreviewMode || studioViewMode === "single");
   const showCanvasViewport = isPreviewMode && studioViewMode === "canvas";
+  const showFreeLayoutEditor = showFreeLayoutCanvas || showCanvasViewport;
   const freeLayoutVariant = "edit" as const;
 
   const canvasContentHeight = useMemo(() => {
@@ -213,8 +214,13 @@ export default function ResumeLivePreviewPanel({
     () => buildContentFitSignature(freeLayoutSectionIds, resumeData),
     [freeLayoutSectionIds, resumeData],
   );
+  const themeFitSignature = useMemo(
+    () => buildThemeFitSignature(activeTemplate, templateFamily, themeCustomization),
+    [activeTemplate, templateFamily, themeCustomization],
+  );
   const contentFitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastContentFitSigRef = useRef<string | null>(null);
+  const lastThemeFitSigRef = useRef<string | null>(null);
   const layoutManualOverrideRef = useRef(false);
   const lastLayoutActionRef = useRef<CanvasPageLayoutAction>("stack");
   const lastLayerOrderSigRef = useRef("");
@@ -561,15 +567,10 @@ export default function ResumeLivePreviewPanel({
   );
 
   useEffect(() => {
-    if (isPreviewMode && studioViewMode === "canvas") {
-      if (!freeLayout.enabled) {
-        freeLayout.setEnabled(true);
-      }
-      if (freeLayout.livePreview) {
-        freeLayout.setLivePreview(false);
-      }
+    if (isPreviewMode && studioViewMode === "canvas" && !freeLayout.enabled) {
+      freeLayout.setEnabled(true);
     }
-  }, [freeLayout.enabled, freeLayout.livePreview, freeLayout.setEnabled, freeLayout.setLivePreview, isPreviewMode, studioViewMode]);
+  }, [freeLayout.enabled, freeLayout.setEnabled, isPreviewMode, studioViewMode]);
 
   useEffect(() => {
     if (!showCanvasViewport) return;
@@ -622,17 +623,25 @@ export default function ResumeLivePreviewPanel({
   }, [canUseFeature, freeLayout.setEnabled, openUpgrade, setIsPreviewMode, setStudioViewMode]);
 
   useEffect(() => {
-    if (!showCanvasViewport) {
+    if (!showFreeLayoutEditor) {
       lastContentFitSigRef.current = null;
-      layoutManualOverrideRef.current = false;
+      lastThemeFitSigRef.current = null;
+      if (!showCanvasViewport) {
+        layoutManualOverrideRef.current = false;
+      }
       return;
     }
     if (contentFitTimerRef.current) clearTimeout(contentFitTimerRef.current);
     contentFitTimerRef.current = setTimeout(() => {
-      if (layoutManualOverrideRef.current) {
+      const themeChanged =
+        lastThemeFitSigRef.current !== null && lastThemeFitSigRef.current !== themeFitSignature;
+      lastThemeFitSigRef.current = themeFitSignature;
+
+      if (layoutManualOverrideRef.current && !themeChanged) {
         lastContentFitSigRef.current = contentFitSignature;
         return;
       }
+
       const pageIds = canvasDoc.pages.map((p) => p.id);
       const currentPositions = layoutPositionsRef.current;
       const next = syncSectionSizesToContentAllPages(
@@ -641,7 +650,7 @@ export default function ResumeLivePreviewPanel({
         pageIds,
         canvasDoc.getSectionPageId,
         layoutContent,
-        { reflow: true },
+        { reflow: !layoutManualOverrideRef.current },
       );
       const changed = freeLayoutSectionIds.some((id) => {
         const before = currentPositions[id];
@@ -663,8 +672,10 @@ export default function ResumeLivePreviewPanel({
       if (contentFitTimerRef.current) clearTimeout(contentFitTimerRef.current);
     };
   }, [
+    showFreeLayoutEditor,
     showCanvasViewport,
     contentFitSignature,
+    themeFitSignature,
     canvasDoc.getSectionPageId,
     canvasDoc.pages,
     freeLayout.applyPositionsBatch,
@@ -893,7 +904,7 @@ export default function ResumeLivePreviewPanel({
                 onPositionChange={handleCanvasPositionChange}
                 variant={freeLayoutVariant}
                 chromeMode={freeLayout.livePreview ? "live" : "full"}
-                autoFitContentHeight={false}
+                autoFitContentHeight={freeLayout.livePreview}
                 templateStyle={activeTemplate}
                 resolvedTheme={resolvedTheme}
                 containerId="resume-container-box-canvas"

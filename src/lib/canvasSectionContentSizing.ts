@@ -244,3 +244,33 @@ export function fitSectionPositionToContent(
 export function buildContentFitSignature(sectionIds: string[], data: ResumeData): string {
   return sectionIds.map((id) => `${id}:${getSectionTextLength(id, data)}`).join("|");
 }
+
+/** Tracks template + theme tokens that affect rendered section dimensions */
+export function buildThemeFitSignature(
+  templateStyle: string,
+  templateFamily: string,
+  customization: {
+    enabled?: boolean;
+    baseFontSize?: number | null;
+    bodyFont?: string | null;
+    headingFont?: string | null;
+    lineHeight?: number | null;
+    sectionSpacing?: number | null;
+  },
+): string {
+  return [
+    templateStyle,
+    templateFamily,
+    customization.enabled ? "1" : "0",
+    customization.baseFontSize ?? "",
+    customization.bodyFont ?? "",
+    customization.headingFont ?? "",
+    customization.lineHeight ?? "",
+    customization.sectionSpacing ?? "",
+  ].join("|");
+}
+
+export function themeContentScale(customization: { enabled?: boolean; baseFontSize?: number | null }): number {
+  if (!customization.enabled || !customization.baseFontSize) return 1;
+  return customization.baseFontSize / 16;
+}
