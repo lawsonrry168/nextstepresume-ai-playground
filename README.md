@@ -61,7 +61,9 @@ If the project folder path contains special characters (e.g. `&`), npm scripts i
 
 ## PR stack merge order
 
-Merge open stacked PRs into `main` in order (**#1 → #2 → …**). Recent tail of the stack:
+Production phases 22–26 shipped in **PR #27** (`pr/production-bundle`, merged to `main`). Older stacked PRs #24–#26 were superseded by that bundle.
+
+Historical stack (phases 14–21, already merged):
 
 | PR | Phase | Branch |
 |----|-------|--------|
@@ -73,8 +75,7 @@ Merge open stacked PRs into `main` in order (**#1 → #2 → …**). Recent tail
 | #20 | 19 Studio export E2E | `pr/21-phase19-studio-export-e2e` |
 | #21 | 20 CI hygiene + local test:ci | `pr/22-phase20-ci-hygiene` |
 | #22 | 21 Full CI runner + workflow concurrency | `pr/23-phase21-ci-full-workflow` |
-
-After each merge, rebase or retarget the next PR if GitHub shows conflicts.
+| **#27** | **22–26 Production bundle** | `pr/production-bundle` |
 
 ### Pre-merge smoke (local)
 
@@ -123,7 +124,17 @@ docker build -t nextstepresume .
 docker run --env-file .env -p 3000:3000 nextstepresume
 ```
 
-### Production checklist (next phases)
+**App + Redis (recommended for production):**
+
+```bash
+# Copy .env.example → .env, set NSR_APP_MODE=production, Stripe, Supabase, APP_URL
+docker compose -f docker-compose.prod.yml up -d --build
+curl http://127.0.0.1:3000/api/health
+```
+
+`docker-compose.prod.yml` sets `NSR_QUOTA_STORE=redis`, `NSR_RATE_LIMIT_STORE=redis`, and `NSR_REDIS_URL=redis://redis:6379` on the app service.
+
+### Production checklist
 
 - [x] Stripe Checkout + webhook → server plan authority
 - [x] Lock client `/api/subscription/sync` for paid upgrades in production
