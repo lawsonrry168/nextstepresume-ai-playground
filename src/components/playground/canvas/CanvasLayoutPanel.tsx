@@ -48,6 +48,7 @@ function LayoutBtn({
       className="canvas-nav-tool-btn"
       disabled={disabled}
       onClick={onClick}
+      onPointerDown={(e) => e.stopPropagation()}
       title={title}
       aria-label={title}
     >

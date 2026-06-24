@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPageLayoutAction, sortSectionsByPanelOrder } from "../lib/canvasLayoutTools";
+import { applyPageLayoutAction, assignAllSectionsToPage, resolveLayoutTargetPageId, sortSectionsByPanelOrder } from "../lib/canvasLayoutTools";
 import { initialResumeData } from "../data";
 import {
   estimateSectionHeightForContent,
@@ -411,6 +411,43 @@ describe("canvasLayoutTools", () => {
     expect(getSectionTextLength("experience", initialResumeData)).toBeGreaterThan(
       getSectionTextLength("header", initialResumeData),
     );
+  });
+});
+
+describe("resolveLayoutTargetPageId", () => {
+  const sectionIds = ["header", "summary", "experience"];
+  const positions = {
+    header: { x: 48, y: 48, width: 300, height: 120, pageId: "page-b" },
+    summary: { x: 48, y: 200, width: 300, height: 120, pageId: "page-b" },
+    experience: { x: 48, y: 360, width: 300, height: 200, pageId: "page-b" },
+  };
+  const pages = [{ id: "page-a" }, { id: "page-b" }];
+  const getPageId = (id: string) => positions[id as keyof typeof positions]?.pageId ?? "page-a";
+
+  it("keeps active page when it already has sections", () => {
+    const onActive = {
+      ...positions,
+      header: { ...positions.header, pageId: "page-a" },
+    };
+    expect(
+      resolveLayoutTargetPageId(sectionIds, onActive, pages, "page-a", (id) => onActive[id as keyof typeof onActive]?.pageId ?? "page-a"),
+    ).toBe("page-a");
+  });
+
+  it("falls back to the page with the most sections", () => {
+    expect(resolveLayoutTargetPageId(sectionIds, positions, pages, "page-a", getPageId)).toBe("page-b");
+  });
+});
+
+describe("assignAllSectionsToPage", () => {
+  it("patches only sections that need a new pageId", () => {
+    const positions = {
+      header: { x: 48, y: 48, width: 300, height: 120, pageId: "page-a" },
+      summary: { x: 48, y: 200, width: 300, height: 120, pageId: "page-b" },
+    };
+    const patches = assignAllSectionsToPage(["header", "summary"], positions, "page-a");
+    expect(patches.header).toBeUndefined();
+    expect(patches.summary?.pageId).toBe("page-a");
   });
 });
 

@@ -24,7 +24,14 @@ import { computeMultiPageDeskHeight, type StudioViewMode } from "../../lib/canva
 import { formatAutoSaveTime, formatCanvasPageLabel } from "../../lib/sectionLabels";
 import { clampPositionToA4Page } from "../../lib/canvasPageSnap";
 import { alignPositionOnPage, nudgePosition, centerOnPage, fillPageWidth, snapPositionToGrid, resizeSection, resetSectionPosition } from "../../lib/canvasAlignTools";
-import { applyPageLayoutAction, sectionsOnPage, syncSectionSizesToContentAllPages, type CanvasPageLayoutAction } from "../../lib/canvasLayoutTools";
+import {
+  applyPageLayoutAction,
+  assignAllSectionsToPage,
+  resolveLayoutTargetPageId,
+  sectionsOnPage,
+  syncSectionSizesToContentAllPages,
+  type CanvasPageLayoutAction,
+} from "../../lib/canvasLayoutTools";
 import { buildContentFitSignature } from "../../lib/canvasSectionContentSizing";
 import type { FreeLayoutPresetId, FreeLayoutPosition } from "../../lib/resumeFreeLayout";
 import { createFamilyDefaultPositions, createFreeLayoutPresetPositions, estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
@@ -173,15 +180,33 @@ export default function ResumeLivePreviewPanel({
     [canvasDoc.pages, canvasDoc.activePageId],
   );
 
+  const layoutTargetPageId = useMemo(
+    () =>
+      resolveLayoutTargetPageId(
+        freeLayoutSectionIds,
+        freeLayout.positions,
+        canvasDoc.pages,
+        canvasDoc.activePageId,
+        canvasDoc.getSectionPageId,
+      ),
+    [
+      canvasDoc.activePageId,
+      canvasDoc.getSectionPageId,
+      canvasDoc.pages,
+      freeLayoutSectionIds,
+      freeLayout.positions,
+    ],
+  );
+
   const sectionCountOnPage = useMemo(
     () =>
       sectionsOnPage(
         freeLayoutSectionIds,
         freeLayout.positions,
-        canvasDoc.activePageId,
+        layoutTargetPageId,
         canvasDoc.getSectionPageId,
       ).length,
-    [canvasDoc.activePageId, canvasDoc.getSectionPageId, freeLayoutSectionIds, freeLayout.positions],
+    [canvasDoc.getSectionPageId, freeLayoutSectionIds, freeLayout.positions, layoutTargetPageId],
   );
 
   const contentFitSignature = useMemo(
@@ -215,15 +240,34 @@ export default function ResumeLivePreviewPanel({
     [freeLayout.updatePosition, markLayoutManualOverride],
   );
 
-  const applyPageLayout = useMemo(
-    () => (action: CanvasPageLayoutAction) => {
+  const applyPageLayout = useCallback(
+    (action: CanvasPageLayoutAction) => {
       lastLayoutActionRef.current = action;
       markLayoutManualOverride();
+
+      const targetPageId = resolveLayoutTargetPageId(
+        freeLayoutSectionIds,
+        freeLayout.positions,
+        canvasDoc.pages,
+        canvasDoc.activePageId,
+        canvasDoc.getSectionPageId,
+      );
+      if (targetPageId !== canvasDoc.activePageId) {
+        canvasDoc.setActivePageId(targetPageId);
+      }
+
+      let workingPositions = freeLayout.positions;
+      const assignPatches = assignAllSectionsToPage(freeLayoutSectionIds, workingPositions, targetPageId);
+      if (Object.keys(assignPatches).length > 0) {
+        freeLayout.applyPositionsBatch(assignPatches, { constrainA4: true });
+        workingPositions = { ...workingPositions, ...assignPatches };
+      }
+
       const patches = applyPageLayoutAction(
         action,
         freeLayoutSectionIds,
-        freeLayout.positions,
-        canvasDoc.activePageId,
+        workingPositions,
+        targetPageId,
         canvasDoc.getSectionPageId,
         canvasDoc.selectedSectionId ?? undefined,
         layoutContent,
@@ -235,7 +279,9 @@ export default function ResumeLivePreviewPanel({
     [
       canvasDoc.activePageId,
       canvasDoc.getSectionPageId,
+      canvasDoc.pages,
       canvasDoc.selectedSectionId,
+      canvasDoc.setActivePageId,
       freeLayout.applyPositionsBatch,
       freeLayoutSectionIds,
       freeLayout.positions,
@@ -526,6 +572,36 @@ export default function ResumeLivePreviewPanel({
   }, [freeLayout.enabled, freeLayout.livePreview, freeLayout.setEnabled, freeLayout.setLivePreview, isPreviewMode, studioViewMode]);
 
   useEffect(() => {
+    if (!showCanvasViewport) return;
+    const targetPageId = resolveLayoutTargetPageId(
+      freeLayoutSectionIds,
+      freeLayout.positions,
+      canvasDoc.pages,
+      canvasDoc.activePageId,
+      canvasDoc.getSectionPageId,
+    );
+    if (
+      targetPageId !== canvasDoc.activePageId &&
+      sectionsOnPage(
+        freeLayoutSectionIds,
+        freeLayout.positions,
+        canvasDoc.activePageId,
+        canvasDoc.getSectionPageId,
+      ).length === 0
+    ) {
+      canvasDoc.setActivePageId(targetPageId);
+    }
+  }, [
+    showCanvasViewport,
+    canvasDoc.activePageId,
+    canvasDoc.getSectionPageId,
+    canvasDoc.pages,
+    canvasDoc.setActivePageId,
+    freeLayout.positions,
+    freeLayoutSectionIds,
+  ]);
+
+  useEffect(() => {
     if (isPreviewMode && freeLayout.enabled && studioViewMode === "compare") {
       if (canUseFeature("layout.canvasStudio")) {
         setStudioViewMode("canvas");
@@ -553,6 +629,10 @@ export default function ResumeLivePreviewPanel({
     }
     if (contentFitTimerRef.current) clearTimeout(contentFitTimerRef.current);
     contentFitTimerRef.current = setTimeout(() => {
+      if (layoutManualOverrideRef.current) {
+        lastContentFitSigRef.current = contentFitSignature;
+        return;
+      }
       const pageIds = canvasDoc.pages.map((p) => p.id);
       const currentPositions = layoutPositionsRef.current;
       const next = syncSectionSizesToContentAllPages(
@@ -561,7 +641,7 @@ export default function ResumeLivePreviewPanel({
         pageIds,
         canvasDoc.getSectionPageId,
         layoutContent,
-        { reflow: !layoutManualOverrideRef.current },
+        { reflow: true },
       );
       const changed = freeLayoutSectionIds.some((id) => {
         const before = currentPositions[id];
@@ -578,7 +658,6 @@ export default function ResumeLivePreviewPanel({
         freeLayout.applyPositionsBatch(next, { constrainA4: true });
       }
       lastContentFitSigRef.current = contentFitSignature;
-      layoutManualOverrideRef.current = false;
     }, 360);
     return () => {
       if (contentFitTimerRef.current) clearTimeout(contentFitTimerRef.current);

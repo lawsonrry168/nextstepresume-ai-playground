@@ -85,6 +85,45 @@ export function sectionsOnPage(
   });
 }
 
+/** Pick the page that should receive layout tools — active page when it has sections, else the fullest page */
+export function resolveLayoutTargetPageId(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+  pages: Array<{ id: string }>,
+  activePageId: string,
+  getPageId: (id: string) => string,
+): string {
+  if (sectionsOnPage(sectionIds, positions, activePageId, getPageId).length > 0) {
+    return activePageId;
+  }
+  let bestPageId = activePageId;
+  let bestCount = 0;
+  for (const page of pages) {
+    const count = sectionsOnPage(sectionIds, positions, page.id, getPageId).length;
+    if (count > bestCount) {
+      bestCount = count;
+      bestPageId = page.id;
+    }
+  }
+  return bestPageId;
+}
+
+/** Assign every section to a page when layout tools need a non-empty target page */
+export function assignAllSectionsToPage(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+  pageId: string,
+): Record<string, FreeLayoutPosition> {
+  const patches: Record<string, FreeLayoutPosition> = {};
+  for (const id of sectionIds) {
+    const pos = positions[id];
+    if (!pos) continue;
+    if (pos.pageId === pageId) continue;
+    patches[id] = { ...pos, pageId };
+  }
+  return patches;
+}
+
 function sectionLayoutSize(
   id: string,
   positions: Record<string, FreeLayoutPosition>,
