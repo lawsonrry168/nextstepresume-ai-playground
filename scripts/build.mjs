@@ -1,10 +1,10 @@
 import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
+import * as esbuild from "esbuild";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const viteCli = path.join(root, "node_modules", "vite", "bin", "vite.js");
-const esbuildCli = path.join(root, "node_modules", "esbuild", "bin", "esbuild");
 
 function run(cmd, args) {
   return new Promise((resolve, reject) => {
@@ -14,13 +14,12 @@ function run(cmd, args) {
 }
 
 await run("node", [viteCli, "build"]);
-await run("node", [
-  esbuildCli,
-  "server.ts",
-  "--bundle",
-  "--platform=node",
-  "--format=cjs",
-  "--packages=external",
-  "--sourcemap",
-  "--outfile=dist/server.cjs",
-]);
+await esbuild.build({
+  entryPoints: [path.join(root, "server.ts")],
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  packages: "external",
+  sourcemap: true,
+  outfile: path.join(root, "dist", "server.cjs"),
+});
