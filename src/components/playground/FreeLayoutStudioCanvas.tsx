@@ -128,7 +128,10 @@ export default function FreeLayoutStudioCanvas({
   const canvasRef = useRef<HTMLDivElement>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const isEdit = variant === "edit";
-  const isLiveChrome = isEdit && chromeMode === "live";
+  const isCanvasStudioHost = containerId === "resume-container-box-canvas";
+  const effectiveChromeMode = isCanvasStudioHost ? "live" : chromeMode;
+  const effectiveAutoFitHeight = isCanvasStudioHost ? true : autoFitContentHeight;
+  const isLiveChrome = isEdit && effectiveChromeMode === "live";
   const isNarrowPanel = containerId === "resume-container-box";
   const isMultiPage = Boolean(canvasLayout?.pages.length);
   const family = getTemplateFamily(templateStyle);
@@ -202,7 +205,7 @@ export default function FreeLayoutStudioCanvas({
           sectionId={section.id}
           position={pos}
           compact={isNarrowPanel}
-          chromeMode={chromeMode}
+          chromeMode={effectiveChromeMode}
           isSelected={selectedSectionId === section.id}
           onSelect={() => setSelectedSectionId(section.id)}
           onPositionChange={(next, options) => emitPositionChange(section.id, next, options)}
@@ -242,7 +245,7 @@ export default function FreeLayoutStudioCanvas({
           resolveSnap={(draft) => resolveSnapDraft(section.id, draft, pageId)}
           maxY={pageMaxY}
           maxHeight={pageMaxY !== undefined ? maxSectionHeightOnPage(pos.y) : undefined}
-          autoFitContentHeight={autoFitContentHeight}
+          autoFitContentHeight={effectiveAutoFitHeight}
           resumeData={resumeData}
         >
           <FreeLayoutSectionContent
@@ -568,19 +571,37 @@ const DimensionControls: React.FC<{
   compact?: boolean;
   onPositionChange: DraggableSectionProps["onPositionChange"];
   variant?: "panel" | "overlay";
-}> = ({ sectionLabel, sectionId, resumeData, position, maxWidth, maxHeight, compact, onPositionChange, variant = "panel" }) => {
+  active?: boolean;
+}> = ({
+  sectionLabel,
+  sectionId,
+  resumeData,
+  position,
+  maxWidth,
+  maxHeight,
+  compact,
+  onPositionChange,
+  variant = "panel",
+  active = true,
+}) => {
   const { t } = useI18n();
   const heightMax = maxHeight ?? FREE_LAYOUT_MAX_HEIGHT;
   const clampHeight = (value: number) =>
     clampSectionHeight(Math.min(value, heightMax));
   const [draftWidth, setDraftWidth] = useState(position.width);
   const [draftHeight, setDraftHeight] = useState(position.height);
+  const [slidersOpen, setSlidersOpen] = useState(false);
   const slidingRef = useRef<"width" | "height" | null>(null);
+  const useCollapsible = variant === "overlay";
 
   useEffect(() => {
     if (slidingRef.current !== "width") setDraftWidth(position.width);
     if (slidingRef.current !== "height") setDraftHeight(position.height);
   }, [position.width, position.height]);
+
+  useEffect(() => {
+    if (!active) setSlidersOpen(false);
+  }, [active]);
 
   const commitWidth = (value: number) => {
     const width = clampSectionWidth(value, position.x, FREE_LAYOUT_CANVAS.width);
@@ -600,8 +621,40 @@ const DimensionControls: React.FC<{
       ? "flex flex-col gap-1 bg-white/95 backdrop-blur-sm border border-emerald-200 rounded-lg shadow-lg p-2"
       : `flex flex-col gap-1.5 bg-emerald-50/80 border-b border-emerald-100 shrink-0 ${compact ? "px-2 py-1.5" : "px-3 py-2"}`;
 
+  if (useCollapsible && !slidersOpen) {
+    return (
+      <div className={wrapClass} data-canvas-chrome onPointerDown={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className="flex items-center justify-between gap-2 w-full text-left rounded-md px-2 py-1 hover:bg-emerald-50 transition-colors"
+          onClick={() => setSlidersOpen(true)}
+          title={t("canvas.dimensions.adjustSize")}
+        >
+          <span className="text-[10px] font-mono font-bold text-slate-600 tabular-nums">
+            {t("canvas.dimensions.sizeSummary", { width: Math.round(draftWidth), height: Math.round(draftHeight) })}
+          </span>
+          <span className="text-[9px] font-bold text-emerald-700 shrink-0">{t("canvas.dimensions.adjustSize")}</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={wrapClass} data-canvas-chrome onPointerDown={(e) => e.stopPropagation()}>
+      {useCollapsible ? (
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <span className="text-[9px] font-mono font-bold text-slate-500 tabular-nums">
+            {t("canvas.dimensions.sizeSummary", { width: Math.round(draftWidth), height: Math.round(draftHeight) })}
+          </span>
+          <button
+            type="button"
+            className="text-[9px] font-bold text-emerald-700 hover:text-emerald-900"
+            onClick={() => setSlidersOpen(false)}
+          >
+            {t("canvas.dimensions.collapseSize")}
+          </button>
+        </div>
+      ) : null}
       <div className="flex items-center gap-1.5">
         <span className="text-[10px] font-bold text-emerald-600 shrink-0 w-3">{t("canvas.dimensions.width")}</span>
         <input
@@ -709,12 +762,11 @@ const DraggableSection = memo(function DraggableSection({
   const x = useMotionValue(position.x);
   const y = useMotionValue(position.y);
   const [isDragging, setIsDragging] = useState(false);
-  const [isRaised, setIsRaised] = useState(false);
   const isDraggingRef = useRef(false);
 
   const [isHovered, setIsHovered] = useState(false);
   const isLive = chromeMode === "live";
-  const showLiveControls = isLive && (isHovered || isSelected || isDragging);
+  const showChrome = isLive ? isHovered || isSelected || isDragging : isHovered || isSelected || isDragging;
 
   const maxWidth = FREE_LAYOUT_CANVAS.width - position.x - 8;
   const contentRef = useAutoFitSectionContentHeight(
@@ -755,7 +807,7 @@ const DraggableSection = memo(function DraggableSection({
         height: position.height,
         left: 0,
         top: 0,
-        zIndex: isDragging || isRaised ? zIndex + 50 : zIndex,
+        zIndex: isDragging || isHovered || isSelected ? zIndex + 50 : zIndex,
       }}
       onDrag={(_, info) => {
         onDragPointer?.(info.point.x, info.point.y);
@@ -829,7 +881,7 @@ const DraggableSection = memo(function DraggableSection({
             if (!isDragging) setIsHovered(false);
           }}
         >
-          {showLiveControls ? (
+          {showChrome ? (
             <div className="absolute top-1 left-1 right-1 z-30 flex flex-col gap-1" data-canvas-chrome>
               <div
                 role="button"
@@ -856,6 +908,7 @@ const DraggableSection = memo(function DraggableSection({
                   compact={compact}
                   onPositionChange={onPositionChange}
                   variant="overlay"
+                  active={isSelected}
                 />
               ) : null}
             </div>
@@ -869,57 +922,56 @@ const DraggableSection = memo(function DraggableSection({
         </div>
       ) : (
       <div
-        className={`rounded-lg border-2 bg-white/95 transition-shadow flex flex-col h-full min-h-0 ${
+        className={`relative h-full flex flex-col overflow-hidden transition-all rounded-lg ${
           isDragging
-            ? "border-emerald-500 shadow-2xl ring-2 ring-emerald-300/60"
-            : "border-dashed border-emerald-300/80 shadow-md hover:border-emerald-400 hover:shadow-lg"
+            ? "ring-2 ring-emerald-500 shadow-xl"
+            : isSelected
+              ? "ring-2 ring-emerald-400/80 border-2 border-dashed border-emerald-400/70"
+              : isHovered
+                ? "ring-1 ring-emerald-200 border border-dashed border-emerald-200/80"
+                : "border border-transparent"
         }`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          if (!isDragging) setIsHovered(false);
+        }}
       >
-        <div
-          role="button"
-          tabIndex={0}
-          data-canvas-chrome
-          className={`w-full flex items-center gap-2 px-2.5 border-b border-emerald-200/80 select-none touch-none transition-colors ${
-            compact ? "py-2 min-h-[40px]" : "py-2.5 min-h-[44px]"
-          } rounded-t-md ${
-            isDragging
-              ? "bg-emerald-600 text-white cursor-grabbing"
-              : "bg-emerald-100 hover:bg-emerald-200 text-emerald-900 cursor-grab"
-          }`}
-          onPointerDown={startDrag}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") e.preventDefault();
-          }}
-          onMouseEnter={() => setIsRaised(true)}
-          onMouseLeave={() => {
-            if (!isDragging) setIsRaised(false);
-          }}
-          aria-label={t("canvas.dimensions.dragAria", { label: displayLabel })}
-          title={t("canvas.dimensions.dragTitle")}
-        >
-          <GripVertical className={`shrink-0 ${compact ? "w-4 h-4" : "w-5 h-5"} ${isDragging ? "text-white" : "text-emerald-500"}`} />
-          <span className={`font-bold truncate ${compact ? "text-[10px]" : "text-xs"}`}>{displayLabel}</span>
-          <span
-            className={`ml-auto font-bold shrink-0 ${compact ? "text-[9px]" : "text-[10px]"} ${
-              isDragging ? "text-emerald-100" : "text-emerald-500"
-            }`}
-          >
-            {t("canvas.dimensions.dragHint")}
-          </span>
-        </div>
+        {showChrome ? (
+          <div className="absolute top-1 left-1 right-1 z-30 flex flex-col gap-1" data-canvas-chrome>
+            <div
+              role="button"
+              tabIndex={0}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border shadow-sm select-none touch-none cursor-grab active:cursor-grabbing ${
+                isDragging
+                  ? "bg-emerald-600 text-white border-emerald-500"
+                  : "bg-white/95 text-emerald-800 border-emerald-200 hover:bg-emerald-50"
+              }`}
+              onPointerDown={startDrag}
+              aria-label={t("canvas.dimensions.dragAria", { label: displayLabel })}
+              title={t("canvas.dimensions.dragTitle")}
+            >
+              <GripVertical className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-[10px] font-bold truncate">{displayLabel}</span>
+              <span className="ml-auto text-[9px] opacity-70">{t("canvas.dimensions.dragHint")}</span>
+            </div>
+            {isSelected ? (
+              <DimensionControls
+                sectionLabel={displayLabel}
+                sectionId={sectionId}
+                resumeData={resumeData}
+                position={position}
+                maxWidth={maxWidth}
+                maxHeight={maxHeight}
+                compact={compact}
+                onPositionChange={onPositionChange}
+                variant="overlay"
+                active={isSelected}
+              />
+            ) : null}
+          </div>
+        ) : null}
 
-        <DimensionControls
-          sectionLabel={displayLabel}
-          sectionId={sectionId}
-          resumeData={resumeData}
-          position={position}
-          maxWidth={maxWidth}
-          maxHeight={maxHeight}
-          compact={compact}
-          onPositionChange={onPositionChange}
-        />
-
-        <div className={`text-left pointer-events-none flex-1 min-h-0 overflow-y-auto ${compact ? "p-2" : "p-3"}`}>
+        <div className={`text-left flex-1 min-h-0 overflow-hidden ${compact ? "p-2" : "p-3"}`}>
           {children}
         </div>
       </div>

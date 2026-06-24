@@ -514,6 +514,10 @@ const en: MessageTree = {
       dragHint: "Drag",
       dragTitle: "Hold this row to drag the section",
       dragAria: "Drag {{label}}",
+      adjustSize: "Resize",
+      collapseSize: "Collapse",
+      sizeSummary: "{{width}} × {{height}}",
+      studioHint: "Hover to drag; select a block to resize (height auto-fits content)",
     },
     shortcutKeys: {
       Space: "Space",
@@ -605,6 +609,7 @@ const en: MessageTree = {
     viewport: {
       panHint: "Hold Space and drag to pan the canvas",
       zoomHint: "Ctrl + scroll to zoom",
+      sectionEditHint: "Hover to drag; select a block to resize (height auto-fits content)",
     },
   },
 

@@ -247,7 +247,7 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
                 <div className="canvas-studio-hint pointer-events-auto absolute top-3 left-1/2 -translate-x-1/2">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium">
                     <Move className="w-3 h-3 opacity-70" />
-                    {t("canvas.viewport.panHint")} · {t("canvas.viewport.zoomHint")} · {t("canvas.shortcuts.footer")}
+                    {t("canvas.viewport.panHint")} · {t("canvas.viewport.zoomHint")} · {t("canvas.viewport.sectionEditHint")}
                     {onDismissShortcutsHint ? (
                       <button type="button" className="ml-1 underline opacity-70 hover:opacity-100" onClick={onDismissShortcutsHint}>
                         {t("common.close")}
