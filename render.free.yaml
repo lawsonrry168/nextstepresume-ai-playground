@@ -1,0 +1,23 @@
+# Render $0 testing — New → Blueprint → connect repo (pick this file if UI allows path)
+# Or: New → Web Service → Docker → set env from deploy/zero-budget.variables.example
+
+services:
+  - type: web
+    name: nextstepresume-test
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NSR_APP_MODE
+        value: playground
+      - key: NSR_QUOTA_STORE
+        value: memory
+      - key: NSR_RATE_LIMIT_STORE
+        value: memory
+      - key: NSR_JOBSDB_SIMULATE
+        value: "1"
+      - key: APP_URL
+        sync: false

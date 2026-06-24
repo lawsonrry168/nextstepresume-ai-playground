@@ -134,34 +134,50 @@ curl http://127.0.0.1:3000/api/health
 
 `docker-compose.prod.yml` sets `NSR_QUOTA_STORE=redis`, `NSR_RATE_LIMIT_STORE=redis`, and `NSR_REDIS_URL=redis://redis:6379` on the app service.
 
-### Railway (recommended — Docker + managed Redis)
+### $0 testing (product validation — no Redis, no Stripe)
 
-1. Open [Railway](https://railway.com/new) → **Deploy from GitHub** → select `nextstepresume-ai-playground` (uses root `Dockerfile` + `railway.toml`).
-2. In the same project: **+ New** → **Database** → **Add Redis** (note the service name, e.g. `Redis`).
-3. Open the **web service** → **Variables** → **Raw Editor** → paste `deploy/railway.variables.example`, replace `<...>` secrets, ensure `REDIS_URL=${{Redis.REDIS_URL}}` matches your Redis service name.
-4. **Settings** → **Networking** → **Generate Domain**; redeploy if `APP_URL` was set before the domain existed.
-5. Stripe Dashboard → Webhooks → `https://<your-railway-domain>/api/billing/webhook`.
-6. Verify: `curl https://<domain>/api/health`.
+Use **playground mode** + **memory** quota/rate-limit on a single instance. Good enough for friends/beta testers; not for paid production.
 
-CLI (optional): `npx @railway/cli login` → `npx @railway/cli link` → `npx @railway/cli up`.
+| Item | $0 choice |
+|------|-----------|
+| Hosting | [Render Free](https://render.com) Docker web (`render.free.yaml`) |
+| Auth / DB | [Supabase Free](https://supabase.com) (optional) |
+| Billing | `NSR_APP_MODE=playground` (demo plan buttons) |
+| Redis | Skip — `NSR_QUOTA_STORE=memory`, `NSR_RATE_LIMIT_STORE=memory` |
+| AI | Skip `GEMINI_API_KEY` → simulation fallback |
+| JobsDB | `NSR_JOBSDB_SIMULATE=1` (fixture listings) |
 
-### Render
+**Render (easiest):** New → Web Service → connect GitHub repo → Runtime **Docker** → Plan **Free** → paste env from `deploy/zero-budget.variables.example` → set `APP_URL` to your `*.onrender.com` URL after first deploy.
 
-**New → Blueprint** → connect repo (`render.yaml` provisions web + Redis). Set `APP_URL` to your Render URL and add Stripe/Supabase/Gemini secrets in the dashboard.
+**Trade-offs:** Render free tier **sleeps** after ~15 min idle (first visit ~30–60s cold start). One instance only — quota resets on redeploy.
 
-### Fly.io
+**Local demo (also $0):** `npm run dev` + [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) for a public URL without hosting.
 
-`npx flyctl launch --no-deploy` (uses `fly.toml`, region `hkg`) → attach Redis (`fly redis create` or Upstash) → `fly secrets set` for Stripe/Supabase → `fly deploy`. Set `APP_URL=https://<app>.fly.dev`.
+### Paid hosting (when you launch billing)
 
-### Pre-deploy check
+#### Railway (Docker + managed Redis)
+
+1. Open [Railway](https://railway.com/new) → **Deploy from GitHub** → select `nextstepresume-ai-playground`.
+2. **+ New** → **Database** → **Add Redis**.
+3. Web service → **Variables** → paste `deploy/railway.variables.example`.
+4. **Generate Domain** → set Stripe webhook → `curl .../api/health`.
+
+#### Render
+
+`render.yaml` (web + Redis, paid Starter plans).
+
+#### Fly.io
+
+`fly.toml` (region `hkg`) + Redis add-on.
+
+### Pre-deploy check (paid / production only)
 
 ```bash
 # Load production .env first, then:
 npm run check:deploy-env
 ```
 
-
-- [x] Stripe Checkout + webhook → server plan authority
+### Production checklist
 - [x] Lock client `/api/subscription/sync` for paid upgrades in production
 - [x] Redis plan persistence on `setClientPlan`
 - [x] Supabase Auth (JWT → user-scoped quota client)

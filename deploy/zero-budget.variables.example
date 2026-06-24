@@ -1,0 +1,20 @@
+# $0 testing — paste into Render / Railway Variables (Raw Editor)
+# No Redis, no Stripe. Single instance memory quota + rate limit.
+
+NODE_ENV=production
+NSR_APP_MODE=playground
+NSR_QUOTA_STORE=memory
+NSR_RATE_LIMIT_STORE=memory
+APP_URL=https://<your-public-url>
+PORT=3000
+
+# Optional: Supabase free tier for login + cloud sync
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_ANON_KEY=<anon-key>
+# SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+
+# Optional: live AI (otherwise server uses simulation fallback)
+# GEMINI_API_KEY=<gemini-api-key>
+
+# JobsDB: fixture listings without Apify
+NSR_JOBSDB_SIMULATE=1
