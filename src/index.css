@@ -921,6 +921,10 @@ html:not(.dark) .marginalia-theme {
   box-shadow: 0 16px 48px rgba(26, 36, 56, 0.12);
 }
 
+.marginalia-theme .canvas-page-sheet--editing {
+  overflow: visible;
+}
+
 .marginalia-theme .canvas-page-sheet--active {
   outline: 2px solid color-mix(in srgb, var(--m-marker) 55%, transparent);
   outline-offset: 4px;
@@ -941,6 +945,10 @@ html:not(.dark) .marginalia-theme {
   height: 1123px;
   max-height: 1123px;
   overflow: hidden;
+}
+
+.marginalia-theme .canvas-page-sheet-paper--editing {
+  overflow: visible;
 }
 
 .marginalia-theme .canvas-page-sheet-paper--a4 {

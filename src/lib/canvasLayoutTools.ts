@@ -2,7 +2,7 @@ import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
 import { clampPositionToA4Page } from "./canvasPageSnap";
 import { CANVAS_PAGE_MARGIN, snapPositionToGrid, type CanvasAlignHorizontal } from "./canvasAlignTools";
 import type { FreeLayoutPosition } from "./resumeFreeLayout";
-import { defaultSectionHeight, FREE_LAYOUT_MAX_WIDTH, snapToGrid, SNAP_GRID_SIZE } from "./resumeFreeLayout";
+import { defaultSectionHeight, FREE_LAYOUT_MAX_WIDTH, snapToGrid, SNAP_GRID_SIZE, clampSectionHeight } from "./resumeFreeLayout";
 import type { ResumeData } from "../types";
 import {
   estimateContentAwareGap,
@@ -10,12 +10,15 @@ import {
   estimateSectionWidthForContent,
   fitSectionPositionToContent,
   pageInnerWidth,
+  CANVAS_SECTION_MAX_HEIGHT,
 } from "./canvasSectionContentSizing";
 
 export interface PageLayoutContentContext {
   resumeData?: ResumeData;
   /** layersDoc.order — back-to-front z-order */
   layerOrder?: string[];
+  /** Theme base font size scale (16px = 1) */
+  themeFontScale?: number;
 }
 
 export interface PageLayoutOptions {
@@ -243,27 +246,86 @@ function computeA4VerticalStack(
   return next;
 }
 
+/** Cluster section x positions into columns (tolerant of grid snap / slight drift) */
+function groupIdsByColumnX(
+  patches: Record<string, FreeLayoutPosition>,
+): Map<number, string[]> {
+  const entries = Object.entries(patches);
+  if (!entries.length) return new Map();
+
+  const xs = [...new Set(entries.map(([, pos]) => pos.x))].sort((a, b) => a - b);
+  const anchors: number[] = [];
+  for (const x of xs) {
+    if (anchors.some((anchor) => Math.abs(anchor - x) <= SNAP_GRID_SIZE * 2)) continue;
+    anchors.push(x);
+  }
+
+  const byColumn = new Map<number, string[]>();
+  for (const [id, pos] of entries) {
+    let anchor = anchors[0];
+    let best = Infinity;
+    for (const candidate of anchors) {
+      const dist = Math.abs(pos.x - candidate);
+      if (dist < best) {
+        best = dist;
+        anchor = candidate;
+      }
+    }
+    const bucket = byColumn.get(anchor) ?? [];
+    bucket.push(id);
+    byColumn.set(anchor, bucket);
+  }
+  return byColumn;
+}
+
 /** Per-column A4 fill for multi-column layouts */
 function fillColumnsToA4(
   patches: Record<string, FreeLayoutPosition>,
   opts: ReturnType<typeof resolveOpts>,
   mode: A4StackFillMode = "fill-page-exact",
 ): Record<string, FreeLayoutPosition> {
-  const byColumn = new Map<number, string[]>();
-  for (const [id, pos] of Object.entries(patches)) {
-    const bucket = byColumn.get(pos.x) ?? [];
-    bucket.push(id);
-    byColumn.set(pos.x, bucket);
-  }
+  const byColumn = groupIdsByColumnX(patches);
 
   let next = { ...patches };
-  for (const ids of byColumn.values()) {
+  for (const [columnX, ids] of byColumn.entries()) {
     const ordered = opts.layerOrder?.length
       ? sortSectionsByPanelOrder(ids, opts.layerOrder)
       : [...ids].sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+    for (const id of ordered) {
+      const pos = next[id];
+      if (pos) next[id] = { ...pos, x: columnX };
+    }
     next = computeA4VerticalStack(ordered, next, opts, mode);
   }
   return next;
+}
+
+/** Reflow y positions within each column after height changes (preserves widths and column x) */
+export function reflowPageColumnsNatural(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+  pageId: string,
+  getPageId: (id: string) => string,
+  content?: PageLayoutContentContext,
+): Record<string, FreeLayoutPosition> {
+  const opts = resolveOpts(mergeLayoutOptions(undefined, content));
+  const onPage = sectionsOnPage(sectionIds, positions, pageId, getPageId, opts.layerOrder);
+  if (!onPage.length) return positions;
+
+  const patches: Record<string, FreeLayoutPosition> = {};
+  for (const id of onPage) {
+    const pos = positions[id];
+    if (pos) patches[id] = { ...pos, pageId };
+  }
+
+  const xs = new Set(onPage.map((id) => patches[id]?.x ?? opts.margin));
+  if (xs.size <= 1) {
+    const reflowed = computeA4VerticalStack(onPage, patches, opts, "natural");
+    return patchPositions(positions, reflowed);
+  }
+
+  const reflowed = fillColumnsToA4(patches, opts, "natural");
+  return patchPositions(positions, reflowed);
 }
 
 function reflowPageStackAfterSizing(
@@ -354,6 +416,10 @@ export function layoutTwoColumnsOnPage(
   const rightX = opts.margin + leftW + colGap;
 
   const planned: Array<{ id: string; useRight: boolean; width: number; height: number }> = [];
+  const gap = resolveStackGap(
+    onPage.map((id) => sectionLayoutSize(id, positions, leftW, opts.resumeData).height),
+    opts,
+  );
   let leftY = opts.margin;
   let rightY = opts.margin;
 
@@ -363,14 +429,10 @@ export function layoutTwoColumnsOnPage(
     const useRight = rightY <= leftY;
     const { width, height } = sectionLayoutSize(id, positions, useRight ? rightW : leftW, opts.resumeData);
     planned.push({ id, useRight, width, height });
-    if (useRight) rightY += height;
-    else leftY += height;
+    if (useRight) rightY += height + gap;
+    else leftY += height + gap;
   }
 
-  const gap = resolveStackGap(
-    planned.map((p) => p.height),
-    opts,
-  );
   leftY = opts.margin;
   rightY = opts.margin;
   const patches: Record<string, FreeLayoutPosition> = {};
@@ -421,6 +483,10 @@ export function layoutSidebarOnPage(
   const rightX = opts.margin + sidebarW + railGap;
 
   const planned: Array<{ id: string; useMain: boolean; width: number; height: number }> = [];
+  const gap = resolveStackGap(
+    onPage.map((id) => sectionLayoutSize(id, positions, sidebarW, opts.resumeData).height),
+    opts,
+  );
   let leftY = opts.margin;
   let rightY = opts.margin;
 
@@ -430,14 +496,10 @@ export function layoutSidebarOnPage(
     const useMain = rightY <= leftY;
     const { width, height } = sectionLayoutSize(id, positions, useMain ? mainW : sidebarW, opts.resumeData);
     planned.push({ id, useMain, width, height });
-    if (useMain) rightY += height;
-    else leftY += height;
+    if (useMain) rightY += height + gap;
+    else leftY += height + gap;
   }
 
-  const gap = resolveStackGap(
-    planned.map((p) => p.height),
-    opts,
-  );
   leftY = opts.margin;
   rightY = opts.margin;
   const patches: Record<string, FreeLayoutPosition> = {};
@@ -577,12 +639,14 @@ export function syncSectionSizesToContentAllPages(
   pageIds: string[],
   getPageId: (id: string) => string,
   content?: PageLayoutContentContext,
-  options?: { reflow?: boolean },
+  options?: { reflow?: boolean; resizeWidth?: boolean },
 ): Record<string, FreeLayoutPosition> {
   if (!content?.resumeData) return positions;
 
   const opts = resolveOpts(mergeLayoutOptions(undefined, content));
   const inner = innerPrintableWidth(opts);
+  const resizeWidth = options?.resizeWidth !== false;
+  const themeScale = content.themeFontScale && content.themeFontScale > 0 ? content.themeFontScale : 1;
   let next = positions;
 
   for (const pageId of pageIds) {
@@ -591,8 +655,16 @@ export function syncSectionSizesToContentAllPages(
     for (const id of onPage) {
       const current = next[id];
       if (!current) continue;
-      const width = estimateSectionWidthForContent(id, content.resumeData, inner, current.x);
-      const height = estimateSectionHeightForContent(id, content.resumeData, width);
+      const width = resizeWidth
+        ? estimateSectionWidthForContent(id, content.resumeData, inner, current.x)
+        : current.width;
+      let height = estimateSectionHeightForContent(id, content.resumeData, width);
+      if (themeScale !== 1) {
+        height = snapToGrid(
+          clampSectionHeight(Math.round(height * themeScale), CANVAS_SECTION_MAX_HEIGHT),
+          SNAP_GRID_SIZE,
+        );
+      }
       patches[id] = clampPositionToA4Page({ ...current, pageId, width, height });
     }
     next = patchPositions(next, patches);
@@ -602,6 +674,20 @@ export function syncSectionSizesToContentAllPages(
   }
 
   return next;
+}
+
+/** Height-only sync — preserves manual widths and x/y positions */
+export function syncSectionHeightsToContentAllPages(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+  pageIds: string[],
+  getPageId: (id: string) => string,
+  content?: PageLayoutContentContext,
+): Record<string, FreeLayoutPosition> {
+  return syncSectionSizesToContentAllPages(sectionIds, positions, pageIds, getPageId, content, {
+    reflow: false,
+    resizeWidth: false,
+  });
 }
 
 /** @deprecated Use A4 fill-page reflow — kept for legacy imports */
@@ -906,7 +992,7 @@ export function snapAllToGridOnPage(
     if (!current) continue;
     patches[id] = snapPositionToGrid({ ...current, pageId });
   }
-  return patches;
+  return patchPositions(positions, patches);
 }
 
 /** Three equal columns — follows layer panel order into shortest column */

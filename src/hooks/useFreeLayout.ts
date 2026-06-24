@@ -148,7 +148,8 @@ export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFa
       setPositions((prev) => {
         const next = { ...prev };
         for (const [id, pos] of Object.entries(updates)) {
-          next[id] = options?.constrainA4 ? clampPositionToA4Page(pos) : pos;
+          const merged = { ...prev[id], ...pos };
+          next[id] = options?.constrainA4 ? clampPositionToA4Page(merged) : merged;
         }
         return next;
       });

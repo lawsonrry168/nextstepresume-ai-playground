@@ -516,8 +516,10 @@ const en: MessageTree = {
       dragAria: "Drag {{label}}",
       adjustSize: "Resize",
       collapseSize: "Collapse",
+      fitContent: "Fit content",
+      contentClipped: "Content clipped",
       sizeSummary: "{{width}} × {{height}}",
-      studioHint: "Hover to drag; select a block to resize (height auto-fits content)",
+      studioHint: "Hover to drag (controls float outside the block); select to resize — height auto-fits content by default",
     },
     shortcutKeys: {
       Space: "Space",
@@ -609,7 +611,7 @@ const en: MessageTree = {
     viewport: {
       panHint: "Hold Space and drag to pan the canvas",
       zoomHint: "Ctrl + scroll to zoom",
-      sectionEditHint: "Hover to drag; select a block to resize (height auto-fits content)",
+      sectionEditHint: "Hover to drag (controls float outside the block); select to resize — height auto-fits content by default",
     },
   },
 

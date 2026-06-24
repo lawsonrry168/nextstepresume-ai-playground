@@ -415,8 +415,10 @@ const zhTW: MessageTree = {
       dragAria: "拖曳 {{label}}",
       adjustSize: "調整大小",
       collapseSize: "收合",
+      fitContent: "適合內容",
+      contentClipped: "內容被裁切",
       sizeSummary: "{{width}} × {{height}}",
-      studioHint: "懸停顯示拖曳手把；點選區塊後可調整寬高（區塊高度會依內容自動伸縮）",
+      studioHint: "懸停顯示拖曳手把（浮在區塊外）；點選後可調整寬高，高度預設依內容自動伸縮",
     },
     shortcutKeys: {
       Space: "空白鍵",
@@ -508,7 +510,7 @@ const zhTW: MessageTree = {
     viewport: {
       panHint: "按住空白鍵拖曳以平移畫布",
       zoomHint: "Ctrl + 滾輪縮放",
-      sectionEditHint: "懸停顯示拖曳；點選區塊後可調整寬高（高度依內容自動伸縮）",
+      sectionEditHint: "懸停顯示拖曳手把（浮在區塊外）；點選後可調整寬高，高度預設依內容自動伸縮",
     },
   },
 

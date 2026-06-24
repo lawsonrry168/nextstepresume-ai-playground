@@ -274,3 +274,36 @@ export function themeContentScale(customization: { enabled?: boolean; baseFontSi
   if (!customization.enabled || !customization.baseFontSize) return 1;
   return customization.baseFontSize / 16;
 }
+
+/** Measure unconstrained content height (avoids clipped scrollHeight in fixed-height boxes) */
+export function measureSectionContentHeight(node: HTMLElement, contentWidth: number): number {
+  const host = node.parentElement;
+  if (!host) return node.scrollHeight;
+
+  const saved = {
+    hostHeight: host.style.height,
+    hostOverflow: host.style.overflow,
+    nodeHeight: node.style.height,
+    nodeMinHeight: node.style.minHeight,
+    nodeOverflow: node.style.overflow,
+    nodeWidth: node.style.width,
+  };
+
+  host.style.height = "auto";
+  host.style.overflow = "visible";
+  node.style.height = "auto";
+  node.style.minHeight = "0";
+  node.style.overflow = "visible";
+  node.style.width = `${contentWidth}px`;
+
+  const measured = node.scrollHeight;
+
+  host.style.height = saved.hostHeight;
+  host.style.overflow = saved.hostOverflow;
+  node.style.height = saved.nodeHeight;
+  node.style.minHeight = saved.nodeMinHeight;
+  node.style.overflow = saved.nodeOverflow;
+  node.style.width = saved.nodeWidth;
+
+  return measured;
+}

@@ -31,6 +31,7 @@ import { CANVAS_PAGE_MARGIN } from "../../lib/canvasAlignTools";
 import {
   estimateSectionHeightForContent,
   getSectionTextLength,
+  measureSectionContentHeight,
   SECTION_CONTENT_PADDING,
 } from "../../lib/canvasSectionContentSizing";
 import { getTemplateFamily } from "../../lib/resumeTemplateCatalog";
@@ -62,6 +63,10 @@ export interface FreeLayoutStudioCanvasProps {
   snapEnabled?: boolean;
   /** When false, skip DOM ResizeObserver height auto-fit (Canvas Studio sync handles sizing) */
   autoFitContentHeight?: boolean;
+  /** Sections the user manually resized — skip auto-fit / batch height sync */
+  manualSizedSections?: ReadonlySet<string>;
+  onSectionManualSize?: (sectionId: string) => void;
+  onSectionClearManualSize?: (sectionId: string) => void;
   canvasLayout?: {
     pages: CanvasPage[];
     activePageId: string;
@@ -123,14 +128,17 @@ export default function FreeLayoutStudioCanvas({
   showMargins = false,
   snapEnabled = true,
   autoFitContentHeight = true,
+  manualSizedSections,
+  onSectionManualSize,
+  onSectionClearManualSize,
   canvasLayout,
 }: FreeLayoutStudioCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const isEdit = variant === "edit";
   const isCanvasStudioHost = containerId === "resume-container-box-canvas";
-  const effectiveChromeMode = isCanvasStudioHost ? "live" : chromeMode;
-  const effectiveAutoFitHeight = isCanvasStudioHost ? true : autoFitContentHeight;
+  const effectiveChromeMode = chromeMode;
+  const effectiveAutoFitHeight = isCanvasStudioHost ? false : autoFitContentHeight;
   const isLiveChrome = isEdit && effectiveChromeMode === "live";
   const isNarrowPanel = containerId === "resume-container-box";
   const isMultiPage = Boolean(canvasLayout?.pages.length);
@@ -157,14 +165,13 @@ export default function FreeLayoutStudioCanvas({
     [isMultiPage, sectionIds, positions, pageCount],
   );
 
-  const emitPositionChange = (
-    sectionId: string,
-    pos: FreeLayoutPosition,
-    options?: { skipSnap?: boolean; constrainA4?: boolean; userMoved?: boolean },
-  ) => {
-    const next = isMultiPage ? clampPositionToA4Page(pos) : pos;
-    onPositionChange(sectionId, next, isMultiPage ? { ...options, constrainA4: true } : options);
-  };
+  const emitPositionChange = useCallback(
+    (sectionId: string, pos: FreeLayoutPosition, options?: { skipSnap?: boolean; constrainA4?: boolean; userMoved?: boolean }) => {
+      const next = isMultiPage ? clampPositionToA4Page(pos) : pos;
+      onPositionChange(sectionId, next, isMultiPage ? { ...options, constrainA4: true } : options);
+    },
+    [isMultiPage, onPositionChange],
+  );
 
   const resolveSnapDraft = useCallback(
     (sectionId: string, draft: FreeLayoutPosition, pageId?: string): FreeLayoutPosition => {
@@ -244,8 +251,16 @@ export default function FreeLayoutStudioCanvas({
           snapEnabled={snapEnabled}
           resolveSnap={(draft) => resolveSnapDraft(section.id, draft, pageId)}
           maxY={pageMaxY}
-          maxHeight={pageMaxY !== undefined ? maxSectionHeightOnPage(pos.y) : undefined}
+          maxHeight={
+            pageMaxY !== undefined
+              ? Math.min(FREE_LAYOUT_MAX_HEIGHT, maxSectionHeightOnPage(pos.y))
+              : FREE_LAYOUT_MAX_HEIGHT
+          }
+          pageHeight={pageMaxY ?? CANVAS_PAGE_HEIGHT}
           autoFitContentHeight={effectiveAutoFitHeight}
+          manualSizeLocked={manualSizedSections?.has(section.id) ?? false}
+          onManualSize={() => onSectionManualSize?.(section.id)}
+          onClearManualSize={() => onSectionClearManualSize?.(section.id)}
           resumeData={resumeData}
         >
           <FreeLayoutSectionContent
@@ -378,7 +393,7 @@ export default function FreeLayoutStudioCanvas({
         minHeight: canvasHeight,
       }}
     >
-      <div ref={canvasRef} className="relative w-full h-full" onPointerDown={() => setSelectedSectionId(null)}>
+      <div ref={canvasRef} className="relative w-full h-full overflow-visible" onPointerDown={() => setSelectedSectionId(null)}>
         {family === "modern" && resolved.showAccentBar && (isLiveChrome || !isEdit) ? (
           <div className={`h-2 ${tc.accentBar} rounded-t-lg`} />
         ) : null}
@@ -393,7 +408,7 @@ export default function FreeLayoutStudioCanvas({
     return (
       <div
         ref={deskRef}
-        className="canvas-multi-page-desk relative"
+        className="canvas-multi-page-desk relative overflow-visible"
         style={{ width: FREE_LAYOUT_CANVAS.width, height: deskHeight }}
       >
         {isEdit && showGrid ? (
@@ -413,7 +428,7 @@ export default function FreeLayoutStudioCanvas({
             <div
               key={page.id}
               data-page-id={page.id}
-              className={`canvas-page-sheet absolute left-0 ${isActive ? "canvas-page-sheet--active" : ""}`}
+              className={`canvas-page-sheet absolute left-0 ${isActive ? "canvas-page-sheet--active" : ""}${isEdit ? " canvas-page-sheet--editing" : ""}`}
               style={{
                 top: getPageTopOffset(pageIndex),
                 width: FREE_LAYOUT_CANVAS.width,
@@ -429,13 +444,13 @@ export default function FreeLayoutStudioCanvas({
                 exportPage
                 className={`canvas-page-sheet-paper canvas-page-sheet-paper--a4 relative ${
                   resolved.active ? "" : "bg-white"
-                } ${isEdit ? "shadow-2xl rounded-xl border border-slate-200/80 overflow-hidden" : "overflow-hidden"} ${tc.sheetFont}`}
+                } ${isEdit ? "shadow-2xl rounded-xl border border-slate-200/80 canvas-page-sheet-paper--editing" : "overflow-hidden"} ${tc.sheetFont}`}
                 style={{ width: FREE_LAYOUT_CANVAS.width, height: CANVAS_PAGE_HEIGHT }}
               >
                 <div
                   ref={pageIndex === 0 ? canvasRef : undefined}
                   data-page-drop-surface
-                  className="relative w-full h-full overflow-hidden"
+                  className={`relative w-full h-full ${isEdit ? "overflow-visible" : "overflow-hidden"}`}
                   onPointerDown={() => setSelectedSectionId(null)}
                 >
                   {family === "modern" && resolved.showAccentBar && (isLiveChrome || !isEdit) ? (
@@ -496,6 +511,9 @@ interface DraggableSectionProps {
   maxY?: number;
   maxHeight?: number;
   autoFitContentHeight?: boolean;
+  manualSizeLocked?: boolean;
+  onManualSize?: () => void;
+  onClearManualSize?: () => void;
   onDragPointer?: (clientX: number, clientY: number) => void;
   onDragLocalY?: (localY: number) => void;
   onDragComplete?: () => void;
@@ -509,23 +527,40 @@ interface DraggableSectionProps {
   resolveSnap?: (draft: FreeLayoutPosition) => FreeLayoutPosition;
   children: React.ReactNode;
   resumeData?: ResumeData;
+  pageHeight?: number;
 }
 
-function useAutoFitSectionContentHeight(
-  enabled: boolean,
+const CHROME_ESTIMATE_COLLAPSED = 40;
+const CHROME_ESTIMATE_EXPANDED = 136;
+
+function resolveChromeAbove(position: FreeLayoutPosition, pageHeight: number, isSelected: boolean): boolean {
+  const chromeH = isSelected ? CHROME_ESTIMATE_EXPANDED : CHROME_ESTIMATE_COLLAPSED;
+  const spaceAbove = position.y;
+  const spaceBelow = pageHeight - position.y - position.height;
+  if (spaceAbove < chromeH && spaceBelow >= chromeH) return false;
+  if (spaceBelow < chromeH && spaceAbove >= chromeH) return true;
+  return spaceAbove >= chromeH || spaceAbove >= spaceBelow;
+}
+
+/** Content-driven sizing: auto-expand when unlocked; detect clip when manually fixed */
+function useSectionContentSizing(
+  autoFitEnabled: boolean,
   sectionId: string,
   resumeData: ResumeData | undefined,
   position: FreeLayoutPosition,
   maxHeight: number | undefined,
   onPositionChange: DraggableSectionProps["onPositionChange"],
+  manualSizeLocked: boolean,
 ) {
   const contentRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef(position);
   positionRef.current = position;
+  const [contentOverflows, setContentOverflows] = useState(false);
   const contentLen = resumeData ? getSectionTextLength(sectionId, resumeData) : 0;
+  const expansionMode = autoFitEnabled && !manualSizeLocked;
 
   useEffect(() => {
-    if (!enabled || !resumeData) return;
+    if (!resumeData) return;
     const node = contentRef.current;
     if (!node) return;
 
@@ -534,16 +569,22 @@ function useAutoFitSectionContentHeight(
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const current = positionRef.current;
-        const scrollH = node.scrollHeight;
+        const naturalH = measureSectionContentHeight(node, current.width);
         const estimated = estimateSectionHeightForContent(sectionId, resumeData, current.width);
+        const contentNeed = Math.max(estimated, naturalH + SECTION_CONTENT_PADDING);
+
+        if (manualSizeLocked) {
+          setContentOverflows(contentNeed > current.height + 4);
+          return;
+        }
+        setContentOverflows(false);
+        if (!autoFitEnabled) return;
+
         const domNeed = snapToGrid(
-          clampSectionHeight(
-            Math.max(estimated, scrollH + SECTION_CONTENT_PADDING),
-            maxHeight ?? FREE_LAYOUT_MAX_HEIGHT,
-          ),
+          clampSectionHeight(contentNeed, maxHeight ?? FREE_LAYOUT_MAX_HEIGHT),
           SNAP_GRID_SIZE,
         );
-        if (Math.abs(domNeed - current.height) >= 8) {
+        if (Math.abs(domNeed - current.height) >= 4) {
           onPositionChange({ ...current, height: domNeed }, { skipSnap: true });
         }
       });
@@ -556,9 +597,18 @@ function useAutoFitSectionContentHeight(
       observer.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [enabled, maxHeight, onPositionChange, resumeData, sectionId, contentLen, position.width]);
+  }, [
+    autoFitEnabled,
+    manualSizeLocked,
+    maxHeight,
+    onPositionChange,
+    resumeData,
+    sectionId,
+    contentLen,
+    position.width,
+  ]);
 
-  return contentRef;
+  return { contentRef, expansionMode, contentOverflows };
 }
 
 const DimensionControls: React.FC<{
@@ -570,6 +620,8 @@ const DimensionControls: React.FC<{
   maxHeight?: number;
   compact?: boolean;
   onPositionChange: DraggableSectionProps["onPositionChange"];
+  onManualResize?: () => void;
+  onFitContent?: () => void;
   variant?: "panel" | "overlay";
   active?: boolean;
 }> = ({
@@ -581,6 +633,8 @@ const DimensionControls: React.FC<{
   maxHeight,
   compact,
   onPositionChange,
+  onManualResize,
+  onFitContent,
   variant = "panel",
   active = true,
 }) => {
@@ -592,6 +646,8 @@ const DimensionControls: React.FC<{
   const [draftHeight, setDraftHeight] = useState(position.height);
   const [slidersOpen, setSlidersOpen] = useState(false);
   const slidingRef = useRef<"width" | "height" | null>(null);
+  const positionRef = useRef(position);
+  positionRef.current = position;
   const useCollapsible = variant === "overlay";
 
   useEffect(() => {
@@ -604,16 +660,30 @@ const DimensionControls: React.FC<{
   }, [active]);
 
   const commitWidth = (value: number) => {
-    const width = clampSectionWidth(value, position.x, FREE_LAYOUT_CANVAS.width);
-    let height = position.height;
-    if (resumeData && sectionId) {
-      height = clampHeight(estimateSectionHeightForContent(sectionId, resumeData, width));
+    const current = positionRef.current;
+    let width = clampSectionWidth(value, current.x, FREE_LAYOUT_CANVAS.width);
+    let x = current.x;
+    if (x + width > CANVAS_PAGE_WIDTH) {
+      x = Math.max(0, CANVAS_PAGE_WIDTH - width);
     }
-    onPositionChange({ ...position, width, height }, { skipSnap: true, userMoved: true });
+    onManualResize?.();
+    onPositionChange({ ...current, x, width }, { skipSnap: true, userMoved: true });
   };
 
   const commitHeight = (value: number) => {
-    onPositionChange({ ...position, height: clampHeight(value) }, { skipSnap: true, userMoved: true });
+    const current = positionRef.current;
+    onManualResize?.();
+    onPositionChange({ ...current, height: clampHeight(value) }, { skipSnap: true, userMoved: true });
+  };
+
+  const queueWidthCommit = (value: number) => {
+    setDraftWidth(value);
+    commitWidth(value);
+  };
+
+  const queueHeightCommit = (value: number) => {
+    setDraftHeight(value);
+    commitHeight(value);
   };
 
   const wrapClass =
@@ -646,13 +716,25 @@ const DimensionControls: React.FC<{
           <span className="text-[9px] font-mono font-bold text-slate-500 tabular-nums">
             {t("canvas.dimensions.sizeSummary", { width: Math.round(draftWidth), height: Math.round(draftHeight) })}
           </span>
-          <button
-            type="button"
-            className="text-[9px] font-bold text-emerald-700 hover:text-emerald-900"
-            onClick={() => setSlidersOpen(false)}
-          >
-            {t("canvas.dimensions.collapseSize")}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onFitContent ? (
+              <button
+                type="button"
+                className="text-[9px] font-bold text-violet-700 hover:text-violet-900"
+                onClick={onFitContent}
+                title={t("canvas.dimensions.fitContent")}
+              >
+                {t("canvas.dimensions.fitContent")}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-[9px] font-bold text-emerald-700 hover:text-emerald-900"
+              onClick={() => setSlidersOpen(false)}
+            >
+              {t("canvas.dimensions.collapseSize")}
+            </button>
+          </div>
         </div>
       ) : null}
       <div className="flex items-center gap-1.5">
@@ -665,14 +747,20 @@ const DimensionControls: React.FC<{
           onPointerDown={() => {
             slidingRef.current = "width";
           }}
-          onChange={(e) => setDraftWidth(Number(e.target.value))}
-          onPointerUp={() => {
+          onChange={(e) => queueWidthCommit(Number(e.target.value))}
+          onPointerUp={(e) => {
             slidingRef.current = null;
-            commitWidth(draftWidth);
+            commitWidth(Number((e.target as HTMLInputElement).value));
           }}
-          onPointerCancel={() => {
+          onPointerCancel={(e) => {
             slidingRef.current = null;
-            commitWidth(draftWidth);
+            commitWidth(Number((e.target as HTMLInputElement).value));
+          }}
+          onBlur={(e) => {
+            if (slidingRef.current === "width") {
+              slidingRef.current = null;
+              commitWidth(Number((e.target as HTMLInputElement).value));
+            }
           }}
           className="flex-1 h-2 accent-emerald-600 cursor-pointer min-w-0"
           aria-label={t("canvas.dimensions.widthAria", { label: sectionLabel })}
@@ -685,7 +773,7 @@ const DimensionControls: React.FC<{
           onChange={(e) => {
             const raw = Number(e.target.value);
             if (Number.isNaN(raw)) return;
-            const width = clampSectionWidth(raw, position.x, FREE_LAYOUT_CANVAS.width);
+            const width = clampSectionWidth(raw, positionRef.current.x, FREE_LAYOUT_CANVAS.width);
             setDraftWidth(width);
             commitWidth(width);
           }}
@@ -702,14 +790,20 @@ const DimensionControls: React.FC<{
           onPointerDown={() => {
             slidingRef.current = "height";
           }}
-          onChange={(e) => setDraftHeight(Number(e.target.value))}
-          onPointerUp={() => {
+          onChange={(e) => queueHeightCommit(Number(e.target.value))}
+          onPointerUp={(e) => {
             slidingRef.current = null;
-            commitHeight(draftHeight);
+            commitHeight(Number((e.target as HTMLInputElement).value));
           }}
-          onPointerCancel={() => {
+          onPointerCancel={(e) => {
             slidingRef.current = null;
-            commitHeight(draftHeight);
+            commitHeight(Number((e.target as HTMLInputElement).value));
+          }}
+          onBlur={(e) => {
+            if (slidingRef.current === "height") {
+              slidingRef.current = null;
+              commitHeight(Number((e.target as HTMLInputElement).value));
+            }
           }}
           className="flex-1 h-2 accent-violet-600 cursor-pointer min-w-0"
           aria-label={t("canvas.dimensions.heightAria", { label: sectionLabel })}
@@ -746,6 +840,9 @@ const DraggableSection = memo(function DraggableSection({
   maxY,
   maxHeight,
   autoFitContentHeight = true,
+  manualSizeLocked = false,
+  onManualSize,
+  onClearManualSize,
   onDragPointer,
   onDragLocalY,
   onDragComplete,
@@ -755,6 +852,7 @@ const DraggableSection = memo(function DraggableSection({
   resolveSnap,
   children,
   resumeData,
+  pageHeight = CANVAS_PAGE_HEIGHT,
 }: DraggableSectionProps) {
   const { t } = useI18n();
   const displayLabel = getSectionLabel(sectionId);
@@ -769,14 +867,47 @@ const DraggableSection = memo(function DraggableSection({
   const showChrome = isLive ? isHovered || isSelected || isDragging : isHovered || isSelected || isDragging;
 
   const maxWidth = FREE_LAYOUT_CANVAS.width - position.x - 8;
-  const contentRef = useAutoFitSectionContentHeight(
-    isLive && Boolean(resumeData) && autoFitContentHeight,
+  const sizingEnabled = Boolean(resumeData) && autoFitContentHeight;
+  const { contentRef, expansionMode, contentOverflows } = useSectionContentSizing(
+    sizingEnabled,
     sectionId,
     resumeData,
     position,
     maxHeight,
     onPositionChange,
+    manualSizeLocked,
   );
+
+  const contentPadClass = compact ? "p-2" : "p-3";
+  const contentOverflowClass = expansionMode ? "overflow-visible" : "min-h-0 overflow-hidden";
+  const shellRingClass = isDragging
+    ? "ring-2 ring-emerald-500 shadow-xl"
+    : isSelected
+      ? isLive
+        ? "ring-2 ring-emerald-400/80"
+        : "ring-2 ring-emerald-400/80 border-2 border-dashed border-emerald-400/70"
+      : isHovered
+        ? isLive
+          ? "ring-1 ring-emerald-200"
+          : "ring-1 ring-emerald-200 border border-dashed border-emerald-200/80"
+        : isLive
+          ? ""
+          : "border border-transparent";
+
+  const handleManualResize = useCallback(() => {
+    onManualSize?.();
+  }, [onManualSize]);
+
+  const handleFitContent = useCallback(() => {
+    if (!resumeData) return;
+    onClearManualSize?.();
+    const current = position;
+    const height = clampSectionHeight(
+      estimateSectionHeightForContent(sectionId, resumeData, current.width),
+      maxHeight ?? FREE_LAYOUT_MAX_HEIGHT,
+    );
+    onPositionChange({ ...current, height }, { skipSnap: true });
+  }, [maxHeight, onClearManualSize, onPositionChange, position, resumeData, sectionId]);
 
   useEffect(() => {
     if (isDraggingRef.current) return;
@@ -791,6 +922,12 @@ const DraggableSection = memo(function DraggableSection({
     dragControls.start(event);
   };
 
+  /** Float chrome outside the content box; flip based on available page space */
+  const chromeAbove = resolveChromeAbove(position, pageHeight, isSelected);
+  const chromePlacementClass = chromeAbove
+    ? "absolute left-0 right-0 bottom-full mb-1"
+    : "absolute left-0 right-0 top-full mt-1";
+
   return (
     <motion.div
       id={`free-layout-section-${sectionId}`}
@@ -799,12 +936,13 @@ const DraggableSection = memo(function DraggableSection({
       dragListener={false}
       dragMomentum={false}
       dragElastic={0}
-      className={`absolute touch-none ${locked ? "canvas-section-locked" : ""}`}
+      className={`absolute overflow-visible ${locked ? "canvas-section-locked" : ""}`}
       style={{
         x,
         y,
         width: position.width,
-        height: position.height,
+        height: expansionMode ? "auto" : position.height,
+        minHeight: expansionMode ? Math.max(position.height, FREE_LAYOUT_MIN_HEIGHT) : position.height,
         left: 0,
         top: 0,
         zIndex: isDragging || isHovered || isSelected ? zIndex + 50 : zIndex,
@@ -865,79 +1003,18 @@ const DraggableSection = memo(function DraggableSection({
         onSelect?.();
       }}
     >
-      {isLive ? (
-        <div
-          className={`relative h-full flex flex-col overflow-hidden transition-all ${
-            isDragging
-              ? "ring-2 ring-emerald-500 shadow-xl"
-              : isSelected
-                ? "ring-2 ring-emerald-400/80"
-                : isHovered
-                  ? "ring-1 ring-emerald-200"
-                  : ""
-          }`}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => {
-            if (!isDragging) setIsHovered(false);
-          }}
-        >
-          {showChrome ? (
-            <div className="absolute top-1 left-1 right-1 z-30 flex flex-col gap-1" data-canvas-chrome>
-              <div
-                role="button"
-                tabIndex={0}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-md border shadow-sm select-none touch-none cursor-grab active:cursor-grabbing ${
-                  isDragging
-                    ? "bg-emerald-600 text-white border-emerald-500"
-                    : "bg-white/95 text-emerald-800 border-emerald-200 hover:bg-emerald-50"
-                }`}
-                onPointerDown={startDrag}
-              >
-                <GripVertical className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] font-bold truncate">{displayLabel}</span>
-                <span className="ml-auto text-[9px] opacity-70">{t("canvas.dimensions.dragHint")}</span>
-              </div>
-              {isSelected ? (
-                <DimensionControls
-                  sectionLabel={displayLabel}
-                  sectionId={sectionId}
-                  resumeData={resumeData}
-                  position={position}
-                  maxWidth={maxWidth}
-                  maxHeight={maxHeight}
-                  compact={compact}
-                  onPositionChange={onPositionChange}
-                  variant="overlay"
-                  active={isSelected}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          <div
-            ref={contentRef}
-            className={`flex-1 min-h-0 overflow-hidden text-left ${compact ? "p-2" : "p-3"}`}
-          >
-            {children}
-          </div>
-        </div>
-      ) : (
       <div
-        className={`relative h-full flex flex-col overflow-hidden transition-all rounded-lg ${
-          isDragging
-            ? "ring-2 ring-emerald-500 shadow-xl"
-            : isSelected
-              ? "ring-2 ring-emerald-400/80 border-2 border-dashed border-emerald-400/70"
-              : isHovered
-                ? "ring-1 ring-emerald-200 border border-dashed border-emerald-200/80"
-                : "border border-transparent"
-        }`}
+        className="relative"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => {
           if (!isDragging) setIsHovered(false);
         }}
       >
         {showChrome ? (
-          <div className="absolute top-1 left-1 right-1 z-30 flex flex-col gap-1" data-canvas-chrome>
+          <div
+            className={`${chromePlacementClass} z-50 flex flex-col gap-1 pointer-events-auto`}
+            data-canvas-chrome
+          >
             <div
               role="button"
               tabIndex={0}
@@ -964,18 +1041,32 @@ const DraggableSection = memo(function DraggableSection({
                 maxHeight={maxHeight}
                 compact={compact}
                 onPositionChange={onPositionChange}
+                onManualResize={handleManualResize}
+                onFitContent={resumeData ? handleFitContent : undefined}
                 variant="overlay"
                 active={isSelected}
               />
             ) : null}
           </div>
         ) : null}
-
-        <div className={`text-left flex-1 min-h-0 overflow-hidden ${compact ? "p-2" : "p-3"}`}>
-          {children}
+        <div
+          className={`relative flex flex-col transition-all ${isLive ? "" : "rounded-lg"} ${expansionMode ? "" : "h-full overflow-hidden"} ${shellRingClass}`}
+        >
+          {contentOverflows ? (
+            <div
+              className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex items-end justify-center pb-0.5"
+              title={t("canvas.dimensions.contentClipped")}
+            >
+              <span className="text-[8px] font-bold text-amber-800 bg-amber-100/95 border border-amber-300 rounded px-1.5 py-0.5 shadow-sm">
+                {t("canvas.dimensions.contentClipped")}
+              </span>
+            </div>
+          ) : null}
+          <div ref={contentRef} className={`flex-1 text-left ${contentOverflowClass} ${contentPadClass}`}>
+            {children}
+          </div>
         </div>
       </div>
-      )}
     </motion.div>
   );
 });

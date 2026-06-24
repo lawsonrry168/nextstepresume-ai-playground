@@ -64,7 +64,8 @@ export function clampPositionToA4Page(pos: FreeLayoutPosition): FreeLayoutPositi
     CANVAS_PAGE_HEIGHT,
   );
   const x = Math.max(0, Math.min(pos.x, CANVAS_PAGE_WIDTH - width));
-  const y = Math.max(0, Math.min(pos.y, CANVAS_PAGE_HEIGHT - height));
+  // Allow vertical overflow past page bottom — clamping y upward causes column overlap
+  const y = Math.max(0, pos.y);
   return { ...pos, x, y, width, height };
 }
 

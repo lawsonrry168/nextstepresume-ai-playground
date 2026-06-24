@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPageLayoutAction, assignAllSectionsToPage, resolveLayoutTargetPageId, sortSectionsByPanelOrder } from "../lib/canvasLayoutTools";
+import { applyPageLayoutAction, assignAllSectionsToPage, reflowPageColumnsNatural, resolveLayoutTargetPageId, sortSectionsByPanelOrder, syncSectionHeightsToContentAllPages, syncSectionSizesToContentAllPages } from "../lib/canvasLayoutTools";
 import { initialResumeData } from "../data";
 import {
   estimateSectionHeightForContent,
@@ -143,7 +143,7 @@ describe("canvasPageSnap", () => {
   it("clamps section position within A4 page bounds", () => {
     const clamped = clampPositionToA4Page({ x: 700, y: 1000, width: 400, height: 300 });
     expect(clamped.x + clamped.width).toBeLessThanOrEqual(794);
-    expect(clamped.y + clamped.height).toBeLessThanOrEqual(1123);
+    expect(clamped.y).toBe(1000);
     expect(clamped.x).toBeGreaterThanOrEqual(0);
     expect(clamped.y).toBeGreaterThanOrEqual(0);
   });
@@ -412,6 +412,89 @@ describe("canvasLayoutTools", () => {
     expect(getSectionTextLength("experience", initialResumeData)).toBeGreaterThan(
       getSectionTextLength("header", initialResumeData),
     );
+  });
+
+  it("syncSectionHeightsToContentAllPages preserves column widths and x positions", () => {
+    const layerOrder = ["experience", "summary", "header"];
+    const twoCol = applyPageLayoutAction("two-column", sectionIds, positions, pageId, getPageId, undefined, {
+      resumeData: initialResumeData,
+      layerOrder,
+    });
+    const synced = syncSectionHeightsToContentAllPages(
+      sectionIds,
+      twoCol,
+      [pageId],
+      getPageId,
+      { resumeData: initialResumeData, layerOrder },
+    );
+    for (const id of sectionIds) {
+      expect(synced[id as keyof typeof synced].width).toBe(twoCol[id as keyof typeof twoCol].width);
+      expect(synced[id as keyof typeof synced].x).toBe(twoCol[id as keyof typeof twoCol].x);
+      expect(synced[id as keyof typeof synced].height).toBe(
+        estimateSectionHeightForContent(id, initialResumeData, twoCol[id as keyof typeof twoCol].width),
+      );
+    }
+  });
+
+  it("syncSectionSizesToContentAllPages with resizeWidth false does not expand narrow columns", () => {
+    const narrow = {
+      header: { x: 48, y: 48, width: 320, height: 120 },
+      summary: { x: 48, y: 200, width: 310, height: 100 },
+      experience: { x: 400, y: 48, width: 330, height: 200, pageId: "p1" },
+    };
+    const fullWidth = syncSectionSizesToContentAllPages(
+      sectionIds,
+      narrow,
+      [pageId],
+      getPageId,
+      { resumeData: initialResumeData },
+      { reflow: false, resizeWidth: true },
+    );
+    const heightOnly = syncSectionSizesToContentAllPages(
+      sectionIds,
+      narrow,
+      [pageId],
+      getPageId,
+      { resumeData: initialResumeData },
+      { reflow: false, resizeWidth: false },
+    );
+    expect(fullWidth.experience.width).toBeGreaterThan(narrow.experience.width);
+    expect(heightOnly.experience.width).toBe(narrow.experience.width);
+    expect(heightOnly.summary.width).toBe(narrow.summary.width);
+  });
+
+  it("reflowPageColumnsNatural stacks sections without y overlap in each column", () => {
+    const layerOrder = ["experience", "summary", "header", "education", "skills", "projects"];
+    const ids = ["header", "summary", "experience", "education", "skills", "projects"];
+    const twoCol = applyPageLayoutAction("two-column", ids, positions, pageId, getPageId, undefined, {
+      resumeData: initialResumeData,
+      layerOrder,
+    });
+    const inflated = {
+      ...twoCol,
+      header: { ...twoCol.header, height: twoCol.header.height + 120 },
+      experience: { ...twoCol.experience, height: twoCol.experience.height + 200 },
+    };
+    const reflowed = reflowPageColumnsNatural(ids, inflated, pageId, getPageId, {
+      resumeData: initialResumeData,
+      layerOrder,
+    });
+
+    const present = ids.filter((id) => reflowed[id]);
+    const columnIds = (anchorX: number) =>
+      present.filter((id) => Math.abs((reflowed[id]?.x ?? 0) - anchorX) <= 48);
+
+    const anchors = [...new Set(present.map((id) => reflowed[id]!.x))];
+    for (const anchor of anchors) {
+      const col = columnIds(anchor).sort(
+        (a, b) => (reflowed[a]!.y ?? 0) - (reflowed[b]!.y ?? 0),
+      );
+      for (let i = 1; i < col.length; i++) {
+        const prev = reflowed[col[i - 1]!]!;
+        const cur = reflowed[col[i]!]!;
+        expect(prev.y + prev.height).toBeLessThanOrEqual(cur.y + 2);
+      }
+    }
   });
 });
 
