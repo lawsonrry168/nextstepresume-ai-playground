@@ -13,13 +13,22 @@ function run(cmd, args) {
   });
 }
 
-await run("node", [viteCli, "build"]);
-await esbuild.build({
-  entryPoints: [path.join(root, "server.ts")],
+const esbuildBase = {
   bundle: true,
   platform: "node",
   format: "cjs",
   packages: "external",
   sourcemap: true,
+};
+
+await run("node", [viteCli, "build"]);
+await esbuild.build({
+  ...esbuildBase,
+  entryPoints: [path.join(root, "server.ts")],
   outfile: path.join(root, "dist", "server.cjs"),
+});
+await esbuild.build({
+  ...esbuildBase,
+  entryPoints: [path.join(root, "server", "createApp.ts")],
+  outfile: path.join(root, "api", "handler.cjs"),
 });

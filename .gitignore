@@ -1,6 +1,8 @@
 node_modules/
 build/
 dist/
+api/handler.cjs
+api/handler.cjs.map
 coverage/
 .DS_Store
 *.log
@@ -14,3 +16,4 @@ test-results/
 blob-report/
 dump.rdb
 *.rdb
+.vercel
