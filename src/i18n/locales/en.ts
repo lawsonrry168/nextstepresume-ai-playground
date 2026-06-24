@@ -671,6 +671,7 @@ const en: MessageTree = {
       pdfExportFailed: "PDF export failed",
       mergedDocxDownloaded: "Merged DOCX (OOXML) downloaded",
       docxExportFailed: "DOCX export failed",
+      docxDownloaded: "Word document downloaded",
       resumeDocxDownloaded: "Resume DOCX (OOXML) downloaded",
       resumeExportFailed: "Resume export failed",
       noCoverLetter: "This package has no cover letter yet",

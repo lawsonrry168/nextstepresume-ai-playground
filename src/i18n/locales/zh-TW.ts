@@ -570,6 +570,7 @@ const zhTW: MessageTree = {
       pdfExportFailed: "PDF 匯出失敗",
       mergedDocxDownloaded: "合併 DOCX（真 OOXML）已下載",
       docxExportFailed: "DOCX 匯出失敗",
+      docxDownloaded: "Word 文件已下載",
       resumeDocxDownloaded: "履歷 DOCX（OOXML）已下載",
       resumeExportFailed: "履歷匯出失敗",
       noCoverLetter: "此套件尚無求職信",

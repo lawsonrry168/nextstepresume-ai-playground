@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, lazy, Suspense } from "react";
+import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { TemplateStyle, TailorIntensity } from "../types";
 import ResumeImportModal from "./ResumeImportModal";
 import StatusToastStack from "./StatusToastStack";
@@ -268,6 +268,16 @@ export default function ResumeSimulatorPlayground({
     activeTemplate,
   });
 
+  const exportToDocxWithToast = useCallback(async () => {
+    try {
+      await exportToDocx();
+      pushToast("success", t("toast.export.docxDownloaded"));
+    } catch (err) {
+      console.error("DOCX export error:", err);
+      pushToast("error", err instanceof Error ? err.message : t("toast.export.docxExportFailed"));
+    }
+  }, [exportToDocx, pushToast, t]);
+
   const exportSystemLogsWithToast = () => {
     try {
       exportSystemLogs();
@@ -362,7 +372,7 @@ export default function ResumeSimulatorPlayground({
     pdfExporting,
     exportToPDF,
     exportToJson,
-    exportToDocx,
+    exportToDocx: exportToDocxWithToast,
     resumeData,
     highlightChanges,
     setHighlightChanges,

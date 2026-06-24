@@ -257,18 +257,20 @@ export function usePlaygroundTools({
   }, [resumeData]);
 
   const exportToDocx = useCallback(async () => {
+    if (isE2eDocxStubEnabled()) {
+      runE2eDocxExportStub(resumeData.personalInfo.name || "resume");
+      markE2eDocxExportComplete();
+      return;
+    }
     try {
-      if (isE2eDocxStubEnabled()) {
-        runE2eDocxExportStub(resumeData.personalInfo.name || "resume");
-        markE2eDocxExportComplete();
-        return;
-      }
       const { downloadResumeOoxml } = await import("../lib/ooxmlApplicationExport");
       await downloadResumeOoxml(resumeData, "resume", activeTemplate);
+      markE2eDocxExportComplete();
     } catch (err) {
-      console.error("Failed to export Word document", err);
+      console.error("OOXML export failed, falling back to legacy HTML Word export", err);
       const { downloadResumeDocx } = await import("../lib/resumeDocxExport");
       downloadResumeDocx(resumeData);
+      markE2eDocxExportComplete();
     }
   }, [resumeData, activeTemplate]);
 

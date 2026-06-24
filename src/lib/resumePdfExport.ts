@@ -2,6 +2,7 @@ import {
   captureElementWithHtml2Canvas,
   preInlineExportClonePaint,
 } from "./html2canvasColorFix";
+import { flattenFreeLayoutForExport } from "./freeLayoutExportPrep";
 import { pdfExportError } from "./pdfExportI18n";
 import { downloadPdfFromCanvas, downloadPdfFromCanvases } from "./pdfHtmlRenderer";
 import { sliceCanvasVertically } from "./canvasPdfPagination";
@@ -30,6 +31,7 @@ function createExportHost(
 
   const clone = source.cloneNode(true) as HTMLElement;
   stripCanvasExportChrome(clone);
+  flattenFreeLayoutForExport(clone, source);
 
   const host = document.createElement("div");
   host.className = "resume-pdf-export-host";
@@ -124,16 +126,16 @@ export function findResumeExportRoot(): HTMLElement | null {
 }
 
 export function findCanvasExportPages(): HTMLElement[] {
-  const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-resume-export-page]"));
-  if (pages.length > 0) return pages;
-
   const studioDesk = document.querySelector<HTMLElement>("#resume-container-box-canvas .canvas-multi-page-desk");
   if (studioDesk) {
     const deskPages = Array.from(
-      studioDesk.querySelectorAll<HTMLElement>(".canvas-page-sheet-paper[data-resume-export-page], [data-resume-export-page]"),
+      studioDesk.querySelectorAll<HTMLElement>(".canvas-page-sheet-paper[data-resume-export-page]"),
     );
     if (deskPages.length > 0) return deskPages;
   }
+
+  const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-resume-export-page]"));
+  if (pages.length > 0) return pages;
 
   const single = document.getElementById("resume-printable-sheet");
   return single ? [single] : [];
