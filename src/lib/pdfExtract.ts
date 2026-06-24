@@ -1,5 +1,3 @@
-import { PDFParse } from "pdf-parse";
-
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 export function validatePdfBuffer(buffer: Buffer): void {
@@ -18,6 +16,7 @@ export function validatePdfBuffer(buffer: Buffer): void {
 export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
   validatePdfBuffer(buffer);
 
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
