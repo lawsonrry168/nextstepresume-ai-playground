@@ -1,25 +1,50 @@
 import type { Request, Response, NextFunction } from "express";
+import { createRateLimitStore } from "../rateLimit/createRateLimitStore.ts";
+import {
+  isRateLimitExemptPath,
+  RATE_LIMIT_WINDOW_MS,
+  readRateLimitMax,
+} from "../rateLimit/config.ts";
+import type { RateLimitStore } from "../rateLimit/types.ts";
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX_REQUESTS = 60;
+let rateLimitStore: RateLimitStore = createRateLimitStore();
 
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+export function setRateLimitStoreForTests(store: RateLimitStore): void {
+  rateLimitStore = store;
+}
+
+export function resetRateLimitStoreForTests(): void {
+  rateLimitStore = createRateLimitStore("memory");
+}
+
+function writeRateLimitHeaders(
+  res: Response,
+  decision: { limit: number; remaining: number; resetAtMs: number },
+): void {
+  res.setHeader("RateLimit-Limit", String(decision.limit));
+  res.setHeader("RateLimit-Remaining", String(decision.remaining));
+  res.setHeader("RateLimit-Reset", String(Math.ceil(decision.resetAtMs / 1000)));
+}
 
 export function rateLimit(req: Request, res: Response, next: NextFunction): void {
-  const ip = req.ip || req.socket.remoteAddress || "unknown";
-  const now = Date.now();
-  let entry = rateLimitStore.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-    rateLimitStore.set(ip, entry);
-  }
-
-  entry.count += 1;
-  if (entry.count > RATE_LIMIT_MAX_REQUESTS) {
-    res.status(429).json({ error: "Too many requests. Please try again later." });
+  const apiPath = req.originalUrl.split("?")[0];
+  if (isRateLimitExemptPath(apiPath)) {
+    next();
     return;
   }
 
-  next();
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const maxRequests = readRateLimitMax();
+
+  void rateLimitStore
+    .consume(ip, RATE_LIMIT_WINDOW_MS, maxRequests)
+    .then((decision) => {
+      writeRateLimitHeaders(res, decision);
+      if (!decision.allowed) {
+        res.status(429).json({ error: "Too many requests. Please try again later." });
+        return;
+      }
+      next();
+    })
+    .catch(next);
 }

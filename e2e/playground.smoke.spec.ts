@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { gotoSimulator, openExportMenu, seedPlaygroundStorage } from "./helpers/playground";
+import { gotoSimulator, openExportMenu, seedPlaygroundStorage, syncE2eServerPlan } from "./helpers/playground";
 
 test.describe("playground smoke", () => {
+  test.beforeAll(async ({ request }) => {
+    await syncE2eServerPlan(request);
+  });
+
   test.beforeEach(async ({ page }) => {
     await seedPlaygroundStorage(page);
   });
@@ -68,12 +72,20 @@ test.describe("playground smoke", () => {
   });
 
   test("jobsdb import smoke with simulated listings", async ({ page }) => {
-    await gotoSimulator(page);
+    await gotoSimulator(page, { awaitSubscriptionSync: true });
 
     await page.locator("#subtab-applications").click();
     await page.locator("#job-import-mode-jobsdb").click();
     await page.locator("#jobsdb-keyword-input").fill("frontend");
+    const searchResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/jobsdb/search") &&
+        response.request().method() === "POST" &&
+        response.request().postDataJSON()?.keyword === "frontend",
+    );
     await page.locator("#jobsdb-search-btn").click();
+    const response = await searchResponse;
+    expect(response.ok(), await response.text()).toBeTruthy();
 
     const results = page.locator("#jobsdb-results-list button");
     await expect(results.first()).toBeVisible({ timeout: 15_000 });

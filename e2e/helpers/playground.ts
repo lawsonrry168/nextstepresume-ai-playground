@@ -1,9 +1,23 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
+
+export const E2E_CLIENT_ID = "e2e-client-00000001";
+
+export async function syncE2eServerPlan(request: APIRequestContext) {
+  const response = await request.post("/api/subscription/sync", {
+    headers: {
+      "Content-Type": "application/json",
+      "X-NSR-Client-Id": E2E_CLIENT_ID,
+    },
+    data: { plan: "pro" },
+  });
+  expect(response.ok()).toBeTruthy();
+}
 
 export async function seedPlaygroundStorage(page: Page) {
-  await page.addInitScript(() => {
+  await page.addInitScript((clientId: string) => {
     localStorage.setItem("nsr_tour_seen", "true");
     localStorage.setItem("nsr_subscription_plan", "pro");
+    localStorage.setItem("nsr_client_id", clientId);
     localStorage.setItem("nsr_playground_sidebar_collapsed", "false");
     localStorage.setItem("nsr_ui_locale", "en");
 
@@ -23,11 +37,25 @@ export async function seedPlaygroundStorage(page: Page) {
     win.__NSR_E2E_PDF_EXPORTED__ = false;
     win.__NSR_E2E_ATS_PDF_EXPORTED__ = false;
     win.__NSR_E2E_DOCX_EXPORTED__ = false;
-  });
+  }, E2E_CLIENT_ID);
 }
 
-export async function gotoSimulator(page: Page) {
+export async function gotoSimulator(
+  page: Page,
+  options?: { awaitSubscriptionSync?: boolean },
+) {
+  const syncPromise = options?.awaitSubscriptionSync
+    ? page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/subscription/sync") &&
+          response.request().method() === "POST" &&
+          response.ok(),
+      )
+    : null;
   await page.goto("/");
+  if (syncPromise) {
+    await syncPromise;
+  }
   await expect(page.locator("#screen-simulator")).toBeVisible();
   await expect(page.locator("#preview-col")).toBeVisible();
 }

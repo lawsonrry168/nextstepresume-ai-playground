@@ -84,3 +84,51 @@ npm run test:ci:full     # unit + redis (skip if down) + e2e
 npm run test:redis       # requires Redis (CI redis job)
 npm run test:e2e         # Playwright (CI e2e job)
 ```
+
+## Production deployment
+
+Set `NSR_APP_MODE=production` and configure Stripe + Redis for multi-instance quota.
+
+| Variable | Purpose |
+|----------|---------|
+| `NSR_APP_MODE` | `playground` (demo plan buttons) or `production` (Stripe checkout) |
+| `NSR_QUOTA_STORE` | `memory` (default) or `redis` for multi-instance quota persistence |
+| `NSR_RATE_LIMIT_STORE` | `memory` (default) or `redis` for distributed API rate limiting |
+| `NSR_RATE_LIMIT_MAX` | Max `/api/*` requests per IP per minute (default `60`) |
+| `NSR_REDIS_URL` | Redis connection string when NSR_QUOTA_STORE=redis or NSR_RATE_LIMIT_STORE=redis |
+| `STRIPE_SECRET_KEY` | Stripe API secret |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret |
+| `STRIPE_PRICE_PRO_MONTHLY` | Stripe Price ID for Pro (HK$88/mo) |
+| `STRIPE_PRICE_MAX_MONTHLY` | Stripe Price ID for Max (HK$188/mo) |
+| `APP_URL` | Public origin for Stripe success/cancel redirects |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Publishable anon key (exposed via `/api/config`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key for JWT verification |
+| `NSR_AUTH_REQUIRED` | `1` to require sign-in for `/api/*` when Supabase is configured |
+| `GEMINI_API_KEY` | Live AI (optional simulation fallback) |
+
+### Cloud sync (Phase 24)
+
+When signed in with Supabase configured, resume workspace and application packages sync to PostgreSQL:
+
+- `GET/PUT /api/sync/workspace`
+- `GET/PUT /api/sync/application-packages`
+
+Apply `supabase/migrations/20260624120000_workspace_sync.sql` after the profiles migration.
+
+### Docker
+
+```bash
+docker build -t nextstepresume .
+docker run --env-file .env -p 3000:3000 nextstepresume
+```
+
+### Production checklist (next phases)
+
+- [x] Stripe Checkout + webhook → server plan authority
+- [x] Lock client `/api/subscription/sync` for paid upgrades in production
+- [x] Redis plan persistence on `setClientPlan`
+- [x] Supabase Auth (JWT → user-scoped quota client)
+- [x] PostgreSQL resume / application sync
+- [x] Privacy policy & terms pages (`/privacy`, `/terms`)
+- [x] Distributed rate limiting (Redis via `NSR_RATE_LIMIT_STORE=redis`)

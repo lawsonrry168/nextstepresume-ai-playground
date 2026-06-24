@@ -1,4 +1,4 @@
-import type { MonthlyUsage } from "../../src/lib/subscription/types.ts";
+import type { MonthlyUsage, SubscriptionPlan } from "../../src/lib/subscription/types.ts";
 import type { ClientSubscriptionRecord, QuotaStore } from "./types.ts";
 
 export class InMemoryQuotaStore implements QuotaStore {
@@ -11,6 +11,21 @@ export class InMemoryQuotaStore implements QuotaStore {
       this.records.set(clientId, record);
     }
     return record;
+  }
+
+  updatePlan(
+    clientId: string,
+    plan: SubscriptionPlan,
+    month: string,
+    emptyUsage: () => MonthlyUsage,
+  ): ClientSubscriptionRecord {
+    const record = this.get(clientId, month, emptyUsage);
+    record.plan = plan;
+    return record;
+  }
+
+  replaceRecord(clientId: string, record: ClientSubscriptionRecord): void {
+    this.records.set(clientId, record);
   }
 
   applyDeltas(

@@ -24,6 +24,8 @@ export const NSR_STORAGE_KEYS = {
   subscriptionPlan: "nsr_subscription_plan",
   usageLedger: "nsr_usage_ledger",
   clientId: "nsr_client_id",
+  workspaceCloudUpdatedAt: "nsr_workspace_cloud_updated_at",
+  packagesCloudUpdatedAt: "nsr_packages_cloud_updated_at",
 } as const;
 
 /** FirstResume.ai / ats_resume_* / fr_* keys — removed on boot */

@@ -4,6 +4,11 @@ import { initialResumeData, initialJobDescription } from "../data";
 import { normalizeTemplateStyle, type TemplateStyle } from "../lib/resumeTemplateCatalog";
 
 import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
+import {
+  buildWorkspaceSnapshot,
+  registerWorkspaceHydrateHandler,
+  scheduleWorkspaceCloudPush,
+} from "../lib/sync/cloudSyncCoordinator";
 
 const STORAGE_KEYS = {
   resume: NSR_STORAGE_KEYS.workspaceResume,
@@ -69,6 +74,19 @@ export function useResumeWorkspace(options?: {
     onAutoSaveFailedRef.current = options?.onAutoSaveFailed;
   }, [options?.onAutoSaved, options?.onAutoSaveFailed]);
 
+  useEffect(() => {
+    return registerWorkspaceHydrateHandler((snapshot) => {
+      setResumeData(snapshot.resumeData);
+      setJobDescription(snapshot.jobDescription);
+      setActiveTemplate(snapshot.activeTemplate);
+      localStorage.setItem(STORAGE_KEYS.resume, JSON.stringify(snapshot.resumeData));
+      localStorage.setItem(STORAGE_KEYS.jd, snapshot.jobDescription);
+      localStorage.setItem(STORAGE_KEYS.template, snapshot.activeTemplate);
+      skipInitialAutoSaveRef.current = true;
+      setSaveStatus("saved");
+    });
+  }, []);
+
   const persistWorkspace = useCallback(() => {
     localStorage.setItem(STORAGE_KEYS.resume, JSON.stringify(resumeData));
     localStorage.setItem(STORAGE_KEYS.jd, jobDescription);
@@ -80,6 +98,7 @@ export function useResumeWorkspace(options?: {
     });
     setLastSavedTime(formattedTime);
     setSaveStatus("saved");
+    scheduleWorkspaceCloudPush(buildWorkspaceSnapshot(resumeData, jobDescription, activeTemplate));
   }, [resumeData, jobDescription, activeTemplate]);
 
   const handleManualSave = useCallback(() => {

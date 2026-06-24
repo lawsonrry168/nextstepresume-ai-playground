@@ -14,6 +14,9 @@ const enHK: MessageTree = {
     pricingSubtitle:
       "Start free on Starter; Pro unlocks JobsDB search, AI tailoring, and clean PDF exports; Max adds unlimited exports and Canvas Studio.",
     demoNote: "Demo mode: plan stored locally. Production will support Stripe (HKD) and a 30-day Job Search Pass (HK$128).",
+    checkoutCta: "Subscribe with Stripe",
+    checkoutLoading: "Redirecting…",
+    productionNote: "Secure Stripe checkout (HKD). Plan syncs from payment webhook.",
     sprintPass: "30-day Job Search Pass",
     sprintPassPrice: "HK$128 one-off",
     sprintPassHint: "Ideal for a focused 1–2 month job search without a long subscription.",

@@ -67,6 +67,22 @@ const en: MessageTree = {
     collapsePanel: "Collapse panel",
   },
 
+  auth: {
+    loading: "Checking session…",
+    signIn: "Sign in",
+    signUp: "Create account",
+    signOut: "Sign out",
+    signInTitle: "Sign in to NextStep",
+    signUpTitle: "Create your account",
+    subtitle: "Sync your plan and quota across devices.",
+    email: "Email",
+    password: "Password",
+    submitting: "Please wait…",
+    noAccount: "New here?",
+    hasAccount: "Already have an account?",
+    signedIn: "Signed in",
+  },
+
   status: {
     connecting: "Connecting…",
     apiOffline: "API offline",
@@ -164,6 +180,102 @@ const en: MessageTree = {
     },
     footer: {
       copyright: "© 2026 NextStepResume.ai",
+    },
+  },
+
+  legal: {
+    nav: {
+      privacy: "Privacy Policy",
+      terms: "Terms of Service",
+      back: "Back to app",
+      related: "Legal",
+    },
+    privacy: {
+      title: "Privacy Policy",
+      updated: "Last updated: 24 June 2026 · Hong Kong",
+      sections: {
+        intro: {
+          title: "Introduction",
+          body:
+            "NextStepResume.ai (“we”, “us”) provides resume tailoring and job-application tools for Hong Kong users. This policy explains how we handle personal data under the Personal Data (Privacy) Ordinance (Cap. 486) and applicable guidance from the Office of the Privacy Commissioner for Personal Data (PCPD).",
+        },
+        collect: {
+          title: "Data we collect",
+          body:
+            "We may collect: account identifiers (email via Supabase Auth), resume and job-application content you enter or upload, usage and quota metrics, billing metadata from Stripe, and technical logs (IP address, browser type, API timestamps) needed to operate and secure the service.",
+        },
+        use: {
+          title: "How we use your data",
+          body:
+            "We use data to deliver ATS analysis, AI tailoring, JobsDB import, exports, cloud sync, subscription billing, and customer support. AI features send relevant resume/JD text to configured model providers (e.g. Google Gemini) only to fulfil your request. We do not sell personal data.",
+        },
+        storage: {
+          title: "Storage & retention",
+          body:
+            "Playground/demo mode may store data in your browser (localStorage). When signed in with cloud sync enabled, workspace data is stored in our PostgreSQL database (Supabase). We retain data while your account is active and for a reasonable period thereafter for legal, billing, or dispute purposes, unless you request deletion where applicable.",
+        },
+        thirdParties: {
+          title: "Service providers",
+          body:
+            "We rely on subprocessors including Supabase (auth & database), Stripe (payments in HKD), Google Gemini (optional AI), and Apify (optional JobsDB search). Each provider processes data under its own terms and only as needed to provide the integrated feature you use.",
+        },
+        rights: {
+          title: "Your rights",
+          body:
+            "You may request access to or correction of your personal data, and may withdraw consent for optional processing where consent is the legal basis. To exercise rights or raise a privacy enquiry, contact us using the details below. You may also lodge a complaint with the PCPD in Hong Kong.",
+        },
+        contact: {
+          title: "Contact",
+          body:
+            "Privacy enquiries: privacy@nextstepresume.ai\nData controller: NextStepResume.ai (Hong Kong deployment)\nWe will respond to verified requests within a reasonable timeframe.",
+        },
+      },
+    },
+    terms: {
+      title: "Terms of Service",
+      updated: "Last updated: 24 June 2026 · Hong Kong",
+      sections: {
+        intro: {
+          title: "Agreement",
+          body:
+            "By accessing NextStepResume.ai you agree to these Terms. If you do not agree, do not use the service. These Terms apply to the Hong Kong deployment (HK$ pricing, JobsDB HK integrations, British English defaults).",
+        },
+        service: {
+          title: "The service",
+          body:
+            "We provide software to draft, tailor, score, and export CVs/resumes and related application materials. Features vary by plan (Starter, Pro, Max). We may update features, limits, or pricing with reasonable notice where required.",
+        },
+        accounts: {
+          title: "Accounts & plans",
+          body:
+            "You are responsible for safeguarding your sign-in credentials. Subscription status and quotas are determined by server-side records; in production, paid plans require successful Stripe checkout. Demo/playground mode may allow local plan simulation without payment.",
+        },
+        acceptableUse: {
+          title: "Acceptable use",
+          body:
+            "You must not misuse the service, attempt to bypass quotas or security controls, upload unlawful content, or use automated scraping in violation of third-party site terms (including JobsDB). You must have the right to submit any resume or job description you import.",
+        },
+        ai: {
+          title: "AI disclaimer",
+          body:
+            "AI-generated suggestions are informational only. You are responsible for reviewing accuracy, legality, and suitability before submitting applications. We do not guarantee interview outcomes, ATS pass rates, or hiring results.",
+        },
+        billing: {
+          title: "Billing & refunds",
+          body:
+            "Paid subscriptions are billed in HKD via Stripe unless stated otherwise. Fees are generally non-refundable except where required by law or explicitly stated at purchase. You may cancel renewal through the Stripe customer portal or supported in-app flows.",
+        },
+        liability: {
+          title: "Limitation of liability",
+          body:
+            "To the fullest extent permitted by Hong Kong law, we are not liable for indirect, incidental, or consequential damages arising from use of the service. Our aggregate liability for any claim is limited to the fees you paid to us in the twelve (12) months preceding the claim.",
+        },
+        law: {
+          title: "Governing law",
+          body:
+            "These Terms are governed by the laws of the Hong Kong Special Administrative Region. Disputes shall be subject to the exclusive jurisdiction of the courts of Hong Kong, without prejudice to mandatory consumer protections.",
+        },
+      },
     },
   },
 
@@ -1860,7 +1972,10 @@ const en: MessageTree = {
     perMonth: "/ mo",
     currentPlan: "Current plan",
     selectPlan: "Select plan",
+    checkoutCta: "Subscribe with Stripe",
+    checkoutLoading: "Redirecting…",
     demoNote: "Demo mode: plan is stored locally. Production will connect to Stripe.",
+    productionNote: "Secure checkout via Stripe (HKD). Plan syncs from payment webhook.",
     usage: {
       aiCredits: "AI credits",
       unlimited: "Unlimited",

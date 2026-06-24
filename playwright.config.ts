@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.E2E_PORT ?? 3000);
 const baseURL = `http://127.0.0.1:${port}`;
+const isGithubActions = process.env.GITHUB_ACTIONS === "true";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -9,8 +10,8 @@ export default defineConfig({
   expect: { timeout: 30_000 },
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "github" : "list",
+  retries: isGithubActions ? 1 : 0,
+  reporter: isGithubActions ? "github" : "list",
   use: {
     ...devices["Desktop Chrome"],
     baseURL,
@@ -19,10 +20,11 @@ export default defineConfig({
   webServer: {
     command: "node ./node_modules/tsx/dist/cli.mjs server.ts",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: !isGithubActions,
     timeout: 120_000,
     env: {
       NSR_JOBSDB_SIMULATE: "1",
+      NSR_RATE_LIMIT_MAX: "1000",
     },
   },
 });

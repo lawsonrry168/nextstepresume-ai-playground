@@ -19,6 +19,7 @@ import {
 import { AI_CREDIT_COSTS } from "../lib/subscription/creditCosts";
 import type { AiCreditAction } from "../lib/subscription/types";
 import { getOrCreateClientId } from "../lib/subscription/clientId";
+import { withApiAuthHeaders } from "../lib/apiAuthHeaders";
 import { setQuotaBlockedListener } from "../lib/subscription/quotaEvents";
 import {
   canConsume,
@@ -68,10 +69,10 @@ async function postPlanSync(plan: SubscriptionPlan): Promise<void> {
     const clientId = getOrCreateClientId();
     const response = await fetch("/api/subscription/sync", {
       method: "POST",
-      headers: {
+      headers: withApiAuthHeaders({
         "Content-Type": "application/json",
         "X-NSR-Client-Id": clientId,
-      },
+      }),
       body: JSON.stringify({ plan }),
     });
     if (response.ok) {

@@ -18,6 +18,7 @@ import { useI18n } from "../../i18n";
 import { BRAND_NAME } from "../../lib/brand";
 import { NSR_STORAGE_KEYS } from "../../lib/storageKeys";
 import LanguageSwitcher from "./LanguageSwitcher";
+import AuthButton from "../auth/AuthButton";
 
 export type MainViewMode = "overview" | "simulator";
 
@@ -177,6 +178,8 @@ export default function AppSidebar({
             )}
           </div>
         )}
+
+        <AuthButton collapsed={collapsed} />
 
         <div className={`flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
           <button

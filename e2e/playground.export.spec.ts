@@ -4,9 +4,14 @@ import {
   gotoSimulator,
   readE2eExportFlags,
   seedPlaygroundStorage,
+  syncE2eServerPlan,
 } from "./helpers/playground";
 
 test.describe("playground export downloads", () => {
+  test.beforeAll(async ({ request }) => {
+    await syncE2eServerPlan(request);
+  });
+
   test.beforeEach(async ({ page }) => {
     await seedPlaygroundStorage(page);
   });
