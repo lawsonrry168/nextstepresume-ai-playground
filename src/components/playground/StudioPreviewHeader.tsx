@@ -171,6 +171,7 @@ export default function StudioPreviewHeader({
               type="button"
               onClick={() => {
                 setFreeLayoutEnabled(true);
+                setFreeLayoutLivePreview(false);
                 setStudioViewMode("canvas");
               }}
               className={

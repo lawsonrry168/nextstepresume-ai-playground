@@ -365,6 +365,8 @@ export default function FreeLayoutStudioCanvas({
   const renderSingleSheet = () => (
     <ResumeThemeRoot
       resolved={resolved}
+      id="resume-printable-sheet"
+      exportPage
       className={`relative ${resolved.active ? "" : "bg-white"} ${
         isEdit ? "shadow-2xl rounded-xl border border-slate-200/80 overflow-visible" : "shadow-sm border border-slate-100 rounded-lg overflow-visible"
       } ${tc.sheetFont}`}

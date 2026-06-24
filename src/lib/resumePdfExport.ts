@@ -127,6 +127,14 @@ export function findCanvasExportPages(): HTMLElement[] {
   const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-resume-export-page]"));
   if (pages.length > 0) return pages;
 
+  const studioDesk = document.querySelector<HTMLElement>("#resume-container-box-canvas .canvas-multi-page-desk");
+  if (studioDesk) {
+    const deskPages = Array.from(
+      studioDesk.querySelectorAll<HTMLElement>(".canvas-page-sheet-paper[data-resume-export-page], [data-resume-export-page]"),
+    );
+    if (deskPages.length > 0) return deskPages;
+  }
+
   const single = document.getElementById("resume-printable-sheet");
   return single ? [single] : [];
 }
@@ -214,7 +222,11 @@ export async function downloadResumeVisualPdf(
   filename: string,
   options?: { watermark?: string },
 ): Promise<void> {
-  const exportPages = findCanvasExportPages();
+  let exportPages = findCanvasExportPages();
+  if (!exportPages.length) {
+    const root = findResumeExportRoot();
+    if (root) exportPages = [root];
+  }
   if (!exportPages.length) {
     throw new Error(pdfExportError("previewNotFound"));
   }

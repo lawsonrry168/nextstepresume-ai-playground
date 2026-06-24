@@ -515,6 +515,17 @@ export default function ResumeLivePreviewPanel({
   );
 
   useEffect(() => {
+    if (isPreviewMode && studioViewMode === "canvas") {
+      if (!freeLayout.enabled) {
+        freeLayout.setEnabled(true);
+      }
+      if (freeLayout.livePreview) {
+        freeLayout.setLivePreview(false);
+      }
+    }
+  }, [freeLayout.enabled, freeLayout.livePreview, freeLayout.setEnabled, freeLayout.setLivePreview, isPreviewMode, studioViewMode]);
+
+  useEffect(() => {
     if (isPreviewMode && freeLayout.enabled && studioViewMode === "compare") {
       if (canUseFeature("layout.canvasStudio")) {
         setStudioViewMode("canvas");

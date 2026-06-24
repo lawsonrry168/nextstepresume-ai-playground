@@ -4,6 +4,10 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -20,6 +24,14 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// server/vercelExport.ts
+var vercelExport_exports = {};
+__export(vercelExport_exports, {
+  default: () => vercelExport_default
+});
+module.exports = __toCommonJS(vercelExport_exports);
 
 // server/createApp.ts
 var import_express2 = __toESM(require("express"), 1);
@@ -3445,7 +3457,6 @@ function parseResumeText(rawText) {
 }
 
 // src/lib/pdfExtract.ts
-var import_pdf_parse = require("pdf-parse");
 var MAX_PDF_BYTES = 5 * 1024 * 1024;
 function validatePdfBuffer(buffer) {
   if (!buffer || buffer.length === 0) {
@@ -3461,7 +3472,8 @@ function validatePdfBuffer(buffer) {
 }
 async function extractTextFromPdfBuffer(buffer) {
   validatePdfBuffer(buffer);
-  const parser = new import_pdf_parse.PDFParse({ data: buffer });
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
     return (result.text || "").replace(/\r\n/g, "\n").trim();
@@ -3882,9 +3894,10 @@ function createApp() {
 }
 
 // server/vercelExport.ts
-module.exports = createApp();
+var vercelExport_default = createApp();
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
+module.exports = module.exports.default ?? module.exports;
 //# sourceMappingURL=index.js.map

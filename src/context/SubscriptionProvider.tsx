@@ -20,6 +20,7 @@ import { AI_CREDIT_COSTS } from "../lib/subscription/creditCosts";
 import type { AiCreditAction } from "../lib/subscription/types";
 import { getOrCreateClientId } from "../lib/subscription/clientId";
 import { withApiAuthHeaders } from "../lib/apiAuthHeaders";
+import { useAppConfig } from "../hooks/useAppConfig";
 import { setQuotaBlockedListener } from "../lib/subscription/quotaEvents";
 import {
   canConsume,
@@ -84,6 +85,8 @@ async function postPlanSync(plan: SubscriptionPlan): Promise<void> {
 }
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
+  const { appMode } = useAppConfig();
+  const demoUnlocked = appMode === "playground";
   const [plan, setPlanState] = useState<SubscriptionPlan>(() => readStoredPlan());
   const [ledger, setLedger] = useState<StoredUsageLedger>(() => readUsageLedger());
   const [pricingOpen, setPricingOpen] = useState(false);
@@ -91,7 +94,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [upgradeReason, setUpgradeReason] = useState<UpgradeReason>("general");
   const openUpgradeRef = useRef<(reason?: UpgradeReason) => void>(() => {});
 
-  const entitlements = useMemo(() => getEntitlements(plan), [plan]);
+  const effectivePlan: SubscriptionPlan = demoUnlocked ? "max" : plan;
+  const entitlements = useMemo(() => getEntitlements(effectivePlan), [effectivePlan]);
 
   useEffect(() => {
     setSubscriptionSnapshot({
@@ -131,13 +135,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     void postPlanSync(next);
   }, []);
 
-  const canUseFeature = useCallback((feature: FeatureId) => hasFeature(plan, feature), [plan]);
+  const canUseFeature = useCallback(
+    (feature: FeatureId) => hasFeature(effectivePlan, feature),
+    [effectivePlan],
+  );
 
-  const canUseTab = useCallback((tab: string) => isTabAllowed(plan, tab), [plan]);
+  const canUseTab = useCallback((tab: string) => isTabAllowed(effectivePlan, tab), [effectivePlan]);
 
   const canUseTemplate = useCallback(
-    (templateId: TemplateStyle) => isTemplateAllowed(plan, templateId),
-    [plan],
+    (templateId: TemplateStyle) => isTemplateAllowed(effectivePlan, templateId),
+    [effectivePlan],
   );
 
   const getLimit = useCallback((metric: UsageMetric) => entitlements.limits[metric] ?? 0, [entitlements]);
@@ -145,24 +152,31 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const getUsed = useCallback((metric: UsageMetric) => ledger.usage[metric] ?? 0, [ledger]);
 
   const getRemainingUsage = useCallback(
-    (metric: UsageMetric) => getRemaining(plan, metric, ledger.usage),
-    [plan, ledger],
+    (metric: UsageMetric) => (demoUnlocked ? 999_999 : getRemaining(plan, metric, ledger.usage)),
+    [demoUnlocked, plan, ledger],
   );
 
   const canConsumeMetric = useCallback(
-    (metric: UsageMetric, amount = 1) => canConsume(plan, metric, ledger.usage, amount).ok,
-    [plan, ledger],
+    (metric: UsageMetric, amount = 1) =>
+      demoUnlocked ? true : canConsume(plan, metric, ledger.usage, amount).ok,
+    [demoUnlocked, plan, ledger],
   );
 
   const consumeUsage = useCallback(
     (metric: UsageMetric, amount = 1) => {
+      if (demoUnlocked) {
+        const current = readUsageLedger();
+        const { ledger: nextLedger } = consumeMetric(effectivePlan, metric, current, amount);
+        setLedger(nextLedger);
+        return true;
+      }
       const current = readUsageLedger();
       const { ledger: nextLedger, result } = consumeMetric(plan, metric, current, amount);
       if (!result.ok) return false;
       setLedger(nextLedger);
       return true;
     },
-    [plan],
+    [demoUnlocked, effectivePlan, plan],
   );
 
   const consumeAiAction = useCallback(
@@ -172,7 +186,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       const items: Array<{ metric: UsageMetric; amount: number }> = [{ metric: "aiCredits", amount: cost }];
 
       if (action === "geminiFlash" || action === "geminiThinking") {
-        if (action === "geminiThinking" && !hasFeature(plan, "ai.geminiThinking")) return false;
+        if (action === "geminiThinking" && !hasFeature(effectivePlan, "ai.geminiThinking")) return false;
         items.push({ metric: "geminiMessages", amount: 1 });
       } else if (action === "coverLetter") {
         items.push({ metric: "coverLetters", amount: 1 });
@@ -184,12 +198,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         items.push({ metric: "wizardRuns", amount: 1 });
       }
 
-      const { ledger: nextLedger, result } = consumeMetricsBatch(plan, current, items);
-      if (!result.ok) return false;
+      const billingPlan = demoUnlocked ? effectivePlan : plan;
+      const { ledger: nextLedger, result } = consumeMetricsBatch(billingPlan, current, items);
+      if (!demoUnlocked && !result.ok) return false;
       setLedger(nextLedger);
       return true;
     },
-    [plan],
+    [demoUnlocked, effectivePlan, plan],
   );
 
   const openPricing = useCallback(() => setPricingOpen(true), []);
