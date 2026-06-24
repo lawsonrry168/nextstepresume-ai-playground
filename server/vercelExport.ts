@@ -1,3 +1,3 @@
 import { createApp } from "./createApp.ts";
 
-export = createApp();
+export default createApp();
