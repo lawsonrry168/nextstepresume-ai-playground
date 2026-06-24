@@ -4,13 +4,8 @@
   "buildCommand": "node scripts/build.mjs",
   "outputDirectory": "dist",
   "framework": null,
-  "functions": {
-    "api/index.cjs": {
-      "maxDuration": 60
-    }
-  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.cjs" },
+    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

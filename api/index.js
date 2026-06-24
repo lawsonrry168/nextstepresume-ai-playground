@@ -4,10 +4,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -24,14 +20,8 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // server/createApp.ts
-var createApp_exports = {};
-__export(createApp_exports, {
-  createApp: () => createApp
-});
-module.exports = __toCommonJS(createApp_exports);
 var import_express2 = __toESM(require("express"), 1);
 
 // src/lib/appMode.ts
@@ -3890,12 +3880,11 @@ function createApp() {
   registerAppRoutes(app, ai);
   return app;
 }
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
-  createApp
-});
+
+// server/vercelExport.ts
+module.exports = createApp();
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-//# sourceMappingURL=handler.cjs.map
+//# sourceMappingURL=index.js.map

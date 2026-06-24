@@ -30,5 +30,5 @@ await esbuild.build({
 await esbuild.build({
   ...esbuildBase,
   entryPoints: [path.join(root, "server", "vercelExport.ts")],
-  outfile: path.join(root, "api", "index.cjs"),
+  outfile: path.join(root, "api", "index.js"),
 });
