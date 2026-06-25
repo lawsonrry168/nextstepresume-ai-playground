@@ -14,7 +14,6 @@ import {
   clampSectionWidth,
   clampSectionHeight,
   defaultSectionHeight,
-  estimateFreeLayoutCanvasHeight,
   snapToGrid,
 } from "../../lib/resumeFreeLayout";
 import {
@@ -37,7 +36,7 @@ import {
 import { getTemplateFamily } from "../../lib/resumeTemplateCatalog";
 import { ResolvedResumeTheme, DEFAULT_THEME_CUSTOMIZATION, resolveResumeTheme } from "../../lib/resumeThemeCustomization";
 import ResumeThemeRoot from "./ResumeThemeRoot";
-import FreeLayoutSectionContent from "./FreeLayoutSectionContent";
+import ResumeSectionRenderer from "../resume/ResumeSectionRenderer";
 import CanvasPageMarginGuides from "./canvas/CanvasPageMarginGuides";
 import { useI18n } from "../../i18n";
 import { getSectionLabel } from "../../lib/sectionLabels";
@@ -51,7 +50,7 @@ export interface FreeLayoutStudioCanvasProps {
   sections: FreeLayoutSectionMeta[];
   positions: Record<string, FreeLayoutPosition>;
   onPositionChange: (id: string, pos: FreeLayoutPosition, options?: { skipSnap?: boolean; constrainA4?: boolean; userMoved?: boolean }) => void;
-  variant?: "edit" | "preview";
+  variant?: "edit" | "preview" | "export";
   chromeMode?: "full" | "live";
   templateStyle: TemplateStyle;
   resolvedTheme?: ResolvedResumeTheme;
@@ -136,9 +135,11 @@ export default function FreeLayoutStudioCanvas({
   const canvasRef = useRef<HTMLDivElement>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const isEdit = variant === "edit";
+  const isExport = variant === "export";
+  const isPrintSurface = variant === "preview" || isExport;
   const isCanvasStudioHost = containerId === "resume-container-box-canvas";
   const effectiveChromeMode = chromeMode;
-  const effectiveAutoFitHeight = isCanvasStudioHost ? false : autoFitContentHeight;
+  const effectiveAutoFitHeight = autoFitContentHeight;
   const isLiveChrome = isEdit && effectiveChromeMode === "live";
   const isNarrowPanel = containerId === "resume-container-box";
   const isMultiPage = Boolean(canvasLayout?.pages.length);
@@ -157,32 +158,46 @@ export default function FreeLayoutStudioCanvas({
   const selectedSectionId = canvasLayout?.selectedSectionId ?? internalSelectedId;
   const setSelectedSectionId = canvasLayout?.onSelectSection ?? setInternalSelectedId;
 
+  const editSheetExtent = useMemo(() => {
+    if (!isEdit || isExport) return CANVAS_PAGE_HEIGHT;
+    let maxBottom = CANVAS_PAGE_HEIGHT;
+    for (const section of sections) {
+      if (canvasLayout?.hiddenSections[section.id]) continue;
+      const pos = positions[section.id];
+      if (!pos) continue;
+      maxBottom = Math.max(maxBottom, pos.y + pos.height + CANVAS_PAGE_MARGIN);
+    }
+    return snapToGrid(maxBottom, SNAP_GRID_SIZE);
+  }, [isEdit, isExport, sections, positions, canvasLayout?.hiddenSections]);
+
   const { containerRef, fitScale } = useFitToContainerWidth(isNarrowPanel, FREE_LAYOUT_CANVAS.width);
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
   const pageCount = canvasLayout?.pages.length ?? 1;
+  const isSingleA4Page = !isMultiPage;
+  const singleSheetHeight = isEdit && !isExport ? editSheetExtent : CANVAS_PAGE_HEIGHT;
   const canvasHeight = useMemo(
-    () => (isMultiPage ? computeMultiPageDeskHeight(pageCount) : estimateFreeLayoutCanvasHeight(sectionIds, positions, pageCount)),
-    [isMultiPage, sectionIds, positions, pageCount],
+    () => (isMultiPage ? computeMultiPageDeskHeight(pageCount) : singleSheetHeight),
+    [isMultiPage, pageCount, singleSheetHeight],
   );
 
   const emitPositionChange = useCallback(
     (sectionId: string, pos: FreeLayoutPosition, options?: { skipSnap?: boolean; constrainA4?: boolean; userMoved?: boolean }) => {
-      const next = isMultiPage ? clampPositionToA4Page(pos) : pos;
-      onPositionChange(sectionId, next, isMultiPage ? { ...options, constrainA4: true } : options);
+      const next = isMultiPage || isSingleA4Page ? clampPositionToA4Page(pos) : pos;
+      onPositionChange(sectionId, next, isMultiPage || isSingleA4Page ? { ...options, constrainA4: true } : options);
     },
-    [isMultiPage, onPositionChange],
+    [isMultiPage, isSingleA4Page, onPositionChange],
   );
 
   const resolveSnapDraft = useCallback(
     (sectionId: string, draft: FreeLayoutPosition, pageId?: string): FreeLayoutPosition => {
       if (!snapEnabled) return draft;
       return applyMagneticSnap(sectionId, draft, positionsRef.current, FREE_LAYOUT_CANVAS.width, {
-        pageHeight: isMultiPage ? CANVAS_PAGE_HEIGHT : undefined,
+        pageHeight: isMultiPage || isSingleA4Page ? CANVAS_PAGE_HEIGHT : undefined,
         pageId: draft.pageId ?? pageId ?? positionsRef.current[sectionId]?.pageId,
         margin: isMultiPage ? CANVAS_PAGE_MARGIN : 0,
       });
     },
-    [isMultiPage, snapEnabled],
+    [isMultiPage, isSingleA4Page, snapEnabled],
   );
 
   const zoomFactor = previewZoom / 100;
@@ -263,13 +278,14 @@ export default function FreeLayoutStudioCanvas({
           onClearManualSize={() => onSectionClearManualSize?.(section.id)}
           resumeData={resumeData}
         >
-          <FreeLayoutSectionContent
+          <ResumeSectionRenderer
             sectionId={section.id}
             data={resumeData}
             highlightChanges={highlightChanges}
             analysisResult={analysisResult}
             templateStyle={templateStyle}
             resolvedTheme={resolved}
+            mode="block"
           />
         </DraggableSection>
       );
@@ -279,21 +295,25 @@ export default function FreeLayoutStudioCanvas({
       <div
         key={section.id}
         id={`free-layout-section-${section.id}`}
-        className="absolute overflow-hidden"
+        className={`absolute ${isExport ? "overflow-visible" : "overflow-hidden"}`}
         style={{
           left: pos.x,
           top: pos.y,
           width: pos.width,
-          height: pos.height,
+          ...(isExport
+            ? { minHeight: pos.height, height: "auto" }
+            : { height: pos.height }),
           zIndex,
         }}
       >
-        <FreeLayoutSectionContent
+        <ResumeSectionRenderer
           sectionId={section.id}
           data={resumeData}
           highlightChanges={highlightChanges}
           analysisResult={analysisResult}
           templateStyle={templateStyle}
+          resolvedTheme={resolved}
+          mode="block"
         />
       </div>
     );
@@ -383,18 +403,36 @@ export default function FreeLayoutStudioCanvas({
   const renderSingleSheet = () => (
     <ResumeThemeRoot
       resolved={resolved}
-      id="resume-printable-sheet"
+      id={isExport ? "resume-export-surface" : "resume-printable-sheet"}
       exportPage
+      exportStatic={isExport}
+      a4Surface
       className={`relative ${resolved.active ? "" : "bg-white"} ${
-        isEdit ? "shadow-2xl rounded-xl border border-slate-200/80 overflow-visible" : "shadow-sm border border-slate-100 rounded-lg overflow-visible"
+        isEdit
+          ? "shadow-2xl rounded-xl border border-slate-200/80 overflow-visible"
+          : isExport
+            ? "overflow-hidden shadow-none border-0 rounded-none"
+            : "shadow-sm border border-slate-100 rounded-lg overflow-hidden"
       } ${tc.sheetFont}`}
       style={{
         width: FREE_LAYOUT_CANVAS.width,
-        minHeight: canvasHeight,
+        minHeight: CANVAS_PAGE_HEIGHT,
+        height: singleSheetHeight,
       }}
     >
-      <div ref={canvasRef} className="relative w-full h-full overflow-visible" onPointerDown={() => setSelectedSectionId(null)}>
-        {family === "modern" && resolved.showAccentBar && (isLiveChrome || !isEdit) ? (
+      <div
+        ref={isExport ? undefined : canvasRef}
+        className={`relative w-full ${isEdit && !isExport ? "min-h-full overflow-visible" : isExport ? "h-full overflow-visible" : "h-full overflow-hidden"}`}
+        onPointerDown={isEdit ? () => setSelectedSectionId(null) : undefined}
+      >
+        {isEdit && !isExport && editSheetExtent > CANVAS_PAGE_HEIGHT ? (
+          <div
+            className="canvas-page-break-guide pointer-events-none absolute left-0 right-0 z-[5] border-b-2 border-dashed border-red-400/50"
+            style={{ top: CANVAS_PAGE_HEIGHT }}
+            aria-hidden
+          />
+        ) : null}
+        {family === "modern" && resolved.showAccentBar && (isLiveChrome || isPrintSurface) ? (
           <div className={`h-2 ${tc.accentBar} rounded-t-lg`} />
         ) : null}
         {isEdit && showGrid ? renderGrid(isLiveChrome) : null}
@@ -428,39 +466,54 @@ export default function FreeLayoutStudioCanvas({
             <div
               key={page.id}
               data-page-id={page.id}
-              className={`canvas-page-sheet absolute left-0 ${isActive ? "canvas-page-sheet--active" : ""}${isEdit ? " canvas-page-sheet--editing" : ""}`}
+              className={`canvas-page-sheet absolute left-0${!isExport && isActive ? " canvas-page-sheet--active" : ""}${isEdit ? " canvas-page-sheet--editing" : ""}`}
               style={{
                 top: getPageTopOffset(pageIndex),
                 width: FREE_LAYOUT_CANVAS.width,
                 height: CANVAS_PAGE_HEIGHT,
               }}
             >
-              <div className="canvas-page-sheet-label" data-canvas-chrome>
-                {page.label} · A4 {CANVAS_PAGE_WIDTH}×{CANVAS_PAGE_HEIGHT}
-              </div>
+              {!isExport ? (
+                <div className="canvas-page-sheet-label" data-canvas-chrome>
+                  {page.label} · A4 {CANVAS_PAGE_WIDTH}×{CANVAS_PAGE_HEIGHT}
+                </div>
+              ) : null}
               <ResumeThemeRoot
                 resolved={resolved}
-                id={isActive ? "resume-printable-sheet" : `canvas-page-${page.id}`}
+                id={
+                  isExport
+                    ? pageIndex === 0
+                      ? "resume-export-surface"
+                      : `resume-export-page-${page.id}`
+                    : isActive
+                      ? "resume-printable-sheet"
+                      : `canvas-page-${page.id}`
+                }
                 exportPage
+                exportStatic={isExport}
                 className={`canvas-page-sheet-paper canvas-page-sheet-paper--a4 relative ${
                   resolved.active ? "" : "bg-white"
-                } ${isEdit ? "shadow-2xl rounded-xl border border-slate-200/80 canvas-page-sheet-paper--editing" : "overflow-hidden"} ${tc.sheetFont}`}
+                } ${
+                  isEdit
+                    ? "shadow-2xl rounded-xl border border-slate-200/80 canvas-page-sheet-paper--editing"
+                    : "overflow-hidden"
+                } ${tc.sheetFont}`}
                 style={{ width: FREE_LAYOUT_CANVAS.width, height: CANVAS_PAGE_HEIGHT }}
               >
                 <div
-                  ref={pageIndex === 0 ? canvasRef : undefined}
-                  data-page-drop-surface
-                  className={`relative w-full h-full ${isEdit ? "overflow-visible" : "overflow-hidden"}`}
-                  onPointerDown={() => setSelectedSectionId(null)}
+                  ref={pageIndex === 0 && !isExport ? canvasRef : undefined}
+                  data-page-drop-surface={isEdit ? "" : undefined}
+                  className={`relative w-full h-full ${isEdit || isExport ? "overflow-visible" : "overflow-hidden"}`}
+                  onPointerDown={isEdit ? () => setSelectedSectionId(null) : undefined}
                 >
-                  {family === "modern" && resolved.showAccentBar && (isLiveChrome || !isEdit) ? (
+                  {family === "modern" && resolved.showAccentBar && (isLiveChrome || isPrintSurface) ? (
                     <div className={`h-2 ${tc.accentBar} rounded-t-lg`} />
                   ) : null}
-                  {showMargins ? <CanvasPageMarginGuides /> : null}
-                  {pageSnapGuide?.pageId === page.id && pageSnapGuide.edge === "top" ? (
+                  {isEdit && showMargins ? <CanvasPageMarginGuides /> : null}
+                  {!isExport && pageSnapGuide?.pageId === page.id && pageSnapGuide.edge === "top" ? (
                     <div className="canvas-page-snap-guide canvas-page-snap-guide--top" data-canvas-chrome aria-hidden />
                   ) : null}
-                  {pageSnapGuide?.pageId === page.id && pageSnapGuide.edge === "bottom" ? (
+                  {!isExport && pageSnapGuide?.pageId === page.id && pageSnapGuide.edge === "bottom" ? (
                     <div className="canvas-page-snap-guide canvas-page-snap-guide--bottom" data-canvas-chrome aria-hidden />
                   ) : null}
                   {renderPageSections(page.id, pageIndex)}

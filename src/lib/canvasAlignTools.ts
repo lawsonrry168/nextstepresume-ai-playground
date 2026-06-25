@@ -13,8 +13,10 @@ import {
 export type CanvasAlignHorizontal = "left" | "center" | "right";
 export type CanvasAlignVertical = "top" | "middle" | "bottom";
 
+import { LAYOUT_PAGE_MARGIN } from "./layoutDocument/geometry";
+
 /** Standard printable margin on A4 canvas pages */
-export const CANVAS_PAGE_MARGIN = 48;
+export const CANVAS_PAGE_MARGIN = LAYOUT_PAGE_MARGIN;
 
 export function alignPositionOnPage(
   pos: FreeLayoutPosition,

@@ -109,8 +109,8 @@ function appendCanvasSinglePage(
   pdf.setFillColor(250, 246, 235);
   pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
 
-  const imgData = canvas.toDataURL("image/png");
-  pdf.addImage(imgData, "PNG", offsetX, offsetY, renderWidth, renderHeight);
+  const imgData = canvas.toDataURL("image/jpeg", 0.92);
+  pdf.addImage(imgData, "JPEG", offsetX, offsetY, renderWidth, renderHeight);
   pdfHasContent = true;
 }
 
@@ -181,8 +181,8 @@ function appendCanvasToPdf(
     }
     pdfHasContent = true;
 
-    const imgData = sliceCanvas.toDataURL("image/png");
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, sliceH * scale);
+    const imgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
+    pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, sliceH * scale);
 
     offsetY += sliceH;
   }

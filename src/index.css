@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "./styles/layout-geometry.css";
 @import "tailwindcss";
+@import "./styles/a4-layout.css";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -10,6 +12,61 @@
   --color-accent-muted: #faf6eb;
   --color-surface: #faf6eb;
   --color-ink: #1a2438;
+}
+
+/* ── Unified A4 page surface — dimensions from layout-geometry.css (:root) ── */
+.resume-a4-surface,
+.resume-a4-surface#resume-printable-sheet,
+#resume-printable-sheet.resume-a4-surface {
+  width: var(--layout-page-width);
+  max-width: var(--layout-page-width);
+  min-height: var(--layout-page-height);
+  height: var(--layout-page-height);
+  max-height: var(--layout-page-height);
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.preview-resume-sheet--a4 {
+  width: var(--layout-page-width);
+  max-width: var(--layout-page-width);
+  min-height: var(--layout-page-height);
+  height: var(--layout-page-height);
+  max-height: var(--layout-page-height);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.preview-resume-sheet--a4:has(.resume-a4-surface) {
+  overflow: hidden;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Workspace preview: scroll inside A4 frame when marginalia content overflows */
+#resume-container-box .resume-a4-surface.resume-template-marginalia,
+#resume-container-box-workspace .resume-a4-surface.resume-template-marginalia,
+#resume-container-box-canvas .resume-a4-surface.resume-template-marginalia,
+.preview-canvas .resume-a4-surface.resume-template-marginalia {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.resume-export-surface-host .resume-a4-surface,
+.resume-export-surface-host [data-export-static] {
+  overflow: hidden !important;
+}
+
+.preview-resume-stage {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
 }
 
 /* ?? Marginalia notebook design system ?? */
@@ -914,8 +971,8 @@ html:not(.dark) .marginalia-theme {
 }
 
 .marginalia-theme .canvas-page-sheet {
-  width: 794px;
-  height: 1123px;
+  width: var(--layout-page-width);
+  height: var(--layout-page-height);
   overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 16px 48px rgba(26, 36, 56, 0.12);
@@ -941,9 +998,9 @@ html:not(.dark) .marginalia-theme {
 }
 
 .marginalia-theme .canvas-page-sheet-paper {
-  width: 794px;
-  height: 1123px;
-  max-height: 1123px;
+  width: var(--layout-page-width);
+  height: var(--layout-page-height);
+  max-height: var(--layout-page-height);
   overflow: hidden;
 }
 
@@ -1145,7 +1202,7 @@ html:not(.dark) .marginalia-theme {
 }
 
 .resume-template-marginalia:not(.resume-theme-has-padding) {
-  padding: var(--m-rule-step) 28px 0 3rem !important;
+  padding: var(--m-rule-step) 28px var(--m-rule-step) 3rem !important;
 }
 
 .resume-template-marginalia.resume-marginalia-ruled:not(.resume-theme-has-line-height) .resume-theme-prose p,
@@ -1292,7 +1349,9 @@ html:not(.dark) .marginalia-theme {
 }
 
 .resume-template-marginalia .resume-marginalia-list > li::before {
-  content: "?";
+  content: "\2022";
+  color: #c0392b;
+  font-weight: 700;
   position: absolute;
   left: 0;
   top: 0;
@@ -1311,9 +1370,28 @@ html:not(.dark) .marginalia-theme {
   margin-top: 0;
 }
 
-/* Offscreen PDF export staging ??isolated from playground UI */
+/* Offscreen PDF export staging — isolated from playground UI */
 .resume-pdf-export-host {
   overflow: visible;
+}
+
+/* Hidden print surface — static layout for PDF capture (not the edit canvas) */
+.resume-export-surface-host {
+  position: fixed;
+  left: -24000px;
+  top: 0;
+  width: var(--layout-page-width);
+  pointer-events: none;
+  overflow: visible;
+  z-index: -1;
+}
+
+.resume-export-surface-host .resume-export-surface-inner {
+  transform: none !important;
+}
+
+.resume-export-surface-host [data-export-static] {
+  box-shadow: none !important;
 }
 
 .resume-pdf-export-host .resume-template-marginalia {
@@ -1415,7 +1493,7 @@ html:not(.dark) .marginalia-theme {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--m-rule-step);
-  align-items: start;
+  align-items: stretch;
 }
 
 .resume-template-marginalia .resume-marginalia-dual-col-column {
@@ -1439,7 +1517,7 @@ html:not(.dark) .marginalia-theme {
 
 /* Lock ruled grid even when theme customizer sets line-height / padding */
 .resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-padding {
-  padding: var(--m-rule-step) 28px 0 3rem !important;
+  padding: var(--m-rule-step) 28px var(--m-rule-step) 3rem !important;
 }
 
 .resume-template-marginalia.resume-marginalia-ruled.resume-custom-active.resume-theme-has-line-height,

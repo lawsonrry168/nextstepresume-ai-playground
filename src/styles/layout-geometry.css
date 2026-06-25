@@ -1,0 +1,20 @@
+:root {
+  --layout-page-width: 794px;
+  --layout-page-height: 1123px;
+  --layout-page-margin: 48px;
+  --layout-page-gap: 48px;
+  --layout-content-width: 698px;
+  --layout-content-height: 1027px;
+  --a4-margin: 48px;
+  --a4-pad-top: 36px;
+  --a4-pad-bottom: 40px;
+  --a4-pad-x: 48px;
+  --a4-section-gap: 20px;
+  --a4-block-gap: 10px;
+  --a4-item-gap: 6px;
+  --a4-header-gap: 14px;
+  --a4-col-gap: 20px;
+  --a4-sidebar-w: 228px;
+  --a4-body: 11px;
+  --a4-line: 1.48;
+}

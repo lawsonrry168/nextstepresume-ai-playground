@@ -52,9 +52,9 @@ export function buildResumeDocxHtml(resumeData: ResumeData): string {
       <div class="section-title">Professional Summary</div>
       <div class="summary">${escapeHtml(resumeData.summary || "No professional summary provided.")}</div>
       <div class="section-title">Technical Skills</div>
-      <div class="skills-list"><strong>Skills:</strong> ${escapeHtml(resumeData.skills.join(", ") || "None listed.")}</div>
+      <div class="skills-list"><strong>Skills:</strong> ${escapeHtml(resumeData.skills?.join(", ") || "None listed.")}</div>
       <div class="section-title">Work Experience</div>
-      ${resumeData.experience
+      ${(resumeData.experience ?? [])
         .map(
           (exp) => `
         <table width="100%" style="margin-bottom: 8pt; font-size:11pt; font-family:'Calibri',sans-serif;">

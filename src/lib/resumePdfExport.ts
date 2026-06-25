@@ -3,16 +3,57 @@ import {
   preInlineExportClonePaint,
 } from "./html2canvasColorFix";
 import { flattenFreeLayoutForExport } from "./freeLayoutExportPrep";
+import { EXPORT_SURFACE_HOST_ID, EXPORT_SURFACE_ROOT_ID } from "./layoutExportSurface";
 import { pdfExportError } from "./pdfExportI18n";
 import { downloadPdfFromCanvas, downloadPdfFromCanvases } from "./pdfHtmlRenderer";
 import { sliceCanvasVertically } from "./canvasPdfPagination";
 import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
+import { A4_PAGE_CLASS, A4_PAGE_DATA_ATTR } from "./a4Page";
 
 /** A4 width at 96dpi — matches jsPDF page width */
 const PDF_CAPTURE_WIDTH_PX = CANVAS_PAGE_WIDTH;
 const PDF_CAPTURE_SCALE = 2;
 const MIN_CONTENT_HEIGHT_PX = 200;
 const PDF_PAGE_SLICE_PX = CANVAS_PAGE_HEIGHT * PDF_CAPTURE_SCALE;
+
+function syncCloneHeightsFromStudio(clone: HTMLElement): void {
+  const liveSheet =
+    findLiveFreeLayoutExportPages()[0] ??
+    document.querySelector<HTMLElement>(
+      "#resume-container-box-canvas #resume-printable-sheet, #resume-container-box #resume-printable-sheet",
+    );
+  if (!liveSheet) return;
+  if (liveSheet.closest(".resume-pdf-export-host")) return;
+
+  clone.querySelectorAll<HTMLElement>('[id^="free-layout-section-"]').forEach((cloneSection) => {
+    const liveSection = liveSheet.querySelector<HTMLElement>(`#${CSS.escape(cloneSection.id)}`);
+    if (!liveSection || liveSection.closest(".resume-pdf-export-host")) return;
+    const measured = Math.max(liveSection.offsetHeight, liveSection.scrollHeight);
+    if (measured > cloneSection.offsetHeight + 1) {
+      cloneSection.style.setProperty("height", `${measured}px`, "important");
+      cloneSection.style.setProperty("max-height", `${measured}px`, "important");
+      cloneSection.style.setProperty("overflow", "visible", "important");
+    }
+  });
+}
+
+function expandExportSectionContentHeights(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>('[id^="free-layout-section-"]').forEach((section) => {
+    const needed = Math.max(section.scrollHeight, section.offsetHeight);
+    if (needed > section.offsetHeight + 1) {
+      section.style.setProperty("height", "auto", "important");
+      section.style.setProperty("min-height", `${needed}px`, "important");
+      section.style.setProperty("max-height", "none", "important");
+      section.style.setProperty("overflow", "visible", "important");
+    }
+  });
+}
+
+/** No-op on live source — height expansion only runs on the detached clone inside createExportHost. */
+function syncExportSurfaceHeightsBeforeCapture(_source: HTMLElement): void {
+  // Intentionally empty: expanding heights on the live source permanently mutates inline
+  // styles (height:auto, overflow:visible) that are never cleaned up, breaking the preview.
+}
 
 function createExportHost(
   source: HTMLElement,
@@ -27,11 +68,19 @@ function createExportHost(
   const width = fixedA4
     ? PDF_CAPTURE_WIDTH_PX
     : Math.max(Math.round(source.getBoundingClientRect().width) || PDF_CAPTURE_WIDTH_PX, PDF_CAPTURE_WIDTH_PX);
-  const height = fixedA4 ? CANVAS_PAGE_HEIGHT : Math.max(source.scrollHeight, source.offsetHeight);
+  const MAX_EXPORT_PAGES = 5;
+  const rawHeight = Math.max(source.scrollHeight, source.offsetHeight);
+  const height = fixedA4 ? CANVAS_PAGE_HEIGHT : Math.min(rawHeight, CANVAS_PAGE_HEIGHT * MAX_EXPORT_PAGES);
 
   const clone = source.cloneNode(true) as HTMLElement;
   stripCanvasExportChrome(clone);
-  flattenFreeLayoutForExport(clone, source);
+  const isStaticPrintSurface =
+    source.id === EXPORT_SURFACE_ROOT_ID ||
+    source.hasAttribute("data-export-static") ||
+    Boolean(source.closest(`#${EXPORT_SURFACE_HOST_ID}`));
+  if (!isStaticPrintSurface) {
+    flattenFreeLayoutForExport(clone, source);
+  }
 
   const host = document.createElement("div");
   host.className = "resume-pdf-export-host";
@@ -68,6 +117,8 @@ function createExportHost(
 
   host.appendChild(clone);
   document.body.appendChild(host);
+  syncCloneHeightsFromStudio(clone);
+  expandExportSectionContentHeights(clone);
   return { host, clone, width, height };
 }
 
@@ -125,28 +176,125 @@ export function findResumeExportRoot(): HTMLElement | null {
   );
 }
 
-export function findCanvasExportPages(): HTMLElement[] {
-  const studioDesk = document.querySelector<HTMLElement>("#resume-container-box-canvas .canvas-multi-page-desk");
-  if (studioDesk) {
-    const deskPages = Array.from(
-      studioDesk.querySelectorAll<HTMLElement>(".canvas-page-sheet-paper[data-resume-export-page]"),
-    );
-    if (deskPages.length > 0) return deskPages;
+function isExportHostElement(el: Element): boolean {
+  return Boolean(
+    el.closest(`#${EXPORT_SURFACE_HOST_ID}`) ||
+    el.closest(".resume-export-surface-inner") ||
+    el.closest(".resume-export-surface-host"),
+  );
+}
+
+function hasFreeLayoutSections(root: Element): boolean {
+  return root.querySelector('[id^="free-layout-section-"]') !== null;
+}
+
+function isLiveLayoutPage(el: HTMLElement): boolean {
+  if (isExportHostElement(el)) return false;
+  const logicalWidth = el.offsetWidth || el.scrollWidth;
+  return logicalWidth >= 200 && hasFreeLayoutSections(el);
+}
+
+/** Live edit canvas — never the hidden print-surface mirror. */
+export function findLiveFreeLayoutExportPages(): HTMLElement[] {
+  const studioHost = document.getElementById("resume-container-box-canvas");
+  if (studioHost && !isExportHostElement(studioHost)) {
+    const multi = Array.from(
+      studioHost.querySelectorAll<HTMLElement>(".canvas-page-sheet-paper"),
+    ).filter(isLiveLayoutPage);
+    if (multi.length > 0) return multi;
   }
 
-  const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-resume-export-page]"));
-  if (pages.length > 0) return pages;
+  const candidates = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      [
+        "#resume-container-box-canvas #resume-printable-sheet",
+        "#resume-container-box #resume-printable-sheet",
+        "#resume-container-box-workspace #resume-printable-sheet",
+      ].join(", "),
+    ),
+  ).filter(isLiveLayoutPage);
 
-  const single = document.getElementById("resume-printable-sheet");
+  if (candidates.length > 0) return [candidates[0]!];
+
+  return [];
+}
+
+/** @deprecated Use findLiveFreeLayoutExportPages */
+export function findVisibleStudioExportPages(): HTMLElement[] {
+  return findLiveFreeLayoutExportPages();
+}
+
+function findHiddenExportSurfacePages(): HTMLElement[] {
+  const exportHost = document.getElementById(EXPORT_SURFACE_HOST_ID);
+  if (!exportHost) return [];
+
+  const staticPages = Array.from(
+    exportHost.querySelectorAll<HTMLElement>("[data-resume-export-page][data-export-static]"),
+  );
+  if (staticPages.length > 0) return staticPages;
+
+  const single = exportHost.querySelector<HTMLElement>(`#${EXPORT_SURFACE_ROOT_ID}`);
   return single ? [single] : [];
 }
 
+function findLegacyPrintableSheet(): HTMLElement | null {
+  const sheets = Array.from(
+    document.querySelectorAll<HTMLElement>("#resume-printable-sheet"),
+  ).filter((el) => !isExportHostElement(el));
+
+  for (const sheet of sheets) {
+    if (hasFreeLayoutSections(sheet)) return sheet;
+  }
+
+  const sheet = sheets[0];
+  if (sheet && !sheet.closest("#resume-container-box-canvas")) {
+    return sheet;
+  }
+
+  return sheet ?? null;
+}
+
+export function findCanvasExportPages(): HTMLElement[] {
+  const hidden = findHiddenExportSurfacePages();
+  if (hidden.length > 0) return hidden;
+
+  const legacy = findLegacyPrintableSheet();
+  if (legacy && !hasFreeLayoutSections(legacy)) return [legacy];
+
+  const liveLayout = findLiveFreeLayoutExportPages();
+  if (liveLayout.length > 0) return liveLayout;
+
+  if (legacy) return [legacy];
+
+  const pages = Array.from(document.querySelectorAll<HTMLElement>("[data-resume-export-page]")).filter(
+    (el) => !isExportHostElement(el),
+  );
+  if (pages.length > 0) return pages;
+
+  return [];
+}
+
+async function waitForPrintSurfacePages(timeoutMs = 12_000): Promise<HTMLElement[]> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const pages = findCanvasExportPages();
+    if (pages.length > 0) return pages;
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  }
+
+  throw new Error(pdfExportError("previewNotFound"));
+}
+
 async function captureExportElement(source: HTMLElement, options?: { fixedA4?: boolean }): Promise<HTMLCanvasElement> {
+  await document.fonts.ready;
+  syncExportSurfaceHeightsBeforeCapture(source);
+
   const { host, clone, width, height } = createExportHost(source, options);
   const fixedA4 = options?.fixedA4 === true;
 
   try {
-    await document.fonts.ready;
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     });
@@ -175,8 +323,22 @@ async function captureExportElement(source: HTMLElement, options?: { fixedA4?: b
   }
 }
 
+function sheetCaptureHeight(element: HTMLElement): number {
+  return Math.max(element.scrollHeight, element.offsetHeight);
+}
+
+function shouldCaptureAsFixedA4(element: HTMLElement): boolean {
+  if (element.hasAttribute("data-export-static")) return true;
+  if (element.hasAttribute(A4_PAGE_DATA_ATTR)) return true;
+  if (element.classList.contains(A4_PAGE_CLASS)) return true;
+  if (element.classList.contains("canvas-page-sheet-paper")) return true;
+  if (element.id === "resume-printable-sheet") return true;
+  if (element.classList.contains("resume-a4-surface")) return true;
+  return sheetCaptureHeight(element) <= CANVAS_PAGE_HEIGHT + 8;
+}
+
 function isStrictCanvasA4Page(element: HTMLElement): boolean {
-  return element.hasAttribute("data-resume-export-page");
+  return shouldCaptureAsFixedA4(element);
 }
 
 /** Capture exactly one A4 page — no vertical slicing */
@@ -194,7 +356,8 @@ async function captureExportElementPaginated(source: HTMLElement): Promise<HTMLC
  * Clone preview sheet offscreen and capture — avoids UI chrome (split divider, zoom transforms).
  */
 export async function captureResumeCanvas(): Promise<HTMLCanvasElement> {
-  const source = findResumeExportRoot();
+  const pages = await waitForPrintSurfacePages();
+  const source = pages[0] ?? findResumeExportRoot();
   if (!source) {
     throw new Error(pdfExportError("previewNotFound"));
   }
@@ -203,7 +366,7 @@ export async function captureResumeCanvas(): Promise<HTMLCanvasElement> {
 }
 
 export async function captureResumeCanvasPages(): Promise<HTMLCanvasElement[]> {
-  const pages = findCanvasExportPages();
+  const pages = await waitForPrintSurfacePages();
   if (!pages.length) {
     throw new Error(pdfExportError("previewNotFound"));
   }
@@ -220,27 +383,28 @@ export async function captureResumeCanvasPages(): Promise<HTMLCanvasElement[]> {
   return canvases;
 }
 
+/** WYSIWYG: prefer the live studio/preview canvas over the hidden print mirror */
+export async function resolveVisualPdfExportPages(): Promise<HTMLElement[]> {
+  const live = findLiveFreeLayoutExportPages();
+  if (live.length > 0) return live;
+
+  const hidden = findHiddenExportSurfacePages();
+  if (hidden.length > 0) return hidden;
+
+  const waited = await waitForPrintSurfacePages();
+  if (waited.length > 0) return waited;
+
+  const root = findResumeExportRoot();
+  return root ? [root] : [];
+}
+
 export async function downloadResumeVisualPdf(
   filename: string,
   options?: { watermark?: string },
 ): Promise<void> {
-  let exportPages = findCanvasExportPages();
-  if (!exportPages.length) {
-    const root = findResumeExportRoot();
-    if (root) exportPages = [root];
-  }
+  const exportPages = await resolveVisualPdfExportPages();
   if (!exportPages.length) {
     throw new Error(pdfExportError("previewNotFound"));
-  }
-
-  const allCanvases: HTMLCanvasElement[] = [];
-  for (const page of exportPages) {
-    if (isStrictCanvasA4Page(page)) {
-      allCanvases.push(await captureCanvasA4Page(page));
-    } else {
-      const slices = await captureExportElementPaginated(page);
-      allCanvases.push(...slices);
-    }
   }
 
   const pdfOptions = {
@@ -248,6 +412,27 @@ export async function downloadResumeVisualPdf(
     preferFillWidth: true,
     watermark: options?.watermark,
   } as const;
+
+  const allCanvases: HTMLCanvasElement[] = [];
+  for (const page of exportPages) {
+    if (shouldCaptureAsFixedA4(page)) {
+      allCanvases.push(await captureCanvasA4Page(page));
+    } else {
+      const slices = await captureExportElementPaginated(page);
+      allCanvases.push(...slices);
+    }
+  }
+
+  if (exportPages.length === 1 && allCanvases.length > 1) {
+    const tail = allCanvases[allCanvases.length - 1]!;
+    if (tail.height < PDF_PAGE_SLICE_PX * 0.2) {
+      allCanvases.pop();
+    } else {
+      const fitted = await captureExportElement(exportPages[0]!);
+      downloadPdfFromCanvas(fitted, filename, pdfOptions);
+      return;
+    }
+  }
 
   if (allCanvases.length === 1) {
     downloadPdfFromCanvas(allCanvases[0], filename, pdfOptions);

@@ -8,14 +8,16 @@ import {
   FreeLayoutPosition,
   applyMagneticSnap,
   buildFreeLayoutSections,
-  mergeFreeLayoutPositions,
-  createFamilyDefaultPositions,
   FREE_LAYOUT_CANVAS,
-  createFreeLayoutPresetPositions,
   FreeLayoutPresetId,
   readFamilyLayoutStorage,
   writeFamilyLayoutStorage,
 } from "../lib/resumeFreeLayout";
+import {
+  mergeFreeLayoutPositions,
+  createFamilyDefaultPositions,
+  createFreeLayoutPresetPositions,
+} from "../lib/layoutPresets";
 import { CANVAS_PAGE_HEIGHT } from "../lib/canvasStudioTypes";
 import { clampPositionToA4Page } from "../lib/canvasPageSnap";
 import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
@@ -158,19 +160,19 @@ export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFa
   );
 
   const resetLayout = useCallback(() => {
-    setPositions(createFamilyDefaultPositions(templateFamily, sectionIds));
-  }, [sectionIds, templateFamily]);
+    setPositions(createFamilyDefaultPositions(templateFamily, sectionIds, resumeData));
+  }, [sectionIds, templateFamily, resumeData]);
 
   const applyPreset = useCallback(
     (presetId: FreeLayoutPresetId) => {
-      setPositions(createFreeLayoutPresetPositions(presetId, sectionIds));
+      setPositions(createFreeLayoutPresetPositions(presetId, sectionIds, resumeData));
     },
-    [sectionIds],
+    [sectionIds, resumeData],
   );
 
   const applyFamilyLayout = useCallback(() => {
-    setPositions(createFamilyDefaultPositions(templateFamily, sectionIds));
-  }, [sectionIds, templateFamily]);
+    setPositions(createFamilyDefaultPositions(templateFamily, sectionIds, resumeData));
+  }, [sectionIds, templateFamily, resumeData]);
 
   return {
     sections,

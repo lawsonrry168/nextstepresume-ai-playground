@@ -401,6 +401,8 @@ export function injectPdfExportBaselineStyles(doc: Document): void {
       display: none !important;
     }
 
+    /* flex gap emulation is handled by patchFlexGapForHtml2Canvas() with actual computed values */
+
     /* Marginalia: opaque card fills — html2canvas mishandles transparent color-mix */
     .resume-template-marginalia .resume-marginalia-h2 {
       background-color: #faf6eb !important;
@@ -648,6 +650,7 @@ export function preInlineExportClonePaint(
   cloneRoot: HTMLElement
 ): void {
   inlineSafePaintFromSource(sourceRoot, cloneRoot, document);
+  resetLetterSpacingForHtml2Canvas(cloneRoot);
 }
 
 /** @deprecated Use inlineSafePaintFromSource */
@@ -657,6 +660,79 @@ export function sanitizeUnsafeComputedColors(
   clonedDoc: Document
 ): void {
   inlineSafePaintFromSource(sourceRoot, cloneRoot, clonedDoc);
+}
+
+function patchFlexGapForHtml2Canvas(sourceRoot: Element, cloneRoot: Element): void {
+  for (const [source, clone] of walkElementPairs(sourceRoot, cloneRoot)) {
+    if (!(source instanceof HTMLElement) || !(clone instanceof HTMLElement)) continue;
+    const computed = getComputedStyleForElement(source);
+    if (!computed.display.includes("flex")) continue;
+
+    const rowGap = parseFloat(computed.rowGap) || parseFloat(computed.gap) || 0;
+    const columnGap = parseFloat(computed.columnGap) || parseFloat(computed.gap) || 0;
+    if (rowGap <= 0 && columnGap <= 0) continue;
+
+    const children = Array.from(clone.children).filter((c): c is HTMLElement => c instanceof HTMLElement);
+    const isColumn = computed.flexDirection.startsWith("column");
+    const isWrap = computed.flexWrap !== "nowrap";
+
+    children.forEach((child, index) => {
+      if (isColumn) {
+        if (index > 0 && rowGap > 0) {
+          child.style.setProperty("margin-top", `${rowGap}px`, "important");
+        }
+      } else if (isWrap) {
+        if (index > 0 && columnGap > 0) {
+          child.style.setProperty("margin-left", `${columnGap / 2}px`, "important");
+        }
+        if (index < children.length - 1 && columnGap > 0) {
+          child.style.setProperty("margin-right", `${columnGap / 2}px`, "important");
+        }
+        if (rowGap > 0) child.style.setProperty("margin-bottom", `${rowGap}px`, "important");
+      } else if (index > 0 && columnGap > 0) {
+        child.style.setProperty("margin-left", `${columnGap}px`, "important");
+      }
+    });
+  }
+}
+
+const TRACKING_LETTER_SPACING_CLASS_MARKERS = [
+  "ui-label",
+  "sticker-pill",
+  "resume-theme-section-heading",
+  "resume-a4-section-title",
+  "tracking-wide",
+  "tracking-wider",
+  "tracking-widest",
+] as const;
+
+function keepsIntentionalLetterSpacing(el: HTMLElement, computed: CSSStyleDeclaration): boolean {
+  const transform = computed.textTransform;
+  if (transform === "uppercase" || transform === "small-caps") return true;
+  return TRACKING_LETTER_SPACING_CLASS_MARKERS.some((marker) => el.classList.contains(marker));
+}
+
+/**
+ * html2canvas collapses inter-word spaces when letter-spacing is inherited from parents.
+ * Reset tracking on prose nodes; preserve uppercase / label styles.
+ */
+export function resetLetterSpacingForHtml2Canvas(root: HTMLElement): void {
+  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    const computed = getComputedStyleForElement(el);
+    const spacing = computed.letterSpacing;
+    if (!spacing || spacing === "normal" || spacing === "0px") return;
+    if (keepsIntentionalLetterSpacing(el, computed)) return;
+    el.style.setProperty("letter-spacing", "normal", "important");
+  });
+}
+
+function ensureCloneVisibility(cloneRoot: HTMLElement): void {
+  cloneRoot.style.setProperty("visibility", "visible", "important");
+  cloneRoot.style.setProperty("opacity", "1", "important");
+  cloneRoot.querySelectorAll<HTMLElement>("*").forEach((node) => {
+    node.style.setProperty("visibility", "visible", "important");
+    node.style.setProperty("opacity", "1", "important");
+  });
 }
 
 export function prepareHtml2CanvasClone(
@@ -669,10 +745,11 @@ export function prepareHtml2CanvasClone(
   injectPdfExportBaselineStyles(clonedDoc);
   inlineSafePaintFromSource(sourceRoot, cloneRoot, clonedDoc);
   inlineSafePaintFromSource(cloneRoot, cloneRoot, clonedDoc);
+  patchFlexGapForHtml2Canvas(sourceRoot, cloneRoot);
 
   if (cloneRoot instanceof HTMLElement) {
-    cloneRoot.style.setProperty("visibility", "visible", "important");
-    cloneRoot.style.setProperty("opacity", "1", "important");
+    ensureCloneVisibility(cloneRoot);
+    resetLetterSpacingForHtml2Canvas(cloneRoot);
     if (cloneRoot.classList.contains("resume-template-marginalia")) {
       applyMarginaliaPdfInlineFixes(cloneRoot);
     }

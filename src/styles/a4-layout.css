@@ -1,0 +1,288 @@
+/**
+ * A4 Layout Design System
+ * Unified spacing, typography, and grid for all resume template families.
+ * Page dimensions: see layout-geometry.css (:root vars from geometry.ts).
+ */
+
+.resume-a4-surface {
+  --a4-body-sm: 10px;
+  --a4-h1: 24px;
+  height: var(--layout-page-height, 1123px);
+  max-height: var(--layout-page-height, 1123px);
+  box-sizing: border-box;
+}
+
+/* ── Shared page padding (classic / modern / minimalist) ── */
+.resume-a4-surface.resume-template-classic:not(.resume-theme-has-padding):not(.resume-template-marginalia),
+.resume-a4-surface.resume-template-modern:not(.resume-theme-has-padding):not(.resume-template-marginalia),
+.resume-a4-surface.resume-template-minimalist:not(.resume-theme-has-padding):not(.resume-template-marginalia) {
+  padding: var(--a4-pad-top) var(--a4-pad-x) var(--a4-pad-bottom) !important;
+  font-size: var(--a4-body);
+  line-height: var(--a4-line);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* ── Vertical content flow ── */
+.resume-a4-flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-section-gap);
+  flex: 1;
+  min-height: 0;
+}
+
+.resume-a4-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-block-gap);
+  margin: 0 !important;
+  min-width: 0;
+}
+
+.resume-a4-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-item-gap);
+}
+
+.resume-a4-surface .resume-a4-section ul,
+.resume-a4-surface .resume-a4-block ul {
+  margin: 0;
+  padding-left: 1.15em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-item-gap);
+}
+
+.resume-a4-surface .resume-a4-section ul li,
+.resume-a4-surface .resume-a4-block ul li {
+  line-height: var(--a4-line);
+}
+
+/* ── Classic family ── */
+.resume-a4-header--classic {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: var(--a4-header-gap);
+  margin-bottom: 0 !important;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+}
+
+.resume-a4-header--classic h1 {
+  font-size: var(--a4-h1);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.resume-a4-header--classic .resume-a4-contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 14px;
+  font-size: var(--a4-body-sm);
+  margin-top: 4px;
+}
+
+/* ── Modern family ── */
+.resume-template-modern.resume-a4-surface .resume-a4-accent-bar {
+  height: 8px;
+  margin: calc(-1 * var(--a4-pad-top)) calc(-1 * var(--a4-pad-x)) var(--a4-header-gap) calc(-1 * var(--a4-pad-x));
+  border-radius: 0;
+}
+
+.resume-a4-header--modern {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--a4-col-gap);
+  align-items: start;
+  padding-bottom: var(--a4-header-gap);
+  margin-bottom: 0 !important;
+  border-bottom: 1px solid color-mix(in srgb, #1e293b 12%, transparent);
+}
+
+.resume-a4-header--modern h1 {
+  font-size: 26px;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.resume-a4-header--modern .resume-a4-header-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--a4-body-sm);
+  text-align: right;
+}
+
+.resume-a4-dual-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--a4-col-gap);
+  align-items: stretch;
+}
+
+.resume-a4-dual-col > * {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-block-gap);
+  min-width: 0;
+}
+
+/* ── Minimalist family ── */
+.resume-a4-minimalist-grid {
+  display: grid;
+  grid-template-columns: var(--a4-sidebar-w) minmax(0, 1fr);
+  column-gap: var(--a4-col-gap);
+  flex: 1;
+  min-height: 0;
+  align-content: start;
+}
+
+.resume-a4-minimalist-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-section-gap);
+  padding-right: 12px;
+  border-right: 1px solid color-mix(in srgb, #1e293b 10%, transparent);
+  min-width: 0;
+}
+
+.resume-a4-minimalist-sidebar h1 {
+  font-size: 20px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.resume-a4-minimalist-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-section-gap);
+  min-width: 0;
+}
+
+.resume-a4-minimalist-sidebar .resume-a4-sidebar-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--a4-block-gap);
+  padding-top: var(--a4-block-gap);
+  border-top: 1px solid color-mix(in srgb, #1e293b 8%, transparent);
+}
+
+.resume-a4-minimalist-sidebar .resume-a4-sidebar-block:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* ── Marginalia on A4: compact rhythm + full-height margin rail ── */
+.resume-template-marginalia.resume-marginalia-a4-compact.resume-a4-surface {
+  --m-rule-step: 21px;
+  border-left: none;
+  position: relative;
+  font-size: 12.5px;
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact.resume-a4-surface::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #c0392b;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact:not(.resume-theme-has-padding) {
+  padding: var(--m-rule-step) 24px var(--m-rule-step) 2.75rem !important;
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-section-stack,
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-stack {
+  gap: calc(var(--m-rule-step) + 2px);
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-dual-col,
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-dual-col-column,
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-dual-col-body {
+  gap: calc(var(--m-rule-step) + 2px);
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-header {
+  padding-bottom: calc(var(--m-rule-step) - 2px);
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-header-contact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+  align-content: start;
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-name {
+  font-size: 1.3rem;
+  height: auto;
+  min-height: var(--m-rule-step);
+  max-height: none;
+}
+
+/* Unified dual-col cards on A4 — subtle ruled panels, no yellow/mint clash */
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-dual-col .resume-marginalia-card {
+  background: color-mix(in srgb, #faf6eb 92%, #ecf5ee) !important;
+  border: 1px solid rgba(197, 217, 232, 0.85);
+  border-left: 2px solid #c0392b;
+}
+
+.resume-template-marginalia.resume-marginalia-a4-compact .resume-marginalia-subsection {
+  gap: calc(var(--m-rule-step) - 2px);
+}
+
+.resume-template-marginalia.resume-a4-surface .resume-marginalia-section-stack {
+  gap: calc(var(--m-rule-step, 28px) - 2px);
+}
+
+.resume-template-marginalia.resume-a4-surface .resume-marginalia-dual-col {
+  gap: calc(var(--m-rule-step, 28px) - 2px);
+}
+
+/* ── Section headings consistency on A4 ── */
+.resume-a4-surface:not(.resume-template-marginalia) .resume-a4-section > h2,
+.resume-a4-surface:not(.resume-template-marginalia) .resume-a4-flow > .resume-a4-section > h2 {
+  margin: 0 0 2px;
+  font-size: var(--a4-body-sm);
+  letter-spacing: 0.1em;
+}
+
+/* ── Experience job blocks ── */
+.resume-a4-surface .resume-a4-exp-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resume-a4-surface .resume-a4-exp-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Chip / skill rows ── */
+.resume-a4-surface .resume-a4-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── PDF export: no scroll, exact clip ── */
+.resume-export-surface-host .resume-a4-surface,
+.resume-export-surface-host [data-export-static] {
+  overflow: hidden !important;
+}

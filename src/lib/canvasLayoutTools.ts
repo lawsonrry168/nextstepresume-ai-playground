@@ -2,7 +2,7 @@ import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
 import { clampPositionToA4Page } from "./canvasPageSnap";
 import { CANVAS_PAGE_MARGIN, snapPositionToGrid, type CanvasAlignHorizontal } from "./canvasAlignTools";
 import type { FreeLayoutPosition } from "./resumeFreeLayout";
-import { defaultSectionHeight, FREE_LAYOUT_MAX_WIDTH, snapToGrid, SNAP_GRID_SIZE, clampSectionHeight } from "./resumeFreeLayout";
+import { defaultSectionHeight, FREE_LAYOUT_MAX_WIDTH, FREE_LAYOUT_MIN_HEIGHT, snapToGrid, SNAP_GRID_SIZE, clampSectionHeight } from "./resumeFreeLayout";
 import type { ResumeData } from "../types";
 import {
   estimateContentAwareGap,
@@ -19,6 +19,8 @@ export interface PageLayoutContentContext {
   layerOrder?: string[];
   /** Theme base font size scale (16px = 1) */
   themeFontScale?: number;
+  /** Preserve compact / fill modes when reflowing a single-column stack */
+  stackFillMode?: A4StackFillMode;
 }
 
 export interface PageLayoutOptions {
@@ -170,7 +172,10 @@ function resolveStackGap(
 export const A4_PRINTABLE_HEIGHT = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN * 2;
 export const A4_MIN_SECTION_GAP = 8;
 
-export type A4StackFillMode = "natural" | "fill-page" | "fill-page-exact" | "align-bottom";
+export type A4StackFillMode = "natural" | "fill-page" | "fill-page-exact" | "align-bottom" | "compact";
+
+/** Tight vertical gap for compact stack layout */
+export const A4_COMPACT_SECTION_GAP = 8;
 
 function a4UsableHeight(opts: ReturnType<typeof resolveOpts>): number {
   return opts.pageHeight - opts.margin * 2;
@@ -194,7 +199,9 @@ function computeA4VerticalStack(
 
   let gap: number;
   const gaps: number[] = [];
-  if (mode === "fill-page-exact" && count > 1) {
+  if (mode === "compact" && count > 1) {
+    gap = snapToGrid(Math.max(A4_MIN_SECTION_GAP, preferredGap ?? opts.gap ?? A4_COMPACT_SECTION_GAP), SNAP_GRID_SIZE);
+  } else if (mode === "fill-page-exact" && count > 1) {
     const slack = Math.max(0, usable - totalH);
     if (slack <= 0) {
       gap = A4_MIN_SECTION_GAP;
@@ -318,9 +325,18 @@ export function reflowPageColumnsNatural(
     if (pos) patches[id] = { ...pos, pageId };
   }
 
-  const xs = new Set(onPage.map((id) => patches[id]?.x ?? opts.margin));
-  if (xs.size <= 1) {
-    const reflowed = computeA4VerticalStack(onPage, patches, opts, "natural");
+  const xs = onPage.map((id) => patches[id]?.x ?? opts.margin);
+  const xSpread = xs.length ? Math.max(...xs) - Math.min(...xs) : 0;
+  const centers = onPage.map((id) => {
+    const pos = patches[id];
+    return pos ? pos.x + pos.width / 2 : opts.pageWidth / 2;
+  });
+  const centerSpread = centers.length ? Math.max(...centers) - Math.min(...centers) : 0;
+  const isSingleColumnStack = xSpread <= SNAP_GRID_SIZE || centerSpread < 96;
+
+  if (isSingleColumnStack) {
+    const stackMode = content?.stackFillMode ?? "natural";
+    const reflowed = computeA4VerticalStack(onPage, patches, opts, stackMode);
     return patchPositions(positions, reflowed);
   }
 
@@ -859,11 +875,26 @@ export function stackCompactOnPage(
   getPageId: (id: string) => string,
   options?: PageLayoutOptions,
 ): Record<string, FreeLayoutPosition> {
-  return stackSectionsVerticallyOnPage(sectionIds, positions, pageId, getPageId, {
+  const opts = resolveOpts({
     ...options,
-    gap: 8,
+    gap: A4_COMPACT_SECTION_GAP,
     margin: CANVAS_PAGE_MARGIN,
   });
+  const onPage = sectionsOnPage(sectionIds, positions, pageId, getPageId, opts.layerOrder);
+  const width = innerPrintableWidth(opts);
+  const sizes = onPage.map((id) => sectionLayoutSize(id, positions, width, opts.resumeData));
+  const patches: Record<string, FreeLayoutPosition> = {};
+
+  for (let i = 0; i < onPage.length; i++) {
+    const id = onPage[i];
+    const current = positions[id];
+    if (!current) continue;
+    const { width: w, height } = sizes[i];
+    patches[id] = { ...current, pageId, x: opts.margin, y: opts.margin, width: w, height };
+  }
+
+  const reflowed = computeA4VerticalStack(onPage, patches, opts, "compact", A4_COMPACT_SECTION_GAP);
+  return patchPositions(positions, reflowed);
 }
 
 /** Centered single column (classic resume) */
@@ -1053,6 +1084,57 @@ export function layoutThreeColumnsOnPage(
   return patchPositions(positions, balanceColumnLayoutToA4(patches, opts));
 }
 
+/** Shrink tallest sections and reflow until the page fits A4 printable height */
+export function compressStackToFitA4Page(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+  pageId: string,
+  getPageId: (id: string) => string,
+  content?: PageLayoutContentContext,
+): Record<string, FreeLayoutPosition> {
+  const limit = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN;
+  let current = { ...positions, ...reflowPageColumnsNatural(sectionIds, positions, pageId, getPageId, content) };
+
+  for (let iter = 0; iter < 12; iter++) {
+    const onPage = sectionsOnPage(sectionIds, current, pageId, getPageId, content?.layerOrder);
+    if (!onPage.length) return current;
+
+    const bottom = Math.max(
+      ...onPage.map((id) => {
+        const pos = current[id];
+        return pos ? pos.y + pos.height : 0;
+      }),
+    );
+    if (bottom <= limit) return current;
+
+    const tallest = onPage.reduce((best, id) => {
+      const height = current[id]?.height ?? 0;
+      const bestHeight = current[best]?.height ?? 0;
+      return height > bestHeight ? id : best;
+    }, onPage[0]!);
+
+    const pos = current[tallest];
+    if (!pos) return current;
+
+    const trim = Math.min(
+      pos.height - FREE_LAYOUT_MIN_HEIGHT,
+      snapToGrid(bottom - limit + SNAP_GRID_SIZE, SNAP_GRID_SIZE),
+    );
+    if (trim <= 0) return current;
+
+    const patches: Record<string, FreeLayoutPosition> = {
+      [tallest]: {
+        ...pos,
+        height: snapToGrid(clampSectionHeight(pos.height - trim), SNAP_GRID_SIZE),
+      },
+    };
+    current = { ...current, ...patchPositions(current, patches) };
+    current = { ...current, ...reflowPageColumnsNatural(sectionIds, current, pageId, getPageId, content) };
+  }
+
+  return current;
+}
+
 export type CanvasPageLayoutAction =
   | "stack"
   | "stack-center"
@@ -1120,6 +1202,43 @@ export function applyPageLayoutAction(
     default:
       return {};
   }
+}
+
+/** Map layout toolbar action → single-column stack fill mode for reflow */
+export function stackFillModeForLayoutAction(action: CanvasPageLayoutAction): A4StackFillMode | undefined {
+  switch (action) {
+    case "stack-compact":
+      return "compact";
+    case "stack":
+      return "fill-page-exact";
+    case "stack-center":
+      return "natural";
+    case "align-page-bottom":
+      return "align-bottom";
+    default:
+      return undefined;
+  }
+}
+
+/** Layout actions that already compute final geometry — skip column reflow */
+export function shouldSkipColumnReflowAfterLayout(action: CanvasPageLayoutAction): boolean {
+  return (
+    action === "stack" ||
+    action === "stack-center" ||
+    action === "stack-compact" ||
+    action === "two-column" ||
+    action === "three-column" ||
+    action === "sidebar" ||
+    action === "distribute" ||
+    action === "fill-page-height" ||
+    action === "align-page-bottom" ||
+    action === "page-align-left" ||
+    action === "page-align-center" ||
+    action === "page-align-right" ||
+    action === "snap-grid" ||
+    action === "safe-zone" ||
+    action === "mirror-columns"
+  );
 }
 
 /** Apply a structural layout to every page and merge patches (A4-aware) */

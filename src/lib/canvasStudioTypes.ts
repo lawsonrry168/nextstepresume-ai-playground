@@ -1,4 +1,9 @@
 import { formatAutoSaveTime, formatCanvasPageLabel } from "./sectionLabels";
+import {
+  LAYOUT_PAGE_GAP,
+  LAYOUT_PAGE_HEIGHT,
+  LAYOUT_PAGE_WIDTH,
+} from "./layoutDocument/geometry";
 
 /** Studio immersive view modes */
 export type StudioViewMode = "single" | "compare" | "canvas";
@@ -20,10 +25,10 @@ export const CANVAS_ZOOM_MIN = 0.25;
 export const CANVAS_ZOOM_MAX = 2;
 export const CANVAS_ZOOM_STEP = 0.05;
 
-/** A4 page dimensions (96 dpi) */
-export const CANVAS_PAGE_WIDTH = 794;
-export const CANVAS_PAGE_HEIGHT = 1123;
-export const CANVAS_PAGE_GAP = 48;
+/** A4 page dimensions (96 dpi) — canonical values in layoutDocument/geometry */
+export const CANVAS_PAGE_WIDTH = LAYOUT_PAGE_WIDTH;
+export const CANVAS_PAGE_HEIGHT = LAYOUT_PAGE_HEIGHT;
+export const CANVAS_PAGE_GAP = LAYOUT_PAGE_GAP;
 /** Drag within this px of page top/bottom triggers cross-page snap */
 export const CANVAS_PAGE_EDGE_SNAP = 56;
 

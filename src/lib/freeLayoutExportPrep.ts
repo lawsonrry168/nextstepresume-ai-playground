@@ -35,10 +35,46 @@ function readPx(value: string | null | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function readPageScale(pageRoot: HTMLElement): number {
+  let node: HTMLElement | null = pageRoot;
+  while (node) {
+    const transform = getComputedStyle(node).transform;
+    if (transform && transform !== "none") {
+      const matrix = transform.match(/^matrix\(([^)]+)\)$/);
+      if (matrix) {
+        const parts = matrix[1].split(",").map((part) => parseFloat(part.trim()));
+        if (parts.length >= 4 && parts[0] > 0) return parts[0];
+      }
+    }
+    node = node.parentElement;
+  }
+  return 1;
+}
+
 function measureSectionBox(live: HTMLElement): { width: number; height: number } {
   const content = live.querySelector<HTMLElement>('[class*="flex-1"]');
-  const width = Math.max(live.offsetWidth, live.scrollWidth, readPx(live.style.width) ?? 0);
-  let height = Math.max(live.offsetHeight, live.scrollHeight, readPx(live.style.minHeight) ?? 0);
+  const pageRoot =
+    live.closest<HTMLElement>("[data-page-drop-surface]") ??
+    live.closest<HTMLElement>("[data-resume-export-page]") ??
+    live.closest<HTMLElement>("#resume-printable-sheet") ??
+    live.offsetParent;
+
+  let scale = 1;
+  if (pageRoot instanceof HTMLElement) {
+    scale = readPageScale(pageRoot);
+  }
+
+  const rect = live.getBoundingClientRect();
+  const scaledWidth = scale > 0 ? Math.round(rect.width / scale) : live.offsetWidth;
+  const scaledHeight = scale > 0 ? Math.round(rect.height / scale) : live.offsetHeight;
+
+  const width = Math.max(scaledWidth, live.offsetWidth, live.scrollWidth, readPx(live.style.width) ?? 0);
+  let height = Math.max(
+    scaledHeight,
+    live.offsetHeight,
+    live.scrollHeight,
+    readPx(live.style.minHeight) ?? 0,
+  );
   if (content) {
     height = Math.max(height, content.scrollHeight + 16, content.offsetHeight + 16);
   }
@@ -95,30 +131,38 @@ function applySectionExportLayout(cloneSection: HTMLElement, placement: { x: num
   cloneSection.style.setProperty("left", `${placement.x}px`, "important");
   cloneSection.style.setProperty("top", `${placement.y}px`, "important");
   cloneSection.style.setProperty("width", `${placement.width}px`, "important");
-  cloneSection.style.setProperty("height", `${placement.height}px`, "important");
   cloneSection.style.setProperty("min-height", `${placement.height}px`, "important");
-  cloneSection.style.setProperty("max-height", `${placement.height}px`, "important");
+  cloneSection.style.setProperty("height", "auto", "important");
+  cloneSection.style.removeProperty("max-height");
   cloneSection.style.setProperty("transform", "none", "important");
-  cloneSection.style.setProperty("overflow", "hidden", "important");
+  cloneSection.style.setProperty("overflow", "visible", "important");
   cloneSection.style.setProperty("margin", "0", "important");
   cloneSection.style.setProperty("z-index", "auto", "important");
   stripSectionEditingClasses(cloneSection);
 
   cloneSection.querySelectorAll<HTMLElement>("[class*='ring-'], [class*='border-dashed']").forEach((node) => {
     stripSectionEditingClasses(node);
-    node.style.setProperty("overflow", "hidden", "important");
-    node.style.setProperty("height", "100%", "important");
-    node.style.setProperty("min-height", "0", "important");
+    node.style.setProperty("overflow", "visible", "important");
+    node.style.removeProperty("height");
+    node.style.removeProperty("min-height");
   });
 
   cloneSection.querySelectorAll<HTMLElement>('[class*="flex-1"]').forEach((node) => {
-    node.style.setProperty("overflow", "hidden", "important");
-    node.style.setProperty("min-height", "0", "important");
+    node.style.setProperty("overflow", "visible", "important");
+    node.style.removeProperty("min-height");
   });
 }
 
 /** Flatten free-layout motion sections for html2canvas — explicit box geometry, no edit chrome. */
 export function flattenFreeLayoutForExport(clone: HTMLElement, source?: HTMLElement): boolean {
+  if (
+    clone.id === "resume-export-surface" ||
+    clone.hasAttribute("data-export-static") ||
+    clone.closest("#resume-export-surface-host")
+  ) {
+    return false;
+  }
+
   const cloneSections = Array.from(clone.querySelectorAll<HTMLElement>('[id^="free-layout-section-"]'));
   if (!cloneSections.length) return false;
 

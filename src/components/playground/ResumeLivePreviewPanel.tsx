@@ -12,8 +12,7 @@ const CanvasLayerPanel = lazy(() => import("./canvas/CanvasLayerPanel"));
 const CanvasPageStrip = lazy(() => import("./canvas/CanvasPageStrip"));
 const CanvasRightNavSections = lazy(() => import("./canvas/CanvasRightNavSections"));
 import type { CanvasToolsBarProps } from "./canvas/CanvasToolsBar";
-import { useFreeLayout } from "../../hooks/useFreeLayout";
-import { useCanvasDocument } from "../../hooks/useCanvasDocument";
+import { useLayoutDocument } from "../../hooks/useLayoutDocument";
 import { useCanvasStudioShortcuts } from "../../hooks/useCanvasStudioShortcuts";
 import { getTemplateFamily, isMarginaliaNotebookTemplate } from "../../lib/resumeTemplateCatalog";
 import StudioPreviewHeader from "./StudioPreviewHeader";
@@ -30,12 +29,19 @@ import {
   reflowPageColumnsNatural,
   resolveLayoutTargetPageId,
   sectionsOnPage,
+  shouldSkipColumnReflowAfterLayout,
+  stackFillModeForLayoutAction,
   syncSectionHeightsToContentAllPages,
+  type A4StackFillMode,
   type CanvasPageLayoutAction,
 } from "../../lib/canvasLayoutTools";
 import { buildContentFitSignature, buildThemeFitSignature, themeContentScale } from "../../lib/canvasSectionContentSizing";
+import { EXPORT_SURFACE_HOST_ID } from "../../lib/layoutExportSurface";
+import { editorPositionsFromDraftThroughPrintPlan } from "../../lib/layoutDocument";
 import type { FreeLayoutPresetId, FreeLayoutPosition } from "../../lib/resumeFreeLayout";
-import { createFamilyDefaultPositions, createFreeLayoutPresetPositions, estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
+import { estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
+import { LAYOUT_PAGE_WIDTH } from "../../lib/layoutDocument/geometry";
+import { createFamilyDefaultPositions, createFreeLayoutPresetPositions } from "../../lib/layoutPresets";
 
 export interface ResumeLivePreviewPanelProps {
   isPreviewMode: boolean;
@@ -121,18 +127,26 @@ export default function ResumeLivePreviewPanel({
   const { canUseFeature, openUpgrade } = useSubscription();
   const templateFamily = getTemplateFamily(activeTemplate);
   const isMarginalia = isMarginaliaNotebookTemplate(activeTemplate);
-  const resumeSheetClass = `preview-resume-sheet w-full max-w-[850px] mx-auto rounded-xl overflow-hidden transition-all duration-300 transform-gpu${
-    isMarginalia ? " preview-resume-sheet--marginalia" : " p-6 md:p-12 border"
+  const resumeSheetClass = `preview-resume-sheet preview-resume-sheet--a4 w-[${LAYOUT_PAGE_WIDTH}px] max-w-[${LAYOUT_PAGE_WIDTH}px] mx-auto rounded-xl overflow-hidden transition-all duration-300${
+    isMarginalia ? " preview-resume-sheet--marginalia" : " transform-gpu"
   }`;
-  const freeLayout = useFreeLayout(resumeData, templateFamily);
-  const canvasDoc = useCanvasDocument({
+
+  const [manualSizedSections, setManualSizedSections] = useState<Set<string>>(() => new Set());
+
+  const {
+    freeLayout,
+    canvasDoc,
+    sectionIds: freeLayoutSectionIds,
+    exportPrintPlan,
+    exportSurfacePositions,
+    exportCanvasLayout,
+  } = useLayoutDocument({
+    resumeData,
     templateFamily,
-    sections: freeLayout.sections,
-    positions: freeLayout.positions,
-    updatePosition: freeLayout.updatePosition,
+    themeCustomization,
+    manualSizedSections,
   });
   const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
-  const freeLayoutSectionIds = freeLayout.sections.map((s) => s.id);
 
   const showFreeLayoutCanvas = freeLayout.enabled && (!isPreviewMode || studioViewMode === "single");
   const showCanvasViewport = isPreviewMode && studioViewMode === "canvas";
@@ -225,10 +239,10 @@ export default function ResumeLivePreviewPanel({
   const lastThemeFitSigRef = useRef<string | null>(null);
   const layoutManualOverrideRef = useRef(false);
   const lastLayoutActionRef = useRef<CanvasPageLayoutAction>("stack");
+  const [layoutStackFillMode, setLayoutStackFillMode] = useState<A4StackFillMode>("fill-page-exact");
   const lastLayerOrderSigRef = useRef("");
   const layoutPositionsRef = useRef(freeLayout.positions);
   layoutPositionsRef.current = freeLayout.positions;
-  const [manualSizedSections, setManualSizedSections] = useState<Set<string>>(() => new Set());
   const manualSizedSectionsRef = useRef(manualSizedSections);
   manualSizedSectionsRef.current = manualSizedSections;
 
@@ -276,8 +290,9 @@ export default function ResumeLivePreviewPanel({
       resumeData,
       layerOrder: canvasDoc.layers.order,
       themeFontScale: themeContentScale(themeCustomization),
+      stackFillMode: layoutStackFillMode,
     }),
-    [resumeData, canvasDoc.layers.order, themeCustomization],
+    [resumeData, canvasDoc.layers.order, themeCustomization, layoutStackFillMode],
   );
 
   const markLayoutManualOverride = useCallback(() => {
@@ -380,6 +395,8 @@ export default function ResumeLivePreviewPanel({
   const applyPageLayout = useCallback(
     (action: CanvasPageLayoutAction) => {
       lastLayoutActionRef.current = action;
+      const fillMode = stackFillModeForLayoutAction(action);
+      if (fillMode) setLayoutStackFillMode(fillMode);
       markLayoutManualOverride();
       clearAllManualSized();
 
@@ -413,8 +430,10 @@ export default function ResumeLivePreviewPanel({
       if (Object.keys(patches).length > 0) {
         freeLayout.applyPositionsBatch(patches, { constrainA4: true });
       }
-      window.setTimeout(() => runColumnReflow(), 80);
-      window.setTimeout(() => runColumnReflow(), 480);
+      if (!shouldSkipColumnReflowAfterLayout(action)) {
+        window.setTimeout(() => runColumnReflow(), 80);
+        window.setTimeout(() => runColumnReflow(), 480);
+      }
     },
     [
       canvasDoc.activePageId,
@@ -432,33 +451,62 @@ export default function ResumeLivePreviewPanel({
     ],
   );
 
+  const applyDraftThroughPrintPlan = useCallback(
+    (draftPositions: Record<string, FreeLayoutPosition>) => {
+      const patches = editorPositionsFromDraftThroughPrintPlan({
+        sectionIds: freeLayoutSectionIds,
+        draftPositions,
+        resumeData,
+        freeLayoutEnabled: true,
+        layerOrder: canvasDoc.layers.order,
+        themeFontScale: themeContentScale(themeCustomization),
+        studioPages: canvasDoc.pages,
+        studioSectionPageMap: canvasDoc.sectionPageMap,
+        clampPosition: clampPositionToA4Page,
+      });
+      freeLayout.applyPositionsBatch(patches, { constrainA4: true });
+    },
+    [
+      canvasDoc.layers.order,
+      canvasDoc.pages,
+      canvasDoc.sectionPageMap,
+      freeLayout.applyPositionsBatch,
+      freeLayoutSectionIds,
+      resumeData,
+      themeCustomization,
+    ],
+  );
+
   const handleResetLayout = useCallback(() => {
     layoutManualOverrideRef.current = false;
     clearAllManualSized();
-    freeLayout.resetLayout();
-  }, [clearAllManualSized, freeLayout.resetLayout]);
+    applyDraftThroughPrintPlan(
+      createFamilyDefaultPositions(templateFamily, freeLayoutSectionIds, resumeData),
+    );
+  }, [
+    applyDraftThroughPrintPlan,
+    clearAllManualSized,
+    freeLayoutSectionIds,
+    resumeData,
+    templateFamily,
+  ]);
 
   const applyLayoutPreset = useCallback(
     (presetId: FreeLayoutPresetId) => {
       markLayoutManualOverride();
       clearAllManualSized();
-      const raw = createFreeLayoutPresetPositions(presetId, freeLayoutSectionIds);
-      const patches: Record<string, FreeLayoutPosition> = {};
-      for (const id of freeLayoutSectionIds) {
-        const pos = raw[id];
-        if (!pos) continue;
-        patches[id] = clampPositionToA4Page({ ...pos, pageId: canvasDoc.activePageId });
-      }
-      freeLayout.applyPositionsBatch(patches, { constrainA4: true });
+      applyDraftThroughPrintPlan(
+        createFreeLayoutPresetPositions(presetId, freeLayoutSectionIds, resumeData),
+      );
       window.setTimeout(() => runColumnReflow(), 120);
     },
     [
-      canvasDoc.activePageId,
-      freeLayout.applyPositionsBatch,
+      applyDraftThroughPrintPlan,
+      clearAllManualSized,
       freeLayoutSectionIds,
       markLayoutManualOverride,
       runColumnReflow,
-      clearAllManualSized,
+      resumeData,
     ],
   );
 
@@ -726,6 +774,12 @@ export default function ResumeLivePreviewPanel({
   );
 
   useEffect(() => {
+    if (freeLayout.enabled) {
+      void import("./FreeLayoutStudioCanvas");
+    }
+  }, [freeLayout.enabled]);
+
+  useEffect(() => {
     if (isPreviewMode && studioViewMode === "canvas" && !freeLayout.enabled) {
       freeLayout.setEnabled(true);
     }
@@ -875,9 +929,40 @@ export default function ResumeLivePreviewPanel({
     }
     if (workspaceReflowDoneRef.current) return;
     workspaceReflowDoneRef.current = true;
+
+    const pageIds = canvasDoc.pages.map((p) => p.id);
+    const currentPositions = layoutPositionsRef.current;
+    const synced = syncSectionHeightsToContentAllPages(
+      freeLayoutSectionIds,
+      currentPositions,
+      pageIds,
+      canvasDoc.getSectionPageId,
+      layoutContent,
+    );
+    const next = preserveManualSizedDimensions(currentPositions, synced);
+    const heightChanged = freeLayoutSectionIds.some((id) => {
+      const before = currentPositions[id];
+      const after = next[id];
+      if (!before || !after) return false;
+      return before.height !== after.height;
+    });
+    if (heightChanged) {
+      freeLayout.applyPositionsBatch(next, { constrainA4: true });
+    }
+
     scheduleColumnReflow(120);
     scheduleColumnReflow(480);
-  }, [showFreeLayoutCanvas, showCanvasViewport, scheduleColumnReflow]);
+  }, [
+    canvasDoc.getSectionPageId,
+    canvasDoc.pages,
+    freeLayout.applyPositionsBatch,
+    freeLayoutSectionIds,
+    layoutContent,
+    preserveManualSizedDimensions,
+    scheduleColumnReflow,
+    showCanvasViewport,
+    showFreeLayoutCanvas,
+  ]);
 
   useEffect(() => {
     if (!showCanvasViewport) {
@@ -1104,7 +1189,7 @@ export default function ResumeLivePreviewPanel({
                 onPositionChange={handleFreeLayoutPositionChange}
                 variant={freeLayoutVariant}
                 chromeMode={freeLayout.livePreview ? "live" : "full"}
-                autoFitContentHeight={false}
+                autoFitContentHeight
                 manualSizedSections={manualSizedSections}
                 onSectionManualSize={markSectionManualSized}
                 onSectionClearManualSize={clearSectionManualSized}
@@ -1169,7 +1254,11 @@ export default function ResumeLivePreviewPanel({
         </div>
       ) : (
         <div className="relative flex flex-1 min-h-0 overflow-hidden rounded-2xl preview-panel-frame">
-          <div className="absolute inset-0 flex flex-col min-w-0 min-h-0 overflow-hidden">
+          <div
+            className={`absolute inset-0 flex flex-col min-w-0 min-h-0 ${
+              showFreeLayoutCanvas ? "overflow-auto scrollbar-thin" : "overflow-hidden"
+            }`}
+          >
             {showFreeLayoutCanvas ? (
               <Suspense fallback={<CanvasLoadingFallback />}>
               <FreeLayoutStudioCanvas
@@ -1413,6 +1502,35 @@ export default function ResumeLivePreviewPanel({
           </motion.button>
         )}
       </div>
+      ) : null}
+
+      {freeLayout.enabled ? (
+        <div id={EXPORT_SURFACE_HOST_ID} className="resume-export-surface-host" aria-hidden="true">
+          <Suspense fallback={null}>
+            <FreeLayoutStudioCanvas
+              variant="export"
+              resumeData={resumeData}
+              highlightChanges={highlightChanges}
+              analysisResult={analysisResult}
+              previewZoom={100}
+              grayscaleMode={grayscaleMode}
+              sections={freeLayout.sections}
+              positions={exportSurfacePositions}
+              onPositionChange={() => {}}
+              chromeMode="full"
+              autoFitContentHeight={false}
+              manualSizedSections={manualSizedSections}
+              templateStyle={activeTemplate}
+              resolvedTheme={resolvedTheme}
+              containerId="resume-export-surface-inner"
+              outerClassName="resume-export-surface-inner"
+              showGrid={false}
+              showMargins={false}
+              snapEnabled={false}
+              canvasLayout={exportCanvasLayout}
+            />
+          </Suspense>
+        </div>
       ) : null}
 
     </div>

@@ -153,11 +153,20 @@ var RedisRateLimitStore = class {
 var RATE_LIMIT_WINDOW_MS = 6e4;
 function readRateLimitMax() {
   const parsed = Number(process.env.NSR_RATE_LIMIT_MAX);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 60;
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  if (process.env.NODE_ENV !== "production") return 1e3;
+  return 60;
 }
-var EXEMPT_API_PATHS = /* @__PURE__ */ new Set(["/api/subscription/sync", "/api/subscription/status"]);
+var EXEMPT_API_PATHS = /* @__PURE__ */ new Set([
+  "/api/health",
+  "/api/config",
+  "/api/subscription/sync",
+  "/api/subscription/status"
+]);
 function isRateLimitExemptPath(apiPath) {
-  return EXEMPT_API_PATHS.has(apiPath);
+  if (EXEMPT_API_PATHS.has(apiPath)) return true;
+  if (process.env.NSR_JOBSDB_SIMULATE === "1" && apiPath === "/api/jobsdb/search") return true;
+  return false;
 }
 function resolveRateLimitStoreKind() {
   const raw = (process.env.NSR_RATE_LIMIT_STORE ?? "memory").toLowerCase();

@@ -218,6 +218,29 @@ describe("canvasLayoutTools", () => {
     expect(result.experience.y).toBeGreaterThan(result.summary.y);
   });
 
+  it("stack-compact uses tighter gaps than fill-page stack when resume data is present", async () => {
+    const { initialResumeData } = await import("../data");
+    const ids = ["header", "summary", "experience", "education", "skills", "languages"];
+    const loose = {
+      header: { x: 48, y: 48, width: 698, height: 200, pageId },
+      summary: { x: 48, y: 300, width: 698, height: 200, pageId },
+      experience: { x: 48, y: 600, width: 698, height: 400, pageId },
+      education: { x: 48, y: 1000, width: 698, height: 120, pageId },
+      skills: { x: 48, y: 1120, width: 698, height: 120, pageId },
+      languages: { x: 48, y: 1240, width: 698, height: 80, pageId },
+    };
+    const content = { resumeData: initialResumeData };
+    const stacked = applyPageLayoutAction("stack", ids, loose, pageId, getPageId, undefined, content);
+    const compact = applyPageLayoutAction("stack-compact", ids, loose, pageId, getPageId, undefined, content);
+
+    const stackGap = stacked.summary.y - (stacked.header.y + stacked.header.height);
+    const compactGap = compact.summary.y - (compact.header.y + compact.header.height);
+
+    expect(compactGap).toBeLessThanOrEqual(12);
+    expect(compactGap).toBeLessThan(stackGap);
+    expect(compact.languages.y + compact.languages.height).toBeLessThanOrEqual(1123 - 48 + 8);
+  });
+
   it("layouts two columns on page", () => {
     const layerOrder = ["experience", "summary", "header"];
     const result = applyPageLayoutAction("two-column", sectionIds, positions, pageId, getPageId, undefined, {

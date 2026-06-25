@@ -331,6 +331,11 @@ describe("html2canvasColorFix", () => {
     expect(isHtml2CanvasSafeCssValue(rgb)).toBe(true);
     expect(rgb).toMatch(/^rgba?\(/);
   });
+
+  it("exports letter-spacing reset for html2canvas capture", async () => {
+    const { resetLetterSpacingForHtml2Canvas } = await import("../lib/html2canvasColorFix");
+    expect(typeof resetLetterSpacingForHtml2Canvas).toBe("function");
+  });
 });
 
 describe("pdfHtmlRenderer", () => {

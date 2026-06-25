@@ -1,6 +1,9 @@
 import { ResumeData } from "../types";
 import { TemplateFamily } from "./resumeTemplateCatalog";
 import { NSR_STORAGE_KEYS } from "./storageKeys";
+import { A4_CONTENT_WIDTH } from "./a4Page";
+import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
+import { LAYOUT_PAGE_GAP } from "./layoutDocument/geometry";
 
 export interface FreeLayoutPosition {
   x: number;
@@ -23,7 +26,7 @@ export const FREE_LAYOUT_LIVE_PREVIEW_KEY = NSR_STORAGE_KEYS.freeLayoutLivePrevi
 export const SNAP_GRID_SIZE = 24;
 export const SNAP_THRESHOLD = 12;
 export const FREE_LAYOUT_MIN_WIDTH = 180;
-export const FREE_LAYOUT_MAX_WIDTH = 700;
+export const FREE_LAYOUT_MAX_WIDTH = A4_CONTENT_WIDTH;
 export const FREE_LAYOUT_MIN_HEIGHT = 72;
 export const FREE_LAYOUT_MAX_HEIGHT = 1027;
 
@@ -200,111 +203,6 @@ export function buildFreeLayoutSections(data: ResumeData): FreeLayoutSectionMeta
   return sections;
 }
 
-export function createDefaultFreeLayoutPositions(
-  sectionIds: string[],
-  family: TemplateFamily = "modern",
-): Record<string, FreeLayoutPosition> {
-  return createFamilyDefaultPositions(family, sectionIds);
-}
-
-function stackSections(
-  positions: Record<string, FreeLayoutPosition>,
-  sectionIds: string[],
-  orderedIds: string[],
-  x: number,
-  y: number,
-  width: number,
-  gap = 16,
-): number {
-  let cursorY = y;
-  for (const id of orderedIds) {
-    if (!sectionIds.includes(id)) continue;
-    const height = defaultSectionHeight(id);
-    place(positions, sectionIds, id, x, cursorY, width, height);
-    cursorY += height + gap;
-  }
-  return cursorY;
-}
-
-/** 對應固定版型族的預設段落排位 */
-export function createFamilyDefaultPositions(
-  family: TemplateFamily,
-  sectionIds: string[],
-): Record<string, FreeLayoutPosition> {
-  const positions: Record<string, FreeLayoutPosition> = {};
-
-  if (family === "modern") {
-    place(positions, sectionIds, "header", 40, 32, 714, 140);
-    place(positions, sectionIds, "summary", 40, 188, 714, 120);
-    place(positions, sectionIds, "experience", 40, 324, 714, 280);
-    place(positions, sectionIds, "education", 40, 620, 360, 120);
-    place(positions, sectionIds, "projects", 416, 620, 338, 150);
-    place(positions, sectionIds, "certifications", 40, 790, 714, 100);
-    place(positions, sectionIds, "volunteer", 40, 906, 714, 100);
-    place(positions, sectionIds, "languages", 40, 1022, 714, 80);
-    place(positions, sectionIds, "skills", 40, 1122, 714, 110);
-    return Object.fromEntries(sectionIds.map((id) => [id, positions[id]]));
-  }
-
-  if (family === "classic") {
-    const centerX = 100;
-    const width = 594;
-    const order = [
-      "header",
-      "summary",
-      "experience",
-      "education",
-      "projects",
-      "skills",
-      "certifications",
-      "volunteer",
-      "languages",
-    ];
-    let y = 40;
-    const gap = 16;
-    for (const id of order) {
-      if (!sectionIds.includes(id)) continue;
-      const height = defaultSectionHeight(id);
-      place(positions, sectionIds, id, centerX, y, width, height);
-      y += height + gap;
-    }
-    for (const id of sectionIds) {
-      if (positions[id]) continue;
-      const height = defaultSectionHeight(id);
-      place(positions, sectionIds, id, centerX, y, width, height);
-      y += height + gap;
-    }
-    return Object.fromEntries(sectionIds.map((id) => [id, positions[id]]));
-  }
-
-  // minimalist — 左側欄 4/12 + 右主欄 8/12
-  const leftX = 40;
-  const leftW = 248;
-  const rightX = 304;
-  const rightW = 450;
-  stackSections(
-    positions,
-    sectionIds,
-    ["header", "skills", "education", "certifications", "languages"],
-    leftX,
-    32,
-    leftW,
-  );
-  stackSections(
-    positions,
-    sectionIds,
-    ["summary", "experience", "projects", "volunteer"],
-    rightX,
-    32,
-    rightW,
-  );
-  for (const id of sectionIds) {
-    if (positions[id]) continue;
-    place(positions, sectionIds, id, rightX, 32, rightW);
-  }
-  return Object.fromEntries(sectionIds.map((id) => [id, positions[id]]));
-}
-
 export type FamilyLayoutStorage = Partial<Record<TemplateFamily, Record<string, FreeLayoutPosition>>>;
 
 export function readFamilyLayoutStorage(): FamilyLayoutStorage {
@@ -350,91 +248,6 @@ export const FREE_LAYOUT_PRESETS: FreeLayoutPreset[] = [
   { id: "compact" },
 ];
 
-function place(
-  positions: Record<string, FreeLayoutPosition>,
-  sectionIds: string[],
-  id: string,
-  x: number,
-  y: number,
-  width: number,
-  height?: number,
-) {
-  if (!sectionIds.includes(id)) return;
-  positions[id] = normalizeFreeLayoutPosition(
-    { x, y, width, height: height ?? defaultSectionHeight(id) },
-    id,
-  );
-}
-
-export function createFreeLayoutPresetPositions(
-  presetId: FreeLayoutPresetId,
-  sectionIds: string[],
-): Record<string, FreeLayoutPosition> {
-  if (presetId === "modern" || presetId === "classic" || presetId === "minimalist") {
-    return createFamilyDefaultPositions(presetId, sectionIds);
-  }
-
-  const base = createFamilyDefaultPositions("modern", sectionIds);
-  const positions: Record<string, FreeLayoutPosition> = { ...base };
-
-  if (presetId === "two-column") {
-    place(positions, sectionIds, "header", 40, 32, 714, 140);
-    place(positions, sectionIds, "summary", 40, 188, 350, 120);
-    place(positions, sectionIds, "experience", 410, 188, 344, 280);
-    place(positions, sectionIds, "education", 40, 324, 350, 110);
-    place(positions, sectionIds, "projects", 410, 484, 344, 150);
-    place(positions, sectionIds, "skills", 40, 454, 350, 110);
-    place(positions, sectionIds, "certifications", 410, 650, 344, 100);
-    place(positions, sectionIds, "volunteer", 40, 580, 350, 100);
-    place(positions, sectionIds, "languages", 410, 762, 344, 80);
-    return Object.fromEntries(sectionIds.map((id) => [id, positions[id]]));
-  }
-
-  if (presetId === "magazine") {
-    place(positions, sectionIds, "header", 32, 28, 730, 130);
-    place(positions, sectionIds, "summary", 32, 172, 730, 110);
-    place(positions, sectionIds, "experience", 400, 300, 362, 300);
-    place(positions, sectionIds, "education", 32, 300, 350, 110);
-    place(positions, sectionIds, "projects", 32, 430, 350, 150);
-    place(positions, sectionIds, "skills", 32, 596, 350, 110);
-    place(positions, sectionIds, "certifications", 400, 620, 362, 100);
-    place(positions, sectionIds, "volunteer", 32, 726, 350, 100);
-    place(positions, sectionIds, "languages", 400, 736, 362, 80);
-    return Object.fromEntries(sectionIds.map((id) => [id, positions[id]]));
-  }
-
-  // compact — centered single column
-  const centerX = 100;
-  const width = 594;
-  let y = 36;
-  const gap = 14;
-  for (const id of sectionIds) {
-    const height = defaultSectionHeight(id);
-    place(positions, sectionIds, id, centerX, y, width, height);
-    y += height + gap;
-  }
-
-  return Object.fromEntries(sectionIds.map((id) => [id, positions[id]]));
-}
-
-export function mergeFreeLayoutPositions(
-  stored: Record<string, Partial<FreeLayoutPosition>> | null,
-  sectionIds: string[],
-  family: TemplateFamily = "modern",
-): Record<string, FreeLayoutPosition> {
-  const defaults = createFamilyDefaultPositions(family, sectionIds);
-  if (!stored) return defaults;
-
-  const merged: Record<string, FreeLayoutPosition> = {};
-  for (const id of sectionIds) {
-    merged[id] = normalizeFreeLayoutPosition(
-      { ...defaults[id], ...stored[id] },
-      id,
-    );
-  }
-  return merged;
-}
-
 export function estimateFreeLayoutCanvasHeight(
   sectionIds: string[],
   positions: Record<string, FreeLayoutPosition>,
@@ -453,11 +266,10 @@ export function estimateFreeLayoutCanvasHeight(
 }
 
 function computeMultiPageDeskHeight(pageCount: number): number {
-  const gap = 48;
-  return pageCount * FREE_LAYOUT_CANVAS.minHeight + Math.max(0, pageCount - 1) * gap;
+  return pageCount * FREE_LAYOUT_CANVAS.minHeight + Math.max(0, pageCount - 1) * LAYOUT_PAGE_GAP;
 }
 
 export const FREE_LAYOUT_CANVAS = {
-  width: 794,
-  minHeight: 1123,
+  width: CANVAS_PAGE_WIDTH,
+  minHeight: CANVAS_PAGE_HEIGHT,
 } as const;

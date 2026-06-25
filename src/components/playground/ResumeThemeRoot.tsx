@@ -1,5 +1,6 @@
 import React, { CSSProperties, ReactNode } from "react";
 import { ResolvedResumeTheme } from "../../lib/resumeThemeCustomization";
+import { A4_PAGE_CLASS, A4_PAGE_DATA_ATTR } from "../../lib/a4Page";
 
 export interface ResumeThemeRootProps {
   resolved: ResolvedResumeTheme;
@@ -7,6 +8,10 @@ export interface ResumeThemeRootProps {
   className?: string;
   style?: CSSProperties;
   exportPage?: boolean;
+  /** Marks print-surface DOM — skip motion flatten during PDF capture */
+  exportStatic?: boolean;
+  /** Lock sheet to A4 dimensions (794×1123px) — preview & print WYSIWYG */
+  a4Surface?: boolean;
   children: ReactNode;
 }
 
@@ -20,6 +25,8 @@ export default function ResumeThemeRoot({
   className = "",
   style,
   exportPage = false,
+  exportStatic = false,
+  a4Surface = false,
   children,
 }: ResumeThemeRootProps) {
   const sectionTitleTransform = resolved.uppercaseSectionTitles ? "uppercase" : "none";
@@ -44,7 +51,7 @@ export default function ResumeThemeRoot({
   return (
     <div
       id={id}
-      className={`resume-theme-root ${flagClasses} ${className}`.trim()}
+      className={`resume-theme-root ${a4Surface ? A4_PAGE_CLASS : ""} ${flagClasses} ${className}`.trim()}
       style={{
         ...resolved.cssVars,
         ...style,
@@ -52,6 +59,8 @@ export default function ResumeThemeRoot({
       }}
       data-theme-custom={resolved.active ? "true" : "false"}
       {...(exportPage ? { "data-resume-export-page": "" } : {})}
+      {...(exportStatic ? { "data-export-static": "" } : {})}
+      {...(a4Surface ? { [A4_PAGE_DATA_ATTR]: "" } : {})}
     >
       {children}
     </div>

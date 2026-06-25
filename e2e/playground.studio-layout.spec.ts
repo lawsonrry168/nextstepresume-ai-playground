@@ -115,7 +115,7 @@ test.describe("playground studio layout", () => {
   test("selected section shows collapsible resize controls on click", async ({ page }) => {
     await gotoStudio(page);
 
-    const section = page.locator("#free-layout-section-header");
+    const section = page.locator("#canvas-studio-viewport #free-layout-section-header");
     await expect(section).toBeVisible();
     await section.click();
 
