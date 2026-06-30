@@ -15,6 +15,7 @@ const PDF_CAPTURE_WIDTH_PX = CANVAS_PAGE_WIDTH;
 const PDF_CAPTURE_SCALE = 2;
 const MIN_CONTENT_HEIGHT_PX = 200;
 const PDF_PAGE_SLICE_PX = CANVAS_PAGE_HEIGHT * PDF_CAPTURE_SCALE;
+const MARGINALIA_EXPORT_SAFE_LEFT_PX = 28;
 
 function syncCloneHeightsFromStudio(clone: HTMLElement): void {
   const liveSheet =
@@ -99,6 +100,11 @@ function createExportHost(
     .join(";");
 
   clone.classList.remove("resume-pdf-capture-active");
+  if (fixedA4) {
+    clone.classList.add("resume-pdf-export-compact");
+  } else {
+    clone.classList.remove("resume-pdf-export-compact");
+  }
   clone.style.transform = "none";
   clone.style.transformOrigin = "top left";
   clone.style.width = `${width}px`;
@@ -159,6 +165,52 @@ function assertCanvasHasInk(canvas: HTMLCanvasElement): void {
   if (width < 16 || canvas.height < 16) {
     throw new Error(pdfExportError("snapshotEmpty"));
   }
+}
+
+function findCanvasLeftInkX(
+  canvas: HTMLCanvasElement,
+  options?: { step?: number; sampleHeight?: number },
+): number | null {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  const step = Math.max(1, options?.step ?? 4);
+  const sampleHeight = Math.min(canvas.height, options?.sampleHeight ?? Math.round(canvas.height * 0.85));
+  const { data, width } = ctx.getImageData(0, 0, canvas.width, sampleHeight);
+
+  for (let x = 0; x < width; x += step) {
+    for (let y = 0; y < sampleHeight; y += step) {
+      const idx = (y * width + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const a = data[idx + 3];
+      if (a < 12) continue;
+      const nearPaper = r >= 243 && g >= 238 && b >= 225;
+      if (!nearPaper) return x;
+    }
+  }
+
+  return null;
+}
+
+function ensureMarginaliaCanvasSafeLeftInset(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const leftInk = findCanvasLeftInkX(canvas, { step: 3 });
+  if (leftInk == null || leftInk >= MARGINALIA_EXPORT_SAFE_LEFT_PX) {
+    return canvas;
+  }
+
+  const shiftX = MARGINALIA_EXPORT_SAFE_LEFT_PX - leftInk;
+  const shifted = document.createElement("canvas");
+  shifted.width = canvas.width;
+  shifted.height = canvas.height;
+  const ctx = shifted.getContext("2d");
+  if (!ctx) return canvas;
+
+  ctx.fillStyle = "#faf6eb";
+  ctx.fillRect(0, 0, shifted.width, shifted.height);
+  ctx.drawImage(canvas, shiftX, 0);
+  return shifted;
 }
 
 export function findResumeExportRoot(): HTMLElement | null {
@@ -341,9 +393,48 @@ function isStrictCanvasA4Page(element: HTMLElement): boolean {
   return shouldCaptureAsFixedA4(element);
 }
 
+async function captureLiveVisualPreviewSheet(source: HTMLElement): Promise<HTMLCanvasElement> {
+  await document.fonts.ready;
+
+  const logicalWidth = Math.max(
+    1,
+    source.offsetWidth,
+    source.scrollWidth,
+  );
+  const logicalHeight = Math.max(
+    1,
+    source.offsetHeight,
+    source.scrollHeight,
+  );
+  source.classList.add("resume-pdf-capture-active");
+
+  try {
+    const canvas = await captureElementWithHtml2Canvas(source, {
+      styleSource: source,
+      scale: PDF_CAPTURE_SCALE,
+      backgroundColor: "#faf6eb",
+      width: logicalWidth,
+      height: logicalHeight,
+      windowWidth: logicalWidth,
+      windowHeight: logicalHeight,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    assertCanvasHasInk(canvas);
+    return canvas;
+  } finally {
+    source.classList.remove("resume-pdf-capture-active");
+  }
+}
+
 /** Capture exactly one A4 page — no vertical slicing */
 async function captureCanvasA4Page(source: HTMLElement): Promise<HTMLCanvasElement> {
-  return captureExportElement(source, { fixedA4: true });
+  const canvas = await captureExportElement(source, { fixedA4: true });
+  if (source.classList.contains("resume-template-marginalia")) {
+    return ensureMarginaliaCanvasSafeLeftInset(canvas);
+  }
+  return canvas;
 }
 
 /** Capture full content then slice into A4 pages (handles overflow) */
@@ -383,13 +474,16 @@ export async function captureResumeCanvasPages(): Promise<HTMLCanvasElement[]> {
   return canvases;
 }
 
-/** WYSIWYG: prefer the live studio/preview canvas over the hidden print mirror */
+/** Prefer the dedicated static A4 export surface; fall back to the live preview only if needed. */
 export async function resolveVisualPdfExportPages(): Promise<HTMLElement[]> {
+  const hidden = findHiddenExportSurfacePages();
+  if (hidden.length > 0) return hidden;
+
   const live = findLiveFreeLayoutExportPages();
   if (live.length > 0) return live;
 
-  const hidden = findHiddenExportSurfacePages();
-  if (hidden.length > 0) return hidden;
+  const visibleSheet = findLegacyPrintableSheet();
+  if (visibleSheet) return [visibleSheet];
 
   const waited = await waitForPrintSurfacePages();
   if (waited.length > 0) return waited;

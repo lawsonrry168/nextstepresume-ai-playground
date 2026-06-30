@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AppMode } from "../lib/appMode";
 
 export interface PublicAppConfig {
+  loaded: boolean;
   appMode: AppMode;
   billing: {
     provider: "demo" | "stripe";
@@ -19,6 +20,7 @@ export interface PublicAppConfig {
 }
 
 const DEFAULT_CONFIG: PublicAppConfig = {
+  loaded: false,
   appMode: "playground",
   billing: { provider: "demo", checkoutEnabled: false },
   auth: {
@@ -38,9 +40,14 @@ export function useAppConfig(): PublicAppConfig {
   useEffect(() => {
     let cancelled = false;
     void fetch("/api/config")
-      .then((response) => (response.ok ? response.json() : DEFAULT_CONFIG))
-      .then((data: PublicAppConfig) => {
-        if (!cancelled) setConfig(data);
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`config_fetch_failed:${response.status}`);
+        }
+        return response.json() as Promise<Omit<PublicAppConfig, "loaded">>;
+      })
+      .then((data) => {
+        if (!cancelled) setConfig({ ...data, loaded: true });
       })
       .catch(() => {
         if (!cancelled) setConfig(DEFAULT_CONFIG);

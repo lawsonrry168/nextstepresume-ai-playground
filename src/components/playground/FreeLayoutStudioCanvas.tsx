@@ -40,6 +40,7 @@ import ResumeSectionRenderer from "../resume/ResumeSectionRenderer";
 import CanvasPageMarginGuides from "./canvas/CanvasPageMarginGuides";
 import { useI18n } from "../../i18n";
 import { getSectionLabel } from "../../lib/sectionLabels";
+import { useResponsiveScale } from "../../hooks/useResponsiveScale";
 
 export interface FreeLayoutStudioCanvasProps {
   resumeData: ResumeData;
@@ -60,6 +61,7 @@ export interface FreeLayoutStudioCanvasProps {
   gridStrength?: number;
   showMargins?: boolean;
   snapEnabled?: boolean;
+  autoFitToWidth?: boolean;
   /** When false, skip DOM ResizeObserver height auto-fit (Canvas Studio sync handles sizing) */
   autoFitContentHeight?: boolean;
   /** Sections the user manually resized — skip auto-fit / batch height sync */
@@ -76,35 +78,6 @@ export interface FreeLayoutStudioCanvasProps {
     onSelectSection: (id: string | null) => void;
     getZIndex: (id: string) => number;
   };
-}
-
-function useFitToContainerWidth(enabled: boolean, canvasWidth: number) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [fitScale, setFitScale] = useState(1);
-
-  useEffect(() => {
-    if (!enabled) {
-      setFitScale(1);
-      return;
-    }
-
-    const node = containerRef.current;
-    if (!node) return;
-
-    const update = () => {
-      const horizontalPadding = 32;
-      const available = node.clientWidth - horizontalPadding;
-      if (available <= 0) return;
-      setFitScale(Math.min(1, available / canvasWidth));
-    };
-
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [enabled, canvasWidth]);
-
-  return { containerRef, fitScale };
 }
 
 export default function FreeLayoutStudioCanvas({
@@ -126,6 +99,7 @@ export default function FreeLayoutStudioCanvas({
   gridStrength = 55,
   showMargins = false,
   snapEnabled = true,
+  autoFitToWidth = true,
   autoFitContentHeight = true,
   manualSizedSections,
   onSectionManualSize,
@@ -143,6 +117,7 @@ export default function FreeLayoutStudioCanvas({
   const isLiveChrome = isEdit && effectiveChromeMode === "live";
   const isNarrowPanel = containerId === "resume-container-box";
   const isMultiPage = Boolean(canvasLayout?.pages.length);
+  const shouldAutoFitToWidth = autoFitToWidth && !isExport && !isCanvasStudioHost;
   const family = getTemplateFamily(templateStyle);
   const resolved = resolvedTheme ?? resolveResumeTheme(templateStyle, DEFAULT_THEME_CUSTOMIZATION);
   const tc = resolved.classes;
@@ -170,7 +145,11 @@ export default function FreeLayoutStudioCanvas({
     return snapToGrid(maxBottom, SNAP_GRID_SIZE);
   }, [isEdit, isExport, sections, positions, canvasLayout?.hiddenSections]);
 
-  const { containerRef, fitScale } = useFitToContainerWidth(isNarrowPanel, FREE_LAYOUT_CANVAS.width);
+  const { containerRef, fitScale } = useResponsiveScale({
+    enabled: shouldAutoFitToWidth,
+    contentWidth: FREE_LAYOUT_CANVAS.width,
+    padding: isNarrowPanel ? 24 : 40,
+  });
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
   const pageCount = canvasLayout?.pages.length ?? 1;
   const isSingleA4Page = !isMultiPage;
@@ -201,7 +180,7 @@ export default function FreeLayoutStudioCanvas({
   );
 
   const zoomFactor = previewZoom / 100;
-  const effectiveScale = isNarrowPanel ? fitScale * zoomFactor : zoomFactor;
+  const effectiveScale = (shouldAutoFitToWidth ? fitScale : 1) * zoomFactor;
   const scaledHeight = canvasHeight * effectiveScale;
 
   const defaultOuter = isNarrowPanel

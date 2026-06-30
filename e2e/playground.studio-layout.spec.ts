@@ -125,4 +125,90 @@ test.describe("playground studio layout", () => {
     await resizeToggle.click();
     await expect(section.locator('input[type="range"]')).toHaveCount(2);
   });
+
+  test("canvas viewport auto-fits when the window is resized", async ({ page }) => {
+    await gotoStudio(page);
+
+    await page.setViewportSize({ width: 1120, height: 860 });
+
+    await expect
+      .poll(async () => {
+        const metrics = await page.evaluate(() => {
+          const stage = document.querySelector("#canvas-studio-viewport .canvas-studio-stage") as HTMLElement | null;
+          const pageSheet = document.querySelector(
+            "#canvas-studio-viewport .canvas-page-sheet-paper--a4",
+          ) as HTMLElement | null;
+          if (!stage || !pageSheet) return null;
+          const stageRect = stage.getBoundingClientRect();
+          const sheetRect = pageSheet.getBoundingClientRect();
+          return {
+            stageWidth: Math.round(stageRect.width),
+            sheetWidth: Math.round(sheetRect.width),
+          };
+        });
+        return metrics ? metrics.sheetWidth < metrics.stageWidth : null;
+      })
+      .toBe(true);
+
+    const metrics = await page.evaluate(() => {
+      const stage = document.querySelector("#canvas-studio-viewport .canvas-studio-stage") as HTMLElement | null;
+      const pageSheet = document.querySelector(
+        "#canvas-studio-viewport .canvas-page-sheet-paper--a4",
+      ) as HTMLElement | null;
+      if (!stage || !pageSheet) return null;
+      const stageRect = stage.getBoundingClientRect();
+      const sheetRect = pageSheet.getBoundingClientRect();
+      return {
+        stageWidth: Math.round(stageRect.width),
+        sheetWidth: Math.round(sheetRect.width),
+      };
+    });
+
+    expect(metrics).not.toBeNull();
+    expect(metrics!.sheetWidth).toBeLessThan(metrics!.stageWidth);
+  });
+
+  test("single-page preview keeps the A4 sheet within the viewport width", async ({ page }) => {
+    await gotoStudio(page);
+    await page.locator("#studio-btn-single").click();
+    await expect(page.locator("#resume-container-box-workspace")).toBeVisible();
+
+    await page.setViewportSize({ width: 920, height: 900 });
+
+    await expect
+      .poll(async () => {
+        const metrics = await page.evaluate(() => {
+          const container = document.querySelector("#resume-container-box-workspace") as HTMLElement | null;
+          const sheet = container?.querySelector(
+            ".preview-resume-sheet, #resume-printable-sheet",
+          ) as HTMLElement | null;
+          if (!container || !sheet) return null;
+          const containerRect = container.getBoundingClientRect();
+          const sheetRect = sheet.getBoundingClientRect();
+          return {
+            containerWidth: Math.round(containerRect.width),
+            sheetWidth: Math.round(sheetRect.width),
+          };
+        });
+        return metrics ? metrics.sheetWidth < metrics.containerWidth : null;
+      })
+      .toBe(true);
+
+    const metrics = await page.evaluate(() => {
+      const container = document.querySelector("#resume-container-box-workspace") as HTMLElement | null;
+      const sheet = container?.querySelector(
+        ".preview-resume-sheet, #resume-printable-sheet",
+      ) as HTMLElement | null;
+      if (!container || !sheet) return null;
+      const containerRect = container.getBoundingClientRect();
+      const sheetRect = sheet.getBoundingClientRect();
+      return {
+        containerWidth: Math.round(containerRect.width),
+        sheetWidth: Math.round(sheetRect.width),
+      };
+    });
+
+    expect(metrics).not.toBeNull();
+    expect(metrics!.sheetWidth).toBeLessThan(metrics!.containerWidth);
+  });
 });

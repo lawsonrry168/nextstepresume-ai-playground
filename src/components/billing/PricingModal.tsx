@@ -20,12 +20,16 @@ function cellLabel(t: (k: string) => string, value: string): string {
 export default function PricingModal() {
   const { t, locale } = useI18n();
   const { pricingOpen, closePricing, plan, setPlan } = useSubscription();
-  const { billing } = useAppConfig();
+  const { billing, loaded: configLoaded } = useAppConfig();
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionPlan | null>(null);
   const catalog = getPlanCatalog();
   const sprintPass = getSprintPassPrice();
 
   async function handleSelectPlan(itemPlan: SubscriptionPlan) {
+    if (!configLoaded) {
+      return;
+    }
+
     if (itemPlan === "starter") {
       setPlan("starter");
       closePricing();
@@ -166,7 +170,7 @@ export default function PricingModal() {
                 </ul>
                 <button
                   type="button"
-                  disabled={isCurrent || checkoutLoading === item.plan}
+                  disabled={!configLoaded || isCurrent || checkoutLoading === item.plan}
                   onClick={() => void handleSelectPlan(item.plan)}
                   className={`w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wide cursor-pointer transition-all ${
                     isCurrent
@@ -178,6 +182,8 @@ export default function PricingModal() {
                 >
                   {checkoutLoading === item.plan
                     ? t("billing.checkoutLoading")
+                    : !configLoaded
+                      ? t("common.loading")
                     : isCurrent
                       ? t("billing.currentPlan")
                       : billing.checkoutEnabled && item.plan !== "starter"

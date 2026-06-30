@@ -275,6 +275,7 @@ export default function ResumeSimulatorPlayground({
     } catch (err) {
       console.error("DOCX export error:", err);
       pushToast("error", err instanceof Error ? err.message : t("toast.export.docxExportFailed"));
+      throw err;
     }
   }, [exportToDocx, pushToast, t]);
 
@@ -297,6 +298,7 @@ export default function ResumeSimulatorPlayground({
     setIsPreviewMode(true);
   }, [setStudioViewMode]);
   const [previewZoom, setPreviewZoom] = useState<number>(100);
+  const [previewAutoFit, setPreviewAutoFit] = useState<boolean>(true);
   const [grayscaleMode, setGrayscaleMode] = useState<boolean>(false);
 
   const contentEditor = usePlaygroundContentEditor({
@@ -359,6 +361,8 @@ export default function ResumeSimulatorPlayground({
     liveAtsScore,
     previewZoom,
     setPreviewZoom,
+    previewAutoFit,
+    setPreviewAutoFit,
     grayscaleMode,
     setGrayscaleMode,
     studioViewMode,

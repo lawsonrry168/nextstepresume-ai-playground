@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { Minimize2, TrendingUp, Check } from "lucide-react";
 import { ResumeData, AnalysisResult, TemplateStyle } from "../../types";
@@ -40,8 +40,9 @@ import { EXPORT_SURFACE_HOST_ID } from "../../lib/layoutExportSurface";
 import { editorPositionsFromDraftThroughPrintPlan } from "../../lib/layoutDocument";
 import type { FreeLayoutPresetId, FreeLayoutPosition } from "../../lib/resumeFreeLayout";
 import { estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
-import { LAYOUT_PAGE_WIDTH } from "../../lib/layoutDocument/geometry";
+import { LAYOUT_PAGE_HEIGHT, LAYOUT_PAGE_WIDTH } from "../../lib/layoutDocument/geometry";
 import { createFamilyDefaultPositions, createFreeLayoutPresetPositions } from "../../lib/layoutPresets";
+import { useResponsiveScale } from "../../hooks/useResponsiveScale";
 
 export interface ResumeLivePreviewPanelProps {
   isPreviewMode: boolean;
@@ -49,6 +50,8 @@ export interface ResumeLivePreviewPanelProps {
   liveAtsScore: number;
   previewZoom: number;
   setPreviewZoom: (value: number) => void;
+  previewAutoFit: boolean;
+  setPreviewAutoFit: (value: boolean | ((prev: boolean) => boolean)) => void;
   grayscaleMode: boolean;
   setGrayscaleMode: (value: boolean | ((prev: boolean) => boolean)) => void;
   studioViewMode: StudioViewMode;
@@ -88,12 +91,61 @@ function CanvasLoadingFallback() {
   );
 }
 
+function ResponsivePreviewFrame({
+  containerId,
+  containerClassName,
+  autoFit,
+  zoomPercent,
+  fitPadding = 32,
+  contentWidth = LAYOUT_PAGE_WIDTH,
+  contentHeight = LAYOUT_PAGE_HEIGHT,
+  children,
+}: {
+  containerId?: string;
+  containerClassName: string;
+  autoFit: boolean;
+  zoomPercent: number;
+  fitPadding?: number;
+  contentWidth?: number;
+  contentHeight?: number;
+  children: ReactNode;
+}) {
+  const { containerRef, fitScale } = useResponsiveScale({
+    enabled: autoFit,
+    contentWidth,
+    padding: fitPadding,
+  });
+  const effectiveScale = autoFit ? fitScale : zoomPercent / 100;
+  const scaledHeight = Math.max(1, contentHeight * effectiveScale);
+
+  return (
+    <div ref={containerRef} className={containerClassName} id={containerId}>
+      <div className="preview-resume-stage" style={{ minHeight: scaledHeight }}>
+        <div className="shrink-0" style={{ width: contentWidth, height: scaledHeight }}>
+          <div
+            className="shrink-0"
+            style={{
+              width: contentWidth,
+              transform: `scale(${effectiveScale})`,
+              transformOrigin: "top center",
+            }}
+          >
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ResumeLivePreviewPanel({
   isPreviewMode,
   setIsPreviewMode,
   liveAtsScore,
   previewZoom,
   setPreviewZoom,
+  previewAutoFit,
+  setPreviewAutoFit,
   grayscaleMode,
   setGrayscaleMode,
   studioViewMode,
@@ -127,6 +179,7 @@ export default function ResumeLivePreviewPanel({
   const { canUseFeature, openUpgrade } = useSubscription();
   const templateFamily = getTemplateFamily(activeTemplate);
   const isMarginalia = isMarginaliaNotebookTemplate(activeTemplate);
+  const shouldAutoFitPreview = previewAutoFit || !isPreviewMode;
   const resumeSheetClass = `preview-resume-sheet preview-resume-sheet--a4 w-[${LAYOUT_PAGE_WIDTH}px] max-w-[${LAYOUT_PAGE_WIDTH}px] mx-auto rounded-xl overflow-hidden transition-all duration-300${
     isMarginalia ? " preview-resume-sheet--marginalia" : " transform-gpu"
   }`;
@@ -1040,6 +1093,8 @@ export default function ResumeLivePreviewPanel({
             setHighlightChanges={setHighlightChanges}
             previewZoom={previewZoom}
             setPreviewZoom={setPreviewZoom}
+            previewAutoFit={previewAutoFit}
+            setPreviewAutoFit={setPreviewAutoFit}
             history={history}
             handleUndo={handleUndo}
             chatOpen={chatOpen}
@@ -1102,11 +1157,13 @@ export default function ResumeLivePreviewPanel({
                         {t("resumeLivePreview.apply")}
                       </button>
                     </div>
-                    <div className="min-w-0 overflow-hidden rounded-lg border preview-comparison-slot p-2 shadow-sm">
-                      <div
-                        className="min-w-0 w-full origin-top-left"
-                        style={{ zoom: previewZoom / 100 }}
-                      >
+                    <ResponsivePreviewFrame
+                      containerClassName="min-w-0 overflow-hidden rounded-lg border preview-comparison-slot p-2 shadow-sm"
+                      autoFit={shouldAutoFitPreview}
+                      zoomPercent={previewZoom}
+                      fitPadding={8}
+                    >
+                      <div className="min-w-0">
                         <ResumeTemplateRenderer
                           data={resumeData}
                           style={col.style}
@@ -1120,7 +1177,7 @@ export default function ResumeLivePreviewPanel({
                           resolvedTheme={resolveResumeTheme(col.style, themeCustomization)}
                         />
                       </div>
-                    </div>
+                    </ResponsivePreviewFrame>
                   </div>
                 ))}
               </div>
@@ -1197,6 +1254,7 @@ export default function ResumeLivePreviewPanel({
                 resolvedTheme={resolvedTheme}
                 containerId="resume-container-box-canvas"
                 outerClassName="canvas-studio-node-host flex-none overflow-visible border-0 shadow-none bg-transparent p-0"
+                autoFitToWidth={false}
                 showGrid={canvasDoc.showGrid}
                 gridStrength={canvasDoc.gridStrength}
                 showMargins={canvasDoc.showMargins}
@@ -1224,18 +1282,18 @@ export default function ResumeLivePreviewPanel({
               onSectionClearManualSize={clearSectionManualSized}
               templateStyle={activeTemplate}
               resolvedTheme={resolvedTheme}
+              autoFitToWidth={shouldAutoFitPreview}
             />
             </Suspense>
           ) : (
-            <div 
-              className={`flex-1 min-h-0 preview-canvas border border-t-0 rounded-b-2xl p-4 md:p-6 overflow-auto scrollbar-thin shadow-inner ${grayscaleMode ? 'grayscale' : ''}`} 
-              id="resume-container-box-workspace"
+            <ResponsivePreviewFrame
+              containerId="resume-container-box-workspace"
+              containerClassName={`flex-1 min-h-0 preview-canvas border border-t-0 rounded-b-2xl p-4 md:p-6 overflow-auto scrollbar-thin shadow-inner ${grayscaleMode ? "grayscale" : ""}`}
+              autoFit={shouldAutoFitPreview}
+              zoomPercent={previewZoom}
+              fitPadding={32}
             >
-              <div className="preview-resume-stage">
-                <div 
-                  className={resumeSheetClass}
-                  style={{ transform: `scale(${previewZoom}%)`, transformOrigin: "top center" }}
-                >
+              <div className={resumeSheetClass}>
                 <ResumeTemplateRenderer
                   data={resumeData}
                   style={activeTemplate}
@@ -1247,9 +1305,8 @@ export default function ResumeLivePreviewPanel({
                   highlightMatcherActive={matcherHighlightActive}
                   resolvedTheme={resolvedTheme}
                 />
-                </div>
               </div>
-            </div>
+            </ResponsivePreviewFrame>
           )}
         </div>
       ) : (
@@ -1279,15 +1336,18 @@ export default function ResumeLivePreviewPanel({
                 templateStyle={activeTemplate}
                 containerId="resume-container-box"
                 resolvedTheme={resolvedTheme}
+                autoFitToWidth
               />
               </Suspense>
             ) : (
-              <div
-                className="preview-canvas flex-1 min-h-[380px] overflow-y-auto scrollbar-thin p-3 md:p-5"
-                id="resume-container-box"
+              <ResponsivePreviewFrame
+                containerId="resume-container-box"
+                containerClassName="preview-canvas flex-1 min-h-[380px] overflow-y-auto scrollbar-thin p-3 md:p-5"
+                autoFit
+                zoomPercent={previewZoom}
+                fitPadding={24}
               >
-                <div className="preview-resume-stage">
-                  <div className={resumeSheetClass}>
+                <div className={resumeSheetClass}>
                     <ResumeTemplateRenderer
                       data={resumeData}
                       style={activeTemplate}
@@ -1300,8 +1360,7 @@ export default function ResumeLivePreviewPanel({
                       resolvedTheme={resolvedTheme}
                     />
                   </div>
-                </div>
-              </div>
+              </ResponsivePreviewFrame>
             )}
           </div>
 

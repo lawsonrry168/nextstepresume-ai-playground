@@ -59,6 +59,7 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
     const { t } = useI18n();
     const stageRef = useRef<HTMLDivElement>(null);
     const { viewport, setPan, panBy, zoomBy, setZoom, zoomStep, resetView, fitToScreen } = useCanvasViewport();
+    const [autoFitEnabled, setAutoFitEnabled] = useState(true);
     const [isPanning, setIsPanning] = useState(false);
     const [spaceHeld, setSpaceHeld] = useState(false);
     const panStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
@@ -66,13 +67,36 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
     const cursorClass = isPanning || spaceHeld ? "canvas-studio-viewport--panning" : "";
 
     const handleFit = useCallback(() => {
+      setAutoFitEnabled(true);
       if (stageRef.current) {
         fitToScreen(stageRef.current, contentWidth, contentHeight);
       }
     }, [contentHeight, contentWidth, fitToScreen]);
 
+    const handleResetView = useCallback(() => {
+      setAutoFitEnabled(false);
+      resetView();
+    }, [resetView]);
+
+    const handleZoomBy = useCallback(
+      (delta: number, anchor?: { x: number; y: number }) => {
+        setAutoFitEnabled(false);
+        zoomBy(delta, anchor);
+      },
+      [zoomBy],
+    );
+
+    const handleSetZoom = useCallback(
+      (zoom: number, anchor?: { x: number; y: number }) => {
+        setAutoFitEnabled(false);
+        setZoom(zoom, anchor);
+      },
+      [setZoom],
+    );
+
     const handleZoomTo = useCallback(
       (zoom: number) => {
+        setAutoFitEnabled(false);
         const stage = stageRef.current;
         if (!stage) {
           setZoom(clampCanvasZoom(zoom));
@@ -90,6 +114,7 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
       (pageIndex: number) => {
         const stage = stageRef.current;
         if (!stage) return;
+        setAutoFitEnabled(false);
         const top = getPageTopOffset(pageIndex);
         const zoom = viewport.zoom;
         const panX = (stage.clientWidth - contentWidth * zoom) / 2;
@@ -103,11 +128,11 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
       ref,
       () => ({
         fitToScreen: handleFit,
-        resetView,
+        resetView: handleResetView,
         zoomTo: handleZoomTo,
         focusPage: handleFocusPage,
       }),
-      [handleFit, handleFocusPage, handleZoomTo, resetView],
+      [handleFit, handleFocusPage, handleResetView, handleZoomTo],
     );
 
     useEffect(() => {
@@ -141,18 +166,43 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
 
         if (e.ctrlKey || e.metaKey) {
           const delta = e.deltaY > 0 ? -zoomStep : zoomStep;
-          zoomBy(delta, anchor);
+          handleZoomBy(delta, anchor);
         } else {
+          setAutoFitEnabled(false);
           panBy(-e.deltaX, -e.deltaY);
         }
       };
 
       stage.addEventListener("wheel", onWheel, { passive: false });
       return () => stage.removeEventListener("wheel", onWheel);
-    }, [panBy, zoomBy, zoomStep]);
+    }, [handleZoomBy, panBy, zoomStep]);
+
+    useEffect(() => {
+      if (!autoFitEnabled) return;
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      let raf = 0;
+      const refit = () => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          handleFit();
+        });
+      };
+
+      refit();
+      const observer = new ResizeObserver(refit);
+      observer.observe(stage);
+
+      return () => {
+        observer.disconnect();
+        cancelAnimationFrame(raf);
+      };
+    }, [autoFitEnabled, handleFit]);
 
     const startPan = useCallback(
       (clientX: number, clientY: number) => {
+        setAutoFitEnabled(false);
         setIsPanning(true);
         panStartRef.current = { x: clientX, y: clientY, panX: viewport.panX, panY: viewport.panY };
       },
@@ -268,10 +318,10 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
               autoSaveLabel={autoSaveLabel}
               zoomPercent={zoomPercent}
               zoomStep={zoomStep}
-              onZoomBy={zoomBy}
-              onZoomChange={setZoom}
+              onZoomBy={handleZoomBy}
+              onZoomChange={handleSetZoom}
               onFit={handleFit}
-              onResetView={resetView}
+              onResetView={handleResetView}
               layerPanelOpen={layerPanelOpen}
               onToggleLayerPanel={onToggleLayerPanel}
               rightNavOpen={rightNavOpen}

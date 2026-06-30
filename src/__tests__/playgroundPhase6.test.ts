@@ -12,6 +12,8 @@ describe("playgroundLivePreviewProps", () => {
       liveAtsScore: 72,
       previewZoom: 100,
       setPreviewZoom: () => undefined,
+      previewAutoFit: true,
+      setPreviewAutoFit: () => undefined,
       grayscaleMode: false,
       setGrayscaleMode: () => undefined,
       studioViewMode: "single",

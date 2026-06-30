@@ -22,7 +22,6 @@ import CoverLetterEditor, {
   copyCoverLetterToClipboard,
   downloadCoverLetterText,
 } from "./CoverLetterEditor";
-import { downloadCoverLetterDocx } from "../../lib/coverLetterDocxExport";
 import InterviewPrepPanel from "./InterviewPrepPanel";
 import CompanyResearchPanel from "./CompanyResearchPanel";
 import ApplicationNotesEditor from "./ApplicationNotesEditor";
@@ -191,7 +190,7 @@ export default function ApplicationTrackerPanel({
         </div>
       </div>
 
-      {measuredFetch && pushToast && onJobImported && (
+      {measuredFetch && pushToast && onJobImported ? (
         <JobImportPanel
           measuredFetch={measuredFetch}
           pushToast={pushToast}
@@ -199,7 +198,7 @@ export default function ApplicationTrackerPanel({
           onCreateDraft={onCreateDraftFromImport}
           onOpenWizard={onOpenWizardWithImport}
         />
-      )}
+      ) : null}
 
       <FollowUpNotificationBar
         supported={notificationSupported}
@@ -274,18 +273,18 @@ export default function ApplicationTrackerPanel({
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500">
-                      {typeof matchScore === "number" && (
+                      {typeof matchScore === "number" ? (
                         <span className="inline-flex items-center gap-0.5">
                           <Sparkles className="w-3 h-3 text-violet-500" />
                           {t("applications.tracker.matchScore", { score: matchScore })}
                         </span>
-                      )}
-                      {typeof atsScore === "number" && (
+                      ) : null}
+                      {typeof atsScore === "number" ? (
                         <span className="inline-flex items-center gap-0.5">
                           <TrendingUp className="w-3 h-3 text-emerald-500" />
                           {t("applications.tracker.atsScore", { score: atsScore })}
                         </span>
-                      )}
+                      ) : null}
                       <span className="inline-flex items-center gap-0.5 ml-auto">
                         <Calendar className="w-3 h-3" />
                         {new Date(pkg.updatedAt).toLocaleDateString(dateLocale)}
@@ -371,7 +370,7 @@ export default function ApplicationTrackerPanel({
               </div>
 
               <div className="flex-1 overflow-y-auto scrollbar-thin p-3">
-                {detailTab === "overview" && (
+                {detailTab === "overview" ? (
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <ScoreCard
@@ -385,7 +384,7 @@ export default function ApplicationTrackerPanel({
                         tone="violet"
                       />
                     </div>
-                    {selected.matchAnalysis?.summary && (
+                    {selected.matchAnalysis?.summary ? (
                       <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
                         <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">
                           {t("applications.tracker.matchSummary")}
@@ -394,20 +393,20 @@ export default function ApplicationTrackerPanel({
                           {selected.matchAnalysis.summary}
                         </p>
                       </div>
-                    )}
+                    ) : null}
                     <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 max-h-40 overflow-y-auto scrollbar-thin">
                       <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">
                         {t("applications.tracker.jdExcerpt")}
                       </p>
                       <p className="text-xs text-slate-600 whitespace-pre-wrap">
                         {selected.jobDescription.slice(0, 600)}
-                        {selected.jobDescription.length > 600 ? "…" : ""}
+                        {selected.jobDescription.length > 600 ? "..." : ""}
                       </p>
                     </div>
                   </div>
-                )}
+                ) : null}
 
-                {detailTab === "cover" && (
+                {detailTab === "cover" ? (
                   <div className="space-y-3">
                     <div className="flex gap-2">
                       <button
@@ -439,13 +438,11 @@ export default function ApplicationTrackerPanel({
                       </button>
                       <button
                         type="button"
-                        disabled={!selected.coverLetter}
+                        disabled={!selected.coverLetter || !onExportCoverLetter}
                         onClick={() =>
                           selected.coverLetter &&
-                          downloadCoverLetterDocx(
-                            selected.coverLetter,
-                            `${selected.companyName}_cover_letter`.replace(/\s+/g, "_")
-                          )
+                          onExportCoverLetter &&
+                          onExportCoverLetter(selected)
                         }
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-slate-200 hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
                       >
@@ -458,34 +455,34 @@ export default function ApplicationTrackerPanel({
                       onChange={(next) => onSaveCoverLetter(selected.id, next)}
                     />
                   </div>
-                )}
+                ) : null}
 
-                {detailTab === "match" && (
+                {detailTab === "match" ? (
                   <div className="space-y-3">
                     {!selected.matchAnalysis ? (
                       <p className="text-sm text-slate-500">{t("applications.tracker.noMatchData")}</p>
                     ) : (
                       <>
-                        {selected.matchAnalysis.matchedStrengths.length > 0 && (
+                        {selected.matchAnalysis.matchedStrengths.length > 0 ? (
                           <Section title={t("applications.tracker.strengths")}>
                             <ul className="space-y-1">
-                              {selected.matchAnalysis.matchedStrengths.map((s, i) => (
+                              {selected.matchAnalysis.matchedStrengths.map((strength, index) => (
                                 <li
-                                  key={i}
+                                  key={index}
                                   className="text-xs text-emerald-800 bg-emerald-50 rounded px-2 py-1"
                                 >
-                                  {s}
+                                  {strength}
                                 </li>
                               ))}
                             </ul>
                           </Section>
-                        )}
-                        {selected.matchAnalysis.gaps.length > 0 && (
+                        ) : null}
+                        {selected.matchAnalysis.gaps.length > 0 ? (
                           <Section title={t("applications.tracker.gaps")}>
                             <div className="space-y-2">
-                              {selected.matchAnalysis.gaps.map((gap, i) => (
+                              {selected.matchAnalysis.gaps.map((gap, index) => (
                                 <div
-                                  key={i}
+                                  key={index}
                                   className="rounded-lg border border-amber-100 bg-amber-50/50 p-2"
                                 >
                                   <p className="text-xs font-bold text-amber-900">{gap.area}</p>
@@ -493,28 +490,28 @@ export default function ApplicationTrackerPanel({
                                     {gap.description}
                                   </p>
                                   <p className="text-[11px] text-emerald-700 mt-1">
-                                    → {gap.recommendation}
+                                    - {gap.recommendation}
                                   </p>
                                 </div>
                               ))}
                             </div>
                           </Section>
-                        )}
-                        {selected.matchAnalysis.actionPlan.length > 0 && (
+                        ) : null}
+                        {selected.matchAnalysis.actionPlan.length > 0 ? (
                           <Section title={t("applications.tracker.actionPlan")}>
                             <ol className="list-decimal list-inside space-y-1 text-xs text-slate-700">
-                              {selected.matchAnalysis.actionPlan.map((step, i) => (
-                                <li key={i}>{step}</li>
+                              {selected.matchAnalysis.actionPlan.map((step, index) => (
+                                <li key={index}>{step}</li>
                               ))}
                             </ol>
                           </Section>
-                        )}
+                        ) : null}
                       </>
                     )}
                   </div>
-                )}
+                ) : null}
 
-                {detailTab === "interview" && (
+                {detailTab === "interview" ? (
                   <InterviewPrepPanel
                     data={selected.interviewPrep}
                     loading={interviewLoading}
@@ -522,9 +519,9 @@ export default function ApplicationTrackerPanel({
                       onGenerateInterview ? () => onGenerateInterview(selected) : undefined
                     }
                   />
-                )}
+                ) : null}
 
-                {detailTab === "company" && (
+                {detailTab === "company" ? (
                   <CompanyResearchPanel
                     data={selected.companyResearch}
                     loading={companyLoading}
@@ -532,9 +529,9 @@ export default function ApplicationTrackerPanel({
                       onGenerateCompany ? () => onGenerateCompany(selected) : undefined
                     }
                   />
-                )}
+                ) : null}
 
-                {detailTab === "tracking" && (
+                {detailTab === "tracking" ? (
                   <div className="space-y-4">
                     {onSaveNotes ? (
                       <div key={selected.id}>
@@ -551,7 +548,7 @@ export default function ApplicationTrackerPanel({
                       <ApplicationTimeline events={selected.timeline ?? []} />
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             </>
           )}
@@ -577,7 +574,7 @@ function ScoreCard({
   return (
     <div className={`rounded-lg border p-3 ${color}`}>
       <p className="text-[10px] font-bold uppercase opacity-70">{label}</p>
-      <p className="text-2xl font-black mt-0.5">{score ?? "—"}</p>
+      <p className="text-2xl font-black mt-0.5">{score ?? "--"}</p>
     </div>
   );
 }

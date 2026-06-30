@@ -50,6 +50,7 @@ export function usePlaygroundPdfExport({
         } else {
           pushToast("error", err instanceof Error ? err.message : t("toast.export.pdfExportFailedGeneric"));
         }
+        throw err;
       } finally {
         setPdfExporting(false);
       }

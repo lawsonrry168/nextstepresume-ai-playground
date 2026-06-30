@@ -27,6 +27,7 @@ function ResumeMarginaliaDocument({
   const tc = resolved.classes;
   const cssVarKeys = resolved.cssVars as Record<string, string>;
   const hasCssVar = (key: string) => key in cssVarKeys;
+  const preserveInlineSpaces = (text: string) => text.replace(/ /g, "\u00A0");
 
   const nameClass = useMemo(
     () =>
@@ -89,32 +90,37 @@ function ResumeMarginaliaDocument({
         <div className="resume-marginalia-header-contact">
           {data.personalInfo.email && (
             <div className="resume-marginalia-contact-row md:justify-end">
-              <Mail className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} /> {data.personalInfo.email}
+              <Mail className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} />
+              <span>{preserveInlineSpaces(data.personalInfo.email)}</span>
             </div>
           )}
           {data.personalInfo.phone && (
             <div className="resume-marginalia-contact-row md:justify-end">
-              <Phone className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} /> {data.personalInfo.phone}
+              <Phone className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} />
+              <span>{preserveInlineSpaces(data.personalInfo.phone)}</span>
             </div>
           )}
           {data.personalInfo.location && (
             <div className="resume-marginalia-contact-row md:justify-end">
-              <MapPin className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} /> {data.personalInfo.location}
+              <MapPin className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} />
+              <span>{preserveInlineSpaces(data.personalInfo.location)}</span>
             </div>
           )}
           {data.personalInfo.website && (
             <div className="resume-marginalia-contact-row md:justify-end">
-              <Globe className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} /> {data.personalInfo.website}
+              <Globe className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} />
+              <span>{preserveInlineSpaces(data.personalInfo.website)}</span>
             </div>
           )}
           {data.personalInfo.linkedin && (
             <div className="resume-marginalia-contact-row md:justify-end">
-              <Linkedin className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} /> {data.personalInfo.linkedin}
+              <Linkedin className={`w-3.5 h-3.5 shrink-0 ${tc.accentText}`} />
+              <span>{preserveInlineSpaces(data.personalInfo.linkedin)}</span>
             </div>
           )}
           {getHkPersonalMetaLines(data.personalInfo).map((line) => (
             <div key={line} className={`text-[10px] resume-marginalia-contact-row md:justify-end`}>
-              {line}
+              <span>{preserveInlineSpaces(line)}</span>
             </div>
           ))}
         </div>

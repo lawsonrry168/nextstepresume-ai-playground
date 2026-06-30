@@ -9,6 +9,7 @@ import {
   downloadApplicationPackageOoxml,
   downloadCoverLetterOoxml,
   downloadResumeOoxml,
+  downloadResumeOoxmlFallback,
 } from "../lib/ooxmlApplicationExport";
 import type { ApplicationPackage } from "../types";
 import { t } from "../i18n/translate";
@@ -102,7 +103,12 @@ export function useApplicationExport(pushToast: ToastFn) {
       }
       setExporting(true);
       try {
-        await downloadResumeOoxml(pkg.resumeSnapshot, pkg.companyName);
+        try {
+          await downloadResumeOoxml(pkg.resumeSnapshot, pkg.companyName);
+        } catch (err) {
+          console.error("Styled application resume OOXML export failed, retrying with compatibility OOXML", err);
+          await downloadResumeOoxmlFallback(pkg.resumeSnapshot, pkg.companyName);
+        }
         subscription.consumeUsage("docxExport", 1);
         pushToast("success", t("toast.export.resumeDocxDownloaded"));
       } catch (err) {

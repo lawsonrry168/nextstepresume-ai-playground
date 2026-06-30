@@ -6,6 +6,7 @@ import {
   buildMatchReportMarkdown,
 } from "./applicationPackageExport";
 import { markdownToHtml, renderHtmlSectionsToPdf } from "./pdfHtmlRenderer";
+import { formatAtsDateRange, formatAtsInlineList } from "./resumeAtsPdfExport";
 
 function slug(base: string): string {
   return base.replace(/[^\w\-]+/g, "_").replace(/_+/g, "_").slice(0, 60);
@@ -28,8 +29,8 @@ function buildResumeMarkdown(pkg: ApplicationPackage): string {
   ];
 
   for (const exp of r.experience) {
-    lines.push(`### ${exp.role} — ${exp.company}`);
-    lines.push([exp.startDate, exp.endDate].filter(Boolean).join(" – "));
+    lines.push(`### ${exp.role} - ${exp.company}`);
+    lines.push(formatAtsDateRange(exp.startDate, exp.endDate));
     for (const b of exp.bullets) lines.push(`- ${b}`);
     lines.push("");
   }
@@ -45,7 +46,7 @@ function buildResumeMarkdown(pkg: ApplicationPackage): string {
 export async function downloadApplicationPackagePdf(pkg: ApplicationPackage): Promise<void> {
   const sections: string[] = [
     markdownToHtml(
-      `# Application Package\n${pkg.companyName} · ${pkg.jobTitle}\nStatus: ${pkg.status}`
+      `# Application Package\n${formatAtsInlineList([pkg.companyName, pkg.jobTitle])}\nStatus: ${pkg.status}`
     ),
     markdownToHtml(buildResumeMarkdown(pkg)),
   ];

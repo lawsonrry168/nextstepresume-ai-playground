@@ -1414,11 +1414,25 @@ html:not(.dark) .marginalia-theme {
 
 /* PDF-only: trim trailing padding so full-width export fits one A4 page */
 .resume-pdf-export-compact.resume-template-marginalia {
-  padding: 0 28px 0 3rem !important;
-  padding-bottom: 0 !important;
+  padding: var(--m-rule-step) 24px var(--m-rule-step) 2.75rem !important;
   background-origin: content-box !important;
   background-clip: border-box !important;
   background-position: 0 0 !important;
+  position: relative !important;
+  isolation: isolate !important;
+  border-radius: 1.125rem !important;
+  overflow: hidden !important;
+}
+
+.resume-pdf-export-compact.resume-template-marginalia::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid #c0392b;
+  border-radius: inherit;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 4;
 }
 
 .resume-pdf-export-compact .resume-marginalia-accent-bar-bleed,
@@ -1436,6 +1450,44 @@ html:not(.dark) .marginalia-theme {
   max-height: none !important;
   display: flex !important;
   align-items: flex-end !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-header-contact {
+  overflow: visible !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-contact-row {
+  min-width: 0;
+  height: auto !important;
+  min-height: var(--m-rule-step) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  align-items: center !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-contact-row > span {
+  display: inline-block !important;
+  white-space: break-spaces !important;
+  word-spacing: 0.08em !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-h2,
+.resume-pdf-export-compact .resume-marginalia-job-title,
+.resume-pdf-export-compact .resume-marginalia-job-block > .resume-marginalia-ruled-line {
+  height: auto !important;
+  min-height: var(--m-rule-step) !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-h2,
+.resume-pdf-export-compact .resume-marginalia-job-title {
+  align-items: center !important;
+}
+
+.resume-pdf-export-compact .resume-marginalia-card-ruled,
+.resume-pdf-export-compact .resume-marginalia-card-ruled > * {
+  overflow: visible !important;
 }
 
 .resume-template-marginalia .resume-marginalia-accent-bar {

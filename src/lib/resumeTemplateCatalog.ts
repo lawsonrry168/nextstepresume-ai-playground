@@ -157,6 +157,7 @@ const MINIMAL_DEFAULTS: Omit<ResumeTemplateTheme, "id" | "family"> = {
 };
 
 export const MARGINALIA_NOTEBOOK_TEMPLATE: TemplateStyle = "modern-01";
+export const DEFAULT_A4_TEMPLATE: TemplateStyle = "classic-02";
 
 export function isMarginaliaNotebookTemplate(style: TemplateStyle): boolean {
   return style === MARGINALIA_NOTEBOOK_TEMPLATE;
@@ -178,10 +179,10 @@ const LEGACY_TEMPLATE_MAP: Record<string, TemplateStyle> = {
 };
 
 export function normalizeTemplateStyle(value: string | null | undefined): TemplateStyle {
-  if (!value) return "modern-01";
+  if (!value) return DEFAULT_A4_TEMPLATE;
   if (value in LEGACY_TEMPLATE_MAP) return LEGACY_TEMPLATE_MAP[value];
   const found = RESUME_TEMPLATE_CATALOG.find((t) => t.id === value);
-  return found?.id ?? "modern-01";
+  return found?.id ?? DEFAULT_A4_TEMPLATE;
 }
 
 export function getTemplateFamily(style: TemplateStyle): TemplateFamily {

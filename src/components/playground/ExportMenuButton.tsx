@@ -8,8 +8,8 @@ import type { FeatureId } from "../../lib/subscription/types";
 
 export interface ExportMenuButtonProps {
   exportToJson: () => void;
-  exportToDocx: () => void;
-  exportToPDF: (mode: PdfExportMode) => void;
+  exportToDocx: () => Promise<void> | void;
+  exportToPDF: (mode: PdfExportMode) => Promise<void> | void;
   pdfExporting?: boolean;
   id?: string;
   variant?: "toolbar" | "studio";
@@ -32,7 +32,7 @@ export default function ExportMenuButton({
   variant = "toolbar",
 }: ExportMenuButtonProps) {
   const { t } = useI18n();
-  const { canUseFeature, consumeUsage, openUpgrade, plan } = useSubscription();
+  const { canUseFeature, canConsume, consumeUsage, openUpgrade, plan } = useSubscription();
   const [open, setOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -134,7 +134,7 @@ export default function ExportMenuButton({
     return !canUseFeature(feature);
   };
 
-  const runExport = (kind: ExportRunKind) => {
+  const runExport = async (kind: ExportRunKind) => {
     setOpen(false);
     const feature = exportGate[kind];
     if (feature && !canUseFeature(feature)) {
@@ -142,27 +142,30 @@ export default function ExportMenuButton({
       return;
     }
     if (kind === "visual") {
-      if (!consumeUsage("pdfVisualExport", 1)) {
+      if (!canConsume("pdfVisualExport", 1)) {
         openUpgrade("pdfVisualExport");
         return;
       }
-      exportToPDF("visual");
+      await exportToPDF("visual");
+      consumeUsage("pdfVisualExport", 1);
       return;
     }
     if (kind === "ats") {
-      if (!consumeUsage("pdfAtsExport", 1)) {
+      if (!canConsume("pdfAtsExport", 1)) {
         openUpgrade("export.pdfAts");
         return;
       }
-      exportToPDF("ats");
+      await exportToPDF("ats");
+      consumeUsage("pdfAtsExport", 1);
       return;
     }
     if (kind === "docx") {
-      if (!consumeUsage("docxExport", 1)) {
+      if (!canConsume("docxExport", 1)) {
         openUpgrade("export.docx");
         return;
       }
-      exportToDocx();
+      await exportToDocx();
+      consumeUsage("docxExport", 1);
       return;
     }
     exportToJson();
@@ -214,7 +217,7 @@ export default function ExportMenuButton({
               type="button"
               role="menuitem"
               disabled={disabled}
-              onClick={() => runExport(option.run)}
+              onClick={() => void runExport(option.run)}
               className={itemClass}
             >
               {locked ? (

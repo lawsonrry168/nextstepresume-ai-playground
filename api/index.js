@@ -1138,6 +1138,9 @@ function writeSubscriptionHeaders(res, clientId, record) {
 function applyPlanForClient(clientId, plan) {
   return setClientPlan(clientId, plan);
 }
+function shouldDowngradeAfterInvoicePaymentFailed(status) {
+  return status === "canceled" || status === "incomplete_expired" || status === "unpaid";
+}
 function registerBillingWebhookRoute(app) {
   app.post(
     "/api/billing/webhook",
@@ -1225,6 +1228,9 @@ async function handleStripeEvent(event, stripe) {
       const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
       if (!subscriptionId) return;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      if (!shouldDowngradeAfterInvoicePaymentFailed(subscription.status)) {
+        return;
+      }
       const clientId = resolveClientIdFromStripeMetadata(subscription.metadata);
       if (!clientId) return;
       applyPlanForClient(clientId, "starter");
@@ -2857,12 +2863,20 @@ function mergeImportedJobMeta(headline, extracted) {
 var PRIVATE_HOST_PATTERNS = [
   /^localhost$/i,
   /\.local$/i,
+  /\.internal$/i,
   /^127\.\d+\.\d+\.\d+$/,
   /^10\.\d+\.\d+\.\d+$/,
   /^192\.168\.\d+\.\d+$/,
   /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
   /^0\.0\.0\.0$/,
-  /^\[::1\]$/
+  /^::1$/i,
+  /^\[::1\]$/,
+  /^fc[0-9a-f:]+$/i,
+  /^fd[0-9a-f:]+$/i,
+  /^fe8[0-9a-f:]*$/i,
+  /^fe9[0-9a-f:]*$/i,
+  /^fea[0-9a-f:]*$/i,
+  /^feb[0-9a-f:]*$/i
 ];
 function parsePublicHttpUrl(raw) {
   const trimmed = raw.trim();
@@ -2877,6 +2891,9 @@ function parsePublicHttpUrl(raw) {
   }
   if (!["http:", "https:"].includes(parsed.protocol)) {
     return { ok: false, error: "Only http/https URLs are allowed" };
+  }
+  if (parsed.username || parsed.password) {
+    return { ok: false, error: "URLs with embedded credentials are not allowed" };
   }
   const host = parsed.hostname.toLowerCase();
   if (PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(host))) {
@@ -2901,9 +2918,102 @@ function validateJobsdbStartUrl(raw, country) {
   return base;
 }
 
+// server/lib/outboundUrlSafety.ts
+var import_promises = require("node:dns/promises");
+var import_node_net = require("node:net");
+function isPrivateIpv4(address) {
+  const parts = address.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [a, b] = parts;
+  if (a === 10 || a === 127) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 0) return true;
+  return false;
+}
+function expandIpv6(address) {
+  const normalized = address.toLowerCase().split("%")[0];
+  if (!normalized.includes(":")) return null;
+  const halves = normalized.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":").filter(Boolean) : [];
+  const right = halves[1] ? halves[1].split(":").filter(Boolean) : [];
+  if (left.length + right.length > 8) return null;
+  const fill = new Array(8 - left.length - right.length).fill("0");
+  const groups = halves.length === 2 ? [...left, ...fill, ...right] : left;
+  if (groups.length !== 8) return null;
+  return groups.map((group) => group.padStart(4, "0"));
+}
+function isPrivateIpv6(address) {
+  const groups = expandIpv6(address);
+  if (!groups) return false;
+  const first = parseInt(groups[0], 16);
+  const second = parseInt(groups[1], 16);
+  if (first === 0 && second === 0 && groups.slice(2, 7).every((group) => parseInt(group, 16) === 0)) {
+    const last = parseInt(groups[7], 16);
+    if (last === 0 || last === 1) return true;
+  }
+  if ((first & 65024) === 64512) return true;
+  if ((first & 65472) === 65152) return true;
+  return false;
+}
+function isPrivateIpAddress(address) {
+  const version = (0, import_node_net.isIP)(address);
+  if (version === 4) return isPrivateIpv4(address);
+  if (version === 6) return isPrivateIpv6(address);
+  return false;
+}
+async function assertSafeOutboundUrl(url) {
+  const resolved = await (0, import_promises.lookup)(url.hostname, { all: true, verbatim: true });
+  if (resolved.length === 0) {
+    throw new Error("Unable to resolve remote host");
+  }
+  const blocked = resolved.find((entry) => isPrivateIpAddress(entry.address));
+  if (blocked) {
+    throw new Error("Private or local URLs are not allowed");
+  }
+}
+
 // server/routes/jd.ts
 var JD_FETCH_TIMEOUT_MS = 12e3;
 var JD_FETCH_MAX_BYTES = 512 * 1024;
+var JD_FETCH_MAX_REDIRECTS = 5;
+var JD_FETCH_ACCEPT_HEADER = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8";
+function isRedirectStatus(status) {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+async function fetchJobDescriptionPage(startUrl, signal) {
+  let currentUrl = startUrl;
+  for (let redirectCount = 0; redirectCount <= JD_FETCH_MAX_REDIRECTS; redirectCount += 1) {
+    await assertSafeOutboundUrl(currentUrl);
+    const response = await fetch(currentUrl, {
+      signal,
+      redirect: "manual",
+      headers: {
+        "User-Agent": "NextStepResume-Playground-JD-Fetch/1.0 (+local dev; job description import)",
+        Accept: JD_FETCH_ACCEPT_HEADER,
+        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"
+      }
+    });
+    if (!isRedirectStatus(response.status)) {
+      return response;
+    }
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error(`Redirect missing location header (HTTP ${response.status})`);
+    }
+    const nextUrl = new URL(location, currentUrl);
+    const parsedRedirect = parsePublicHttpUrl(nextUrl.toString());
+    if (parsedRedirect.ok === false) {
+      throw new Error(parsedRedirect.error);
+    }
+    currentUrl = parsedRedirect.url;
+  }
+  throw new Error("Too many redirects while fetching job description");
+}
 function registerJdRoutes(app) {
   app.post("/api/jd/extract-keywords", (req, res) => {
     const { jobDescription } = req.body;
@@ -2925,15 +3035,7 @@ function registerJdRoutes(app) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), JD_FETCH_TIMEOUT_MS);
     try {
-      const response = await fetch(parsed.url.toString(), {
-        signal: controller.signal,
-        redirect: "follow",
-        headers: {
-          "User-Agent": "NextStepResume-Playground-JD-Fetch/1.0 (+local dev; job description import)",
-          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"
-        }
-      });
+      const response = await fetchJobDescriptionPage(parsed.url, controller.signal);
       if (!response.ok) {
         return res.status(422).json({
           error: `\u7121\u6CD5\u6293\u53D6\u9801\u9762\uFF08HTTP ${response.status}\uFF09\u3002\u82E5\u70BA\u767B\u5165\u7246\u6216 SPA \u7DB2\u7AD9\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587\u3002`
@@ -3171,43 +3273,40 @@ var import_multer = __toESM(require("multer"), 1);
 var HK_RESUME = {
   personalInfo: {
     name: "Alex Chan",
-    title: "Software Engineer",
+    title: "Frontend Product Engineer",
     email: "alex.chan@email.com",
     phone: "+852 9123 4567",
-    website: "",
-    location: "Hong Kong",
+    website: "https://alexchan.dev",
+    location: "Hong Kong SAR",
     linkedin: "linkedin.com/in/alexchan",
     rightToWork: "Permanent Hong Kong Resident",
     noticePeriod: "1 month",
-    expectedSalary: "HK$35,000 / month"
+    expectedSalary: "HK$42,000 / month"
   },
-  summary: "Software engineer with 3+ years delivering React and TypeScript products for regional users. Experienced in performance optimisation, design systems, and cross-functional delivery in Hong Kong and APAC teams. Seeking a product-focused role where code quality and user outcomes matter.",
+  summary: "Frontend product engineer with 4 years of experience shipping React and TypeScript workflows for Hong Kong and APAC teams.",
   experience: [
     {
       id: "exp-1",
       company: "Harbour Digital Solutions",
-      role: "Software Engineer",
-      startDate: "2023-01",
+      role: "Frontend Product Engineer",
+      startDate: "2022-08",
       endDate: "Present",
       location: "Quarry Bay, Hong Kong (Hybrid)",
       bullets: [
-        "Delivered reusable React components aligned with design tokens across three customer-facing surfaces.",
-        "Reduced initial route load time by ~18% through code splitting on high-traffic dashboard pages.",
-        "Partnered with product and QA in two-week sprints; maintained predictable release cadence.",
-        "Introduced TypeScript interfaces and unit tests that cut regression bugs in core flows."
+        "Led the rebuild of a merchant operations workspace in React and TypeScript, reducing daily task completion time for support teams by 22%.",
+        "Created a shared component library and token system used across admin, onboarding, and analytics surfaces."
       ]
     },
     {
       id: "exp-2",
-      company: "Kowloon FinTech Labs",
-      role: "Junior Developer",
-      startDate: "2021-07",
-      endDate: "2022-12",
-      location: "Kowloon Bay, Hong Kong",
+      company: "Kowloon Commerce Cloud",
+      role: "Software Engineer",
+      startDate: "2020-07",
+      endDate: "2022-07",
+      location: "Kowloon Bay, Hong Kong (Hybrid)",
       bullets: [
-        "Built internal tooling with Node.js and REST APIs supporting operations teams.",
-        "Maintained marketing sites and validated form flows for lead capture campaigns.",
-        "Collaborated with senior engineers on refactors and Jira-backed delivery."
+        "Built internal order and catalog tooling with React, Node.js, and REST APIs for operations and merchandising teams across three markets.",
+        "Delivered dashboard reporting modules that replaced manual spreadsheet workflows and saved analyst time each week."
       ]
     }
   ],
@@ -3225,8 +3324,8 @@ var HK_RESUME = {
     {
       id: "proj-1",
       name: "Sprintboard HK",
-      description: "Kanban task board with drag-and-drop columns and local persistence.",
-      techStack: "React, TypeScript, Tailwind CSS",
+      description: "Kanban planning tool with drag-and-drop boards and keyboard shortcuts.",
+      techStack: "React, TypeScript, Tailwind CSS, Zustand",
       url: "https://github.com/alexchan/sprintboard-hk"
     }
   ],
@@ -3234,11 +3333,12 @@ var HK_RESUME = {
     "JavaScript",
     "TypeScript",
     "React",
+    "Next.js",
     "Node.js",
     "Tailwind CSS",
+    "Design Systems",
+    "Accessibility",
     "REST APIs",
-    "Git",
-    "Agile / Scrum",
     "Cantonese",
     "English"
   ],
@@ -3247,40 +3347,37 @@ var HK_RESUME = {
 var DEFAULT_RESUME = {
   personalInfo: {
     name: "Morgan Keats",
-    title: "Frontend Developer",
+    title: "Senior Frontend Developer",
     email: "morgan.keats@proton.me",
     phone: "+1 (312) 847-1928",
     website: "https://morgankeats.dev",
     location: "Chicago, Illinois",
     linkedin: "linkedin.com/in/morgan-keats"
   },
-  summary: "Frontend developer with 3+ years building React dashboards and customer-facing web apps. Comfortable with TypeScript, design systems, and cross-functional delivery. Looking for a product team where performance and accessibility matter.",
+  summary: "Frontend developer with 5 years building React dashboards, ecommerce journeys, and internal tools for product-led teams.",
   experience: [
     {
       id: "exp-1",
       company: "Northline Digital",
-      role: "Junior React Engineer",
-      startDate: "2024-03",
+      role: "Senior Frontend Developer",
+      startDate: "2022-02",
       endDate: "Present",
       location: "Chicago, IL (Hybrid)",
       bullets: [
-        "Shipped reusable React components aligned with Figma specs and design tokens.",
-        "Reduced bug backlog by pairing with senior engineers on refactors and Jira triage.",
-        "Integrated icon libraries and Tailwind utility patterns across three product surfaces.",
-        "Cut initial route load time ~18% by splitting vendor bundles on high-traffic pages."
+        "Owned frontend delivery for a B2B operations suite used by sales and finance teams, shipping roadmap items across onboarding, reporting, and approvals workflows.",
+        "Introduced reusable React patterns, table primitives, and token-based styling that made new feature delivery more predictable."
       ]
     },
     {
       id: "exp-2",
       company: "Harborstack Labs",
-      role: "Software Developer Intern",
-      startDate: "2023-06",
-      endDate: "2024-02",
+      role: "Frontend Developer",
+      startDate: "2020-06",
+      endDate: "2022-01",
       location: "Remote",
       bullets: [
-        "Contributed to two-week sprints with daily standups and stakeholder demos.",
-        "Maintained marketing landing pages and validated form submission flows.",
-        "Adopted TypeScript interfaces, Tailwind layouts, and lightweight state patterns."
+        "Built and maintained client-facing marketing sites, lead-capture journeys, and lightweight dashboards for startup clients.",
+        "Helped migrate legacy UI to TypeScript and reusable Tailwind patterns, improving consistency across new builds."
       ]
     }
   ],
@@ -3298,8 +3395,8 @@ var DEFAULT_RESUME = {
     {
       id: "proj-1",
       name: "Sprintboard",
-      description: "Kanban-style task board with drag-and-drop columns and local persistence.",
-      techStack: "React, Tailwind, HTML5 Drag-and-Drop",
+      description: "Kanban planning tool with drag-and-drop columns and command palette actions.",
+      techStack: "React, TypeScript, Tailwind, DnD Kit",
       url: "https://github.com/morgankeats/sprintboard"
     }
   ],
@@ -3307,13 +3404,16 @@ var DEFAULT_RESUME = {
     "JavaScript",
     "React.js",
     "TypeScript",
+    "Next.js",
     "Tailwind CSS",
+    "Design Systems",
+    "Accessibility",
     "Git & GitHub",
     "REST APIs",
     "Jira",
-    "Node.js",
-    "Responsive Design"
-  ]
+    "Node.js"
+  ],
+  languages: ["English (Native)", "Spanish (Professional Working Proficiency)"]
 };
 var initialResumeData = isHongKongMarket() ? HK_RESUME : DEFAULT_RESUME;
 var HK_JOB_DESCRIPTION = `
@@ -3716,6 +3816,7 @@ var MINIMAL_DEFAULTS = {
   ...MODERN_DEFAULTS,
   sheetFont: "font-sans"
 };
+var DEFAULT_A4_TEMPLATE = "classic-02";
 var RESUME_TEMPLATE_CATALOG = [
   ...buildFamilyThemes("modern", MODERN_PRESETS, MODERN_DEFAULTS),
   ...buildFamilyThemes("classic", CLASSIC_PRESETS, CLASSIC_DEFAULTS),
@@ -3728,10 +3829,10 @@ var LEGACY_TEMPLATE_MAP = {
   minimalist: "minimalist-01"
 };
 function normalizeTemplateStyle(value) {
-  if (!value) return "modern-01";
+  if (!value) return DEFAULT_A4_TEMPLATE;
   if (value in LEGACY_TEMPLATE_MAP) return LEGACY_TEMPLATE_MAP[value];
   const found = RESUME_TEMPLATE_CATALOG.find((t2) => t2.id === value);
-  return found?.id ?? "modern-01";
+  return found?.id ?? DEFAULT_A4_TEMPLATE;
 }
 
 // server/routes/sync.ts

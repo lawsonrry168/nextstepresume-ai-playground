@@ -43,6 +43,8 @@ export interface StudioPreviewHeaderProps {
   setHighlightChanges: (value: boolean | ((prev: boolean) => boolean)) => void;
   previewZoom: number;
   setPreviewZoom: (value: number) => void;
+  previewAutoFit: boolean;
+  setPreviewAutoFit: (value: boolean | ((prev: boolean) => boolean)) => void;
   history: ResumeData[];
   handleUndo: () => void;
   chatOpen: boolean;
@@ -78,6 +80,8 @@ export default function StudioPreviewHeader({
   setHighlightChanges,
   previewZoom,
   setPreviewZoom,
+  previewAutoFit,
+  setPreviewAutoFit,
   history,
   handleUndo,
   chatOpen,
@@ -121,13 +125,27 @@ export default function StudioPreviewHeader({
         AI
       </button>
       <div className="flex items-center bg-white rounded-md p-0.5 border border-slate-200 text-[10px] font-mono font-bold shrink-0">
-        {([90, 100, 105] as const).map((z) => (
+        <button
+          type="button"
+          onClick={() => setPreviewAutoFit(true)}
+          className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+            previewAutoFit ? "bg-emerald-600 text-white" : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Auto
+        </button>
+        {([90, 100, 115] as const).map((z) => (
           <button
             key={z}
             type="button"
-            onClick={() => setPreviewZoom(z)}
+            onClick={() => {
+              setPreviewAutoFit(false);
+              setPreviewZoom(z);
+            }}
             className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-              previewZoom === z ? "bg-emerald-600 text-white" : "text-slate-500 hover:text-slate-700"
+              !previewAutoFit && previewZoom === z
+                ? "bg-emerald-600 text-white"
+                : "text-slate-500 hover:text-slate-700"
             }`}
           >
             {z}%

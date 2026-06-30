@@ -34,5 +34,5 @@ export function buildCoverLetterDocxHtml(letter: CoverLetterResult, title = "Cov
 
 export function downloadCoverLetterDocx(letter: CoverLetterResult, filenameBase = "cover_letter"): void {
   const html = buildCoverLetterDocxHtml(letter);
-  downloadDocxFromHtml(html, `${filenameBase.replace(/\s+/g, "_")}.docx`);
+  downloadDocxFromHtml(html, `${filenameBase.replace(/\s+/g, "_")}.doc`);
 }

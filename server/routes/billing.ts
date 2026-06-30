@@ -33,6 +33,10 @@ function applyPlanForClient(clientId: string, plan: SubscriptionPlan) {
   return setClientPlan(clientId, plan);
 }
 
+export function shouldDowngradeAfterInvoicePaymentFailed(status: string): boolean {
+  return status === "canceled" || status === "incomplete_expired" || status === "unpaid";
+}
+
 export function registerBillingWebhookRoute(app: Express): void {
   app.post(
     "/api/billing/webhook",
@@ -126,6 +130,9 @@ async function handleStripeEvent(event: Stripe.Event, stripe: Stripe): Promise<v
         typeof invoice.subscription === "string" ? invoice.subscription : invoice.subscription?.id;
       if (!subscriptionId) return;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      if (!shouldDowngradeAfterInvoicePaymentFailed(subscription.status)) {
+        return;
+      }
       const clientId = resolveClientIdFromStripeMetadata(subscription.metadata);
       if (!clientId) return;
       applyPlanForClient(clientId, "starter");

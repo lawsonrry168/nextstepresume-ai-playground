@@ -30,7 +30,7 @@ export function buildMatchReportMarkdown(pkg: ApplicationPackage): string {
   const m = pkg.matchAnalysis;
   if (!m) return `# Match Report\n\nNo match analysis available.\n`;
   const lines = [
-    `# Match Report — ${pkg.companyName}`,
+    `# Match Report - ${pkg.companyName}`,
     ``,
     `**Role:** ${pkg.jobTitle}`,
     `**Overall Score:** ${m.overallScore}%`,
@@ -55,7 +55,7 @@ export function buildMatchReportMarkdown(pkg: ApplicationPackage): string {
 
 export function buildInterviewPrepMarkdown(prep: InterviewPrepResult): string {
   const lines = [
-    `# Interview Prep — ${prep.companyName}`,
+    `# Interview Prep - ${prep.companyName}`,
     ``,
     `**Role:** ${prep.jobTitle}`,
     ``,
@@ -75,7 +75,7 @@ export function buildInterviewPrepMarkdown(prep: InterviewPrepResult): string {
 
 export function buildCompanyResearchMarkdown(research: CompanyResearchResult): string {
   return [
-    `# Company Research — ${research.companyName}`,
+    `# Company Research - ${research.companyName}`,
     ``,
     `## Overview`,
     research.overview,
@@ -104,7 +104,7 @@ export function buildApplicationSummaryMarkdown(pkg: ApplicationPackage): string
   const ats = pkg.tailorAnalysis?.atsScore;
   const match = pkg.matchAnalysis?.overallScore;
   return [
-    `# Application Package — ${pkg.companyName}`,
+    `# Application Package - ${pkg.companyName}`,
     ``,
     `- **Role:** ${pkg.jobTitle}`,
     `- **Status:** ${pkg.status}`,

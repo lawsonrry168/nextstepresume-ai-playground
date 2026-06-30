@@ -3,12 +3,20 @@ export type UrlPolicyResult = { ok: true; url: URL } | { ok: false; error: strin
 const PRIVATE_HOST_PATTERNS = [
   /^localhost$/i,
   /\.local$/i,
+  /\.internal$/i,
   /^127\.\d+\.\d+\.\d+$/,
   /^10\.\d+\.\d+\.\d+$/,
   /^192\.168\.\d+\.\d+$/,
   /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
   /^0\.0\.0\.0$/,
+  /^::1$/i,
   /^\[::1\]$/,
+  /^fc[0-9a-f:]+$/i,
+  /^fd[0-9a-f:]+$/i,
+  /^fe8[0-9a-f:]*$/i,
+  /^fe9[0-9a-f:]*$/i,
+  /^fea[0-9a-f:]*$/i,
+  /^feb[0-9a-f:]*$/i,
 ];
 
 export function parsePublicHttpUrl(raw: string): UrlPolicyResult {
@@ -26,6 +34,9 @@ export function parsePublicHttpUrl(raw: string): UrlPolicyResult {
 
   if (!["http:", "https:"].includes(parsed.protocol)) {
     return { ok: false, error: "Only http/https URLs are allowed" };
+  }
+  if (parsed.username || parsed.password) {
+    return { ok: false, error: "URLs with embedded credentials are not allowed" };
   }
 
   const host = parsed.hostname.toLowerCase();

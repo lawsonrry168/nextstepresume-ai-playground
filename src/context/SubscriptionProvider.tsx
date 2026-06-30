@@ -36,6 +36,7 @@ import {
 } from "../lib/subscription/usageLedger";
 import { setSubscriptionSnapshot } from "../lib/subscriptionSnapshot";
 import type { TemplateStyle } from "../lib/resumeTemplateCatalog";
+import { resolveEffectiveClientPlan } from "../lib/subscription/effectiveClientPlan";
 
 export type UpgradeReason = FeatureId | UsageMetric | AiCreditAction | "general";
 
@@ -85,37 +86,79 @@ async function postPlanSync(plan: SubscriptionPlan): Promise<void> {
 }
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { appMode } = useAppConfig();
-  const demoUnlocked = appMode === "playground";
+  const { appMode, loaded: appConfigLoaded } = useAppConfig();
   const [plan, setPlanState] = useState<SubscriptionPlan>(() => readStoredPlan());
   const [ledger, setLedger] = useState<StoredUsageLedger>(() => readUsageLedger());
+  const [trustedServerPlan, setTrustedServerPlan] = useState<SubscriptionPlan>("starter");
+  const [trustedServerPlanReady, setTrustedServerPlanReady] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<UpgradeReason>("general");
   const openUpgradeRef = useRef<(reason?: UpgradeReason) => void>(() => {});
 
-  const effectivePlan: SubscriptionPlan = demoUnlocked ? "max" : plan;
+  const effectivePlan = resolveEffectiveClientPlan({
+    appConfigLoaded,
+    appMode,
+    trustedServerPlan,
+    trustedServerPlanReady,
+  });
+  const demoUnlocked = appConfigLoaded && appMode === "playground";
   const entitlements = useMemo(() => getEntitlements(effectivePlan), [effectivePlan]);
 
   useEffect(() => {
     setSubscriptionSnapshot({
-      plan,
+      plan: effectivePlan,
       usage: ledger.usage,
       usageMonth: ledger.month,
     });
-  }, [plan, ledger]);
+  }, [effectivePlan, ledger]);
 
   useEffect(() => {
     setSubscriptionSyncListener((snapshot) => {
       setPlanState(snapshot.plan);
       setLedger({ month: snapshot.usageMonth, usage: snapshot.usage });
+      setTrustedServerPlan(snapshot.plan);
+      setTrustedServerPlanReady(true);
     });
     return () => setSubscriptionSyncListener(null);
   }, []);
 
   useEffect(() => {
+    if (!appConfigLoaded) return;
+
+    if (appMode === "production") {
+      let cancelled = false;
+      const clientId = getOrCreateClientId();
+
+      void fetch("/api/subscription/status", {
+        headers: withApiAuthHeaders({
+          "X-NSR-Client-Id": clientId,
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`subscription_status_failed:${response.status}`);
+          }
+          if (!syncSubscriptionFromResponse(response) && !cancelled) {
+            setTrustedServerPlan("starter");
+            setTrustedServerPlanReady(true);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setTrustedServerPlan("starter");
+            setTrustedServerPlanReady(true);
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setTrustedServerPlanReady(false);
     void postPlanSync(readStoredPlan());
-  }, []);
+  }, [appConfigLoaded, appMode]);
 
   const openUpgrade = useCallback((reason: UpgradeReason = "general") => {
     setUpgradeReason(reason);
@@ -152,14 +195,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const getUsed = useCallback((metric: UsageMetric) => ledger.usage[metric] ?? 0, [ledger]);
 
   const getRemainingUsage = useCallback(
-    (metric: UsageMetric) => (demoUnlocked ? 999_999 : getRemaining(plan, metric, ledger.usage)),
-    [demoUnlocked, plan, ledger],
+    (metric: UsageMetric) => (demoUnlocked ? 999_999 : getRemaining(effectivePlan, metric, ledger.usage)),
+    [demoUnlocked, effectivePlan, ledger],
   );
 
   const canConsumeMetric = useCallback(
     (metric: UsageMetric, amount = 1) =>
-      demoUnlocked ? true : canConsume(plan, metric, ledger.usage, amount).ok,
-    [demoUnlocked, plan, ledger],
+      demoUnlocked ? true : canConsume(effectivePlan, metric, ledger.usage, amount).ok,
+    [demoUnlocked, effectivePlan, ledger],
   );
 
   const consumeUsage = useCallback(
@@ -171,12 +214,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         return true;
       }
       const current = readUsageLedger();
-      const { ledger: nextLedger, result } = consumeMetric(plan, metric, current, amount);
+      const { ledger: nextLedger, result } = consumeMetric(effectivePlan, metric, current, amount);
       if (!result.ok) return false;
       setLedger(nextLedger);
       return true;
     },
-    [demoUnlocked, effectivePlan, plan],
+    [demoUnlocked, effectivePlan],
   );
 
   const consumeAiAction = useCallback(
@@ -198,13 +241,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         items.push({ metric: "wizardRuns", amount: 1 });
       }
 
-      const billingPlan = demoUnlocked ? effectivePlan : plan;
+      const billingPlan = effectivePlan;
       const { ledger: nextLedger, result } = consumeMetricsBatch(billingPlan, current, items);
       if (!demoUnlocked && !result.ok) return false;
       setLedger(nextLedger);
       return true;
     },
-    [demoUnlocked, effectivePlan, plan],
+    [demoUnlocked, effectivePlan],
   );
 
   const openPricing = useCallback(() => setPricingOpen(true), []);
@@ -213,7 +256,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<SubscriptionContextValue>(
     () => ({
-      plan,
+      plan: effectivePlan,
       usage: ledger.usage,
       entitlements,
       setPlan,
@@ -236,7 +279,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       closeUpgrade,
     }),
     [
-      plan,
+      effectivePlan,
       ledger,
       entitlements,
       setPlan,

@@ -355,6 +355,17 @@ describe("pdfHtmlRenderer", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("keeps single-page visual exports inside an A4 safe inset", async () => {
+    const { computeSinglePageCanvasPlacement } = await import("../lib/pdfHtmlRenderer");
+    const placement = computeSinglePageCanvasPlacement(595, 842, 794, 1123, {
+      preferFillWidth: true,
+    });
+    expect(placement.offsetX).toBeCloseTo(14, 5);
+    expect(placement.offsetY).toBeGreaterThan(14);
+    expect(placement.renderWidth).toBeLessThan(595);
+    expect(placement.renderHeight).toBeLessThan(842);
+  });
 });
 
 describe("jdHtmlExtract", () => {

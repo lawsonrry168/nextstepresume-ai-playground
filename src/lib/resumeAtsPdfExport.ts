@@ -11,6 +11,28 @@ const PAGE_HEIGHT = 841.89;
 const MARGIN_X = 48;
 const MARGIN_Y = 48;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2;
+const ATS_RANGE_SEPARATOR = " - ";
+const ATS_INLINE_SEPARATOR = " | ";
+const ATS_BULLET_PREFIX = "- ";
+
+function joinNonEmpty(parts: Array<string | null | undefined>, separator: string): string {
+  return parts
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+    .join(separator);
+}
+
+export function formatAtsDateRange(startDate?: string, endDate?: string): string {
+  return joinNonEmpty([startDate, endDate], ATS_RANGE_SEPARATOR);
+}
+
+export function formatAtsInlineList(items: Array<string | null | undefined>): string {
+  return joinNonEmpty(items, ATS_INLINE_SEPARATOR);
+}
+
+export function formatAtsBullet(text: string): string {
+  return `${ATS_BULLET_PREFIX}${text}`;
+}
 
 function hexToRgb(hex: string): [number, number, number] {
   const normalized = hex.replace("#", "");
@@ -102,9 +124,7 @@ class AtsPdfWriter {
   render(resumeData: ResumeData, templateStyle: TemplateStyle, locale: AppLocale = getActiveLocale()): void {
     const palette = paletteForTemplate(templateStyle);
     const info = resumeData.personalInfo;
-    const contact = [info.email, info.phone, info.location, info.website, info.linkedin]
-      .filter(Boolean)
-      .join("  |  ");
+    const contact = formatAtsInlineList([info.email, info.phone, info.location, info.website, info.linkedin]);
 
     this.writeWrapped(info.name || "Resume", {
       size: 22,
@@ -137,14 +157,17 @@ class AtsPdfWriter {
           color: palette.ink,
           lineGap: 4,
         });
-        const meta = [[exp.startDate, exp.endDate].filter(Boolean).join(" – "), exp.location]
-          .filter(Boolean)
-          .join("  |  ");
+        const meta = formatAtsInlineList([formatAtsDateRange(exp.startDate, exp.endDate), exp.location]);
         if (meta) {
           this.writeWrapped(meta, { size: 9.5, color: palette.muted, lineGap: 4 });
         }
         for (const bullet of exp.bullets) {
-          this.writeWrapped(`• ${bullet}`, { size: 10, color: palette.ink, indent: 12, lineGap: 4 });
+          this.writeWrapped(formatAtsBullet(bullet), {
+            size: 10,
+            color: palette.ink,
+            indent: 12,
+            lineGap: 4,
+          });
         }
         this.y += 4;
       }
@@ -155,11 +178,17 @@ class AtsPdfWriter {
       for (const edu of resumeData.education) {
         this.writeWrapped(edu.institution, { size: 11, bold: true, color: palette.ink, lineGap: 3 });
         this.writeWrapped(`${edu.degree} in ${edu.field}`, { size: 10, color: palette.ink, lineGap: 3 });
-        this.writeWrapped(`Conferred: ${edu.gradDate} | ${edu.location}`, {
-          size: 9,
-          color: palette.muted,
-          lineGap: 6,
-        });
+        const educationMeta = formatAtsInlineList([
+          edu.gradDate ? `Conferred: ${edu.gradDate}` : "",
+          edu.location,
+        ]);
+        if (educationMeta) {
+          this.writeWrapped(educationMeta, {
+            size: 9,
+            color: palette.muted,
+            lineGap: 6,
+          });
+        }
       }
     }
 
@@ -179,19 +208,23 @@ class AtsPdfWriter {
 
     if (resumeData.certifications?.length) {
       this.sectionTitle(getSectionLabel("certifications", locale), palette.accent, palette.titleUppercase);
-      this.writeWrapped(resumeData.certifications.join("  ·  "), { size: 10, color: palette.ink });
+      this.writeWrapped(formatAtsInlineList(resumeData.certifications), { size: 10, color: palette.ink });
     }
 
     if (resumeData.volunteerWork?.length) {
       this.sectionTitle(getSectionLabel("volunteer", locale), palette.accent, palette.titleUppercase);
       for (const item of resumeData.volunteerWork) {
-        this.writeWrapped(`• ${item}`, { size: 10, color: palette.ink, indent: 12, lineGap: 4 });
+        this.writeWrapped(formatAtsBullet(item), { size: 10, color: palette.ink, indent: 12, lineGap: 4 });
       }
     }
 
     if (resumeData.languages?.length) {
       this.sectionTitle(getSectionLabel("languages", locale), palette.accent, palette.titleUppercase);
-      this.writeWrapped(resumeData.languages.join("  ·  "), { size: 10, bold: true, color: palette.ink });
+      this.writeWrapped(formatAtsInlineList(resumeData.languages), {
+        size: 10,
+        bold: true,
+        color: palette.ink,
+      });
     }
 
     if (resumeData.skills?.length) {

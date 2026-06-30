@@ -263,11 +263,16 @@ export function usePlaygroundTools({
       return;
     }
     try {
-      const { downloadResumeOoxml } = await import("../lib/ooxmlApplicationExport");
-      await downloadResumeOoxml(resumeData, "resume", activeTemplate);
+      const { downloadResumeOoxml, downloadResumeOoxmlFallback } = await import("../lib/ooxmlApplicationExport");
+      try {
+        await downloadResumeOoxml(resumeData, "resume", activeTemplate);
+      } catch (err) {
+        console.error("Styled OOXML export failed, retrying with compatibility OOXML", err);
+        await downloadResumeOoxmlFallback(resumeData, "resume");
+      }
       markE2eDocxExportComplete();
     } catch (err) {
-      console.error("OOXML export failed, falling back to legacy HTML Word export", err);
+      console.error("OOXML module load failed, falling back to legacy HTML Word export", err);
       const { downloadResumeDocx } = await import("../lib/resumeDocxExport");
       downloadResumeDocx(resumeData);
       markE2eDocxExportComplete();

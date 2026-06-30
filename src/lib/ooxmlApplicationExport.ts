@@ -19,6 +19,7 @@ import {
   buildInterviewPrepMarkdown,
   buildMatchReportMarkdown,
 } from "./applicationPackageExport";
+import { formatAtsBullet, formatAtsDateRange, formatAtsInlineList } from "./resumeAtsPdfExport";
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -48,7 +49,7 @@ function bodyParagraph(text: string) {
 
 function bulletParagraph(text: string) {
   return new Paragraph({
-    children: [new TextRun({ text: `• ${text}`, size: 22 })],
+    children: [new TextRun({ text: formatAtsBullet(text), size: 22 })],
     spacing: { after: 80 },
     indent: { left: 360 },
   });
@@ -101,8 +102,8 @@ export function buildCoverLetterOoxmlChildren(letter: CoverLetterResult): Paragr
 
 export async function buildApplicationPackageOoxmlBlob(pkg: ApplicationPackage): Promise<Blob> {
   const children: Paragraph[] = [
-    heading(`Application Package — ${pkg.companyName}`, HeadingLevel.HEADING_1),
-    bodyParagraph(`${pkg.jobTitle} · Status: ${pkg.status}`),
+    heading(`Application Package - ${pkg.companyName}`, HeadingLevel.HEADING_1),
+    bodyParagraph(formatAtsInlineList([pkg.jobTitle, `Status: ${pkg.status}`])),
     pageBreakParagraph(),
     heading("Resume", HeadingLevel.HEADING_1),
     ...buildResumeOoxmlChildren(pkg.resumeSnapshot),
@@ -154,6 +155,98 @@ export async function buildResumeOoxmlBlob(
   return Packer.toBlob(doc);
 }
 
+export function buildResumeOoxmlFallbackChildren(resumeData: ResumeData): Paragraph[] {
+  const info = resumeData.personalInfo;
+  const children: Paragraph[] = [heading(info.name || "Resume", HeadingLevel.HEADING_1)];
+
+  if (info.title) {
+    children.push(bodyParagraph(info.title));
+  }
+
+  const contact = formatAtsInlineList([info.email, info.phone, info.location, info.website, info.linkedin]);
+  if (contact) {
+    children.push(bodyParagraph(contact));
+  }
+
+  if (resumeData.summary) {
+    children.push(heading("Professional Summary", HeadingLevel.HEADING_2), bodyParagraph(resumeData.summary));
+  }
+
+  if (resumeData.experience?.length) {
+    children.push(heading("Experience", HeadingLevel.HEADING_2));
+    for (const exp of resumeData.experience) {
+      children.push(bodyParagraph(`${exp.role} at ${exp.company}`));
+      const meta = formatAtsInlineList([formatAtsDateRange(exp.startDate, exp.endDate), exp.location]);
+      if (meta) {
+        children.push(bodyParagraph(meta));
+      }
+      for (const bullet of exp.bullets) {
+        children.push(bulletParagraph(bullet));
+      }
+    }
+  }
+
+  if (resumeData.education?.length) {
+    children.push(heading("Education", HeadingLevel.HEADING_2));
+    for (const edu of resumeData.education) {
+      children.push(bodyParagraph(edu.institution));
+      children.push(bodyParagraph(`${edu.degree} in ${edu.field}`));
+      const educationMeta = formatAtsInlineList([
+        edu.gradDate ? `Conferred: ${edu.gradDate}` : "",
+        edu.location,
+      ]);
+      if (educationMeta) {
+        children.push(bodyParagraph(educationMeta));
+      }
+    }
+  }
+
+  if (resumeData.projects?.length) {
+    children.push(heading("Projects", HeadingLevel.HEADING_2));
+    for (const project of resumeData.projects) {
+      children.push(bodyParagraph(project.name));
+      if (project.url) {
+        children.push(bodyParagraph(project.url));
+      }
+      if (project.techStack) {
+        children.push(bodyParagraph(`Stack: ${project.techStack}`));
+      }
+      children.push(bodyParagraph(project.description));
+    }
+  }
+
+  if (resumeData.skills?.length) {
+    children.push(heading("Skills", HeadingLevel.HEADING_2), bodyParagraph(resumeData.skills.join(", ")));
+  }
+
+  if (resumeData.languages?.length) {
+    children.push(heading("Languages", HeadingLevel.HEADING_2), bodyParagraph(formatAtsInlineList(resumeData.languages)));
+  }
+
+  if (resumeData.certifications?.length) {
+    children.push(
+      heading("Certifications", HeadingLevel.HEADING_2),
+      bodyParagraph(formatAtsInlineList(resumeData.certifications)),
+    );
+  }
+
+  if (resumeData.volunteerWork?.length) {
+    children.push(heading("Volunteer Work", HeadingLevel.HEADING_2));
+    for (const item of resumeData.volunteerWork) {
+      children.push(bulletParagraph(item));
+    }
+  }
+
+  return children;
+}
+
+export async function buildResumeOoxmlFallbackBlob(resumeData: ResumeData): Promise<Blob> {
+  const doc = new Document({
+    sections: [{ children: buildResumeOoxmlFallbackChildren(resumeData) }],
+  });
+  return Packer.toBlob(doc);
+}
+
 export async function buildCoverLetterOoxmlBlob(letter: CoverLetterResult): Promise<Blob> {
   const doc = new Document({
     sections: [{ children: buildCoverLetterOoxmlChildren(letter) }],
@@ -172,6 +265,15 @@ export async function downloadResumeOoxml(
   templateStyle?: TemplateStyle,
 ): Promise<void> {
   const blob = await buildResumeOoxmlBlob(resumeData, templateStyle);
+  const name = resumeData.personalInfo.name || filenameBase;
+  downloadBlob(blob, `${name.replace(/\s+/g, "_")}_CV.docx`);
+}
+
+export async function downloadResumeOoxmlFallback(
+  resumeData: ResumeData,
+  filenameBase = "resume",
+): Promise<void> {
+  const blob = await buildResumeOoxmlFallbackBlob(resumeData);
   const name = resumeData.personalInfo.name || filenameBase;
   downloadBlob(blob, `${name.replace(/\s+/g, "_")}_CV.docx`);
 }

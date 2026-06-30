@@ -4,9 +4,53 @@ import { buildJobDescriptionFromHtml } from "../../src/lib/jdHtmlExtract.ts";
 import { extractJobMeta } from "../../src/lib/extractJobMeta.ts";
 import { mergeImportedJobMeta } from "../../src/lib/createDraftApplicationPackage.ts";
 import { parsePublicHttpUrl } from "../../src/lib/security/urlPolicy.ts";
+import { assertSafeOutboundUrl } from "../lib/outboundUrlSafety.ts";
 
 const JD_FETCH_TIMEOUT_MS = 12_000;
 const JD_FETCH_MAX_BYTES = 512 * 1024;
+const JD_FETCH_MAX_REDIRECTS = 5;
+const JD_FETCH_ACCEPT_HEADER = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8";
+
+function isRedirectStatus(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+
+async function fetchJobDescriptionPage(startUrl: URL, signal: AbortSignal): Promise<Response> {
+  let currentUrl = startUrl;
+
+  for (let redirectCount = 0; redirectCount <= JD_FETCH_MAX_REDIRECTS; redirectCount += 1) {
+    await assertSafeOutboundUrl(currentUrl);
+
+    const response = await fetch(currentUrl, {
+      signal,
+      redirect: "manual",
+      headers: {
+        "User-Agent":
+          "NextStepResume-Playground-JD-Fetch/1.0 (+local dev; job description import)",
+        Accept: JD_FETCH_ACCEPT_HEADER,
+        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!isRedirectStatus(response.status)) {
+      return response;
+    }
+
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error(`Redirect missing location header (HTTP ${response.status})`);
+    }
+
+    const nextUrl = new URL(location, currentUrl);
+    const parsedRedirect = parsePublicHttpUrl(nextUrl.toString());
+    if (parsedRedirect.ok === false) {
+      throw new Error(parsedRedirect.error);
+    }
+    currentUrl = parsedRedirect.url;
+  }
+
+  throw new Error("Too many redirects while fetching job description");
+}
 
 export function registerJdRoutes(app: Express): void {
   app.post("/api/jd/extract-keywords", (req, res) => {
@@ -33,16 +77,7 @@ export function registerJdRoutes(app: Express): void {
     const timeout = setTimeout(() => controller.abort(), JD_FETCH_TIMEOUT_MS);
 
     try {
-      const response = await fetch(parsed.url.toString(), {
-        signal: controller.signal,
-        redirect: "follow",
-        headers: {
-          "User-Agent":
-            "NextStepResume-Playground-JD-Fetch/1.0 (+local dev; job description import)",
-          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
-        },
-      });
+      const response = await fetchJobDescriptionPage(parsed.url, controller.signal);
 
       if (!response.ok) {
         return res.status(422).json({

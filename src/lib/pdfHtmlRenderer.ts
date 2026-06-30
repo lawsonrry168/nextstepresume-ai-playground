@@ -3,6 +3,7 @@ import { captureElementWithHtml2Canvas } from "./html2canvasColorFix";
 
 const CJK_FONT_STACK =
   '"Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif';
+const VISUAL_PDF_PAGE_INSET_PT = 14;
 
 export function escapeHtml(text: string): string {
   return text
@@ -81,6 +82,35 @@ function maybeWatermark(canvas: HTMLCanvasElement, options: PdfCanvasExportOptio
   return applyPdfWatermark(canvas, options.watermark.trim());
 }
 
+export function computeSinglePageCanvasPlacement(
+  pdfWidth: number,
+  pdfHeight: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  options: Pick<PdfCanvasExportOptions, "preferFillWidth"> = {}
+): { renderWidth: number; renderHeight: number; offsetX: number; offsetY: number } {
+  const innerWidth = Math.max(1, pdfWidth - VISUAL_PDF_PAGE_INSET_PT * 2);
+  const innerHeight = Math.max(1, pdfHeight - VISUAL_PDF_PAGE_INSET_PT * 2);
+  const scaleW = innerWidth / canvasWidth;
+  const scaleH = innerHeight / canvasHeight;
+
+  let scale: number;
+  if (options.preferFillWidth !== false) {
+    scale = scaleW;
+    if (canvasHeight * scale > innerHeight) {
+      scale = scaleH;
+    }
+  } else {
+    scale = Math.min(scaleW, scaleH);
+  }
+
+  const renderWidth = canvasWidth * scale;
+  const renderHeight = canvasHeight * scale;
+  const offsetX = VISUAL_PDF_PAGE_INSET_PT + (innerWidth - renderWidth) / 2;
+  const offsetY = VISUAL_PDF_PAGE_INSET_PT + (innerHeight - renderHeight) / 2;
+  return { renderWidth, renderHeight, offsetX, offsetY };
+}
+
 function appendCanvasSinglePage(
   pdf: jsPDF,
   canvas: HTMLCanvasElement,
@@ -88,23 +118,13 @@ function appendCanvasSinglePage(
 ): void {
   const pdfWidth = pdf.internal.pageSize.getWidth();
   const pdfHeight = pdf.internal.pageSize.getHeight();
-  const scaleW = pdfWidth / canvas.width;
-  const scaleH = pdfHeight / canvas.height;
-
-  let scale: number;
-  if (options.preferFillWidth !== false) {
-    scale = scaleW;
-    if (canvas.height * scale > pdfHeight) {
-      scale = scaleH;
-    }
-  } else {
-    scale = Math.min(scaleW, scaleH);
-  }
-
-  const renderWidth = canvas.width * scale;
-  const renderHeight = canvas.height * scale;
-  const offsetX = (pdfWidth - renderWidth) / 2;
-  const offsetY = 0;
+  const { renderWidth, renderHeight, offsetX, offsetY } = computeSinglePageCanvasPlacement(
+    pdfWidth,
+    pdfHeight,
+    canvas.width,
+    canvas.height,
+    options,
+  );
 
   pdf.setFillColor(250, 246, 235);
   pdf.rect(0, 0, pdfWidth, pdfHeight, "F");

@@ -1,4 +1,5 @@
 import type { ResumeData } from "../types";
+import { formatAtsBullet, formatAtsDateRange } from "./resumeAtsPdfExport";
 
 function escapeHtml(text: string): string {
   return text
@@ -60,10 +61,10 @@ export function buildResumeDocxHtml(resumeData: ResumeData): string {
         <table width="100%" style="margin-bottom: 8pt; font-size:11pt; font-family:'Calibri',sans-serif;">
           <tr>
             <td align="left"><strong>${escapeHtml(exp.role)}</strong> - ${escapeHtml(exp.company)}</td>
-            <td align="right" style="text-align: right;">${escapeHtml([exp.startDate, exp.endDate].filter(Boolean).join(" – ") || "")} | ${escapeHtml(exp.location || "")}</td>
+            <td align="right" style="text-align: right;">${escapeHtml(formatAtsDateRange(exp.startDate, exp.endDate))}${exp.location ? ` | ${escapeHtml(exp.location)}` : ""}</td>
           </tr>
         </table>
-        ${exp.bullets.map((b) => `<div class="bullet-item">• ${escapeHtml(b)}</div>`).join("")}
+        ${exp.bullets.map((b) => `<div class="bullet-item">${escapeHtml(formatAtsBullet(b))}</div>`).join("")}
       `
         )
         .join("")}
@@ -103,7 +104,8 @@ export function downloadDocxFromHtml(html: string, filename: string): void {
   const link = document.createElement("a");
   link.href = url;
   const safeName = filename.replace(/\.docx$/i, "").replace(/\.doc$/i, "");
-  link.download = `${safeName}.doc`;
+  const extension = /\.docx$/i.test(filename) ? ".docx" : ".doc";
+  link.download = `${safeName}${extension}`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

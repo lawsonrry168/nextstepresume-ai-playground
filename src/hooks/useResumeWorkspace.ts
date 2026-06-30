@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ResumeData } from "../types";
 import { initialResumeData, initialJobDescription } from "../data";
-import { normalizeTemplateStyle, type TemplateStyle } from "../lib/resumeTemplateCatalog";
+import {
+  DEFAULT_A4_TEMPLATE,
+  normalizeTemplateStyle,
+  type TemplateStyle,
+} from "../lib/resumeTemplateCatalog";
 
 import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
 import {
@@ -49,7 +53,7 @@ export function useResumeWorkspace(options?: {
     } catch {
       /* ignore */
     }
-    return "modern-01";
+    return DEFAULT_A4_TEMPLATE;
   });
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -117,7 +121,7 @@ export function useResumeWorkspace(options?: {
     localStorage.removeItem(STORAGE_KEYS.template);
     setResumeData(initialResumeData);
     setJobDescription(initialJobDescription);
-    setActiveTemplate("modern-01");
+    setActiveTemplate(DEFAULT_A4_TEMPLATE);
     setSaveStatus("saved");
     setLastSavedTime("");
   }, []);
