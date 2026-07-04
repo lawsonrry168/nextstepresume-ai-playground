@@ -115,11 +115,13 @@ export function estimateSectionHeightForContent(
       // auto-expanding content overlaps the section below.
       const p = data.personalInfo;
       contentLines = estimateBlockLines([p.name, p.title], charsPerLine, 0, contentWidth);
-      // Contact/meta rows render at ~16px (0.75 of a body line)
+      // Contact/meta rows render at ~16px (0.75 of a body line); on narrow
+      // cards the icon wraps above the text, doubling each row's height.
+      const contactRowFactor = contentWidth < 340 ? 1.5 : 0.75;
       const contactRows =
         [p.email, p.phone, p.location, p.website, p.linkedin].filter(Boolean).length +
         getHkPersonalMetaLines(p).length;
-      contentLines += contactRows * 0.75;
+      contentLines += contactRows * contactRowFactor;
       break;
     }
     case "summary":
