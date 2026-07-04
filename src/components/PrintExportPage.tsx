@@ -41,15 +41,37 @@ export default function PrintExportPage() {
   useEffect(() => {
     document.documentElement.classList.remove("dark");
     let cancelled = false;
+
+    // Headless/serverless Chromium ships no system fonts — load the design
+    // fonts (incl. Traditional Chinese) as webfonts before flagging ready.
+    const FONT_CSS =
+      "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Source+Serif+4:wght@400;600;700&family=Public+Sans:wght@400;600;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap";
+    let fontsLoaded: Promise<unknown> = Promise.resolve();
+    if (!document.querySelector('link[data-print-fonts="true"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = FONT_CSS;
+      link.setAttribute("data-print-fonts", "true");
+      fontsLoaded = new Promise<void>((resolve) => {
+        link.onload = () => resolve();
+        link.onerror = () => resolve();
+        setTimeout(resolve, 6000);
+      });
+      document.head.appendChild(link);
+    }
+
     const localeReady =
       payload.locale === "en" || payload.locale === "zh-TW"
         ? ensureLocaleLoaded(payload.locale as AppLocale).then(() => {
             setActiveLocale(payload.locale as AppLocale);
           })
         : Promise.resolve();
-    void Promise.all([localeReady, document.fonts.ready]).then(() => {
-      if (!cancelled) setReady(true);
-    });
+
+    void Promise.all([localeReady, fontsLoaded])
+      .then(() => document.fonts.ready)
+      .then(() => {
+        if (!cancelled) setReady(true);
+      });
     return () => {
       cancelled = true;
     };

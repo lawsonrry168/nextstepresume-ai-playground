@@ -5,6 +5,7 @@ import {
   fallbackWrappedLineCount,
   isPixelMeasureAvailable,
   measureTextWidth,
+  RESUME_BODY_FONT,
 } from "../lib/measure/textMeasure";
 import { estimateSectionHeightForContent, estimateWrappedLineCount } from "../lib/canvasSectionContentSizing";
 import { initialResumeData } from "../data";
@@ -18,7 +19,7 @@ describe("unified text measurement", () => {
     __resetMeasureContextForTests("fallback");
     expect(isPixelMeasureAvailable()).toBe(false);
     const width = measureTextWidth("hello");
-    expect(width).toBeCloseTo(5 * 7.2, 1);
+    expect(width).toBeCloseTo(5 * 7.2 * (RESUME_BODY_FONT.size / 14), 1);
   });
 
   it("wraps deterministically in the fallback path", () => {

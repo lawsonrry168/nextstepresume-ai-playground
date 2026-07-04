@@ -12,9 +12,14 @@ export interface MeasureFont {
   weight?: number | string;
 }
 
+/**
+ * Calibrated to the actual canvas rendering (body text is 11–12px).
+ * Measuring at 14px inflated every wrap count ~25%, so one page of content
+ * was judged to overflow and defaults/auto-tidy split into two pages.
+ */
 export const RESUME_BODY_FONT: MeasureFont = {
-  family: '"Source Serif 4", Georgia, "Noto Serif TC", serif',
-  size: 14,
+  family: 'Georgia, "Times New Roman", "Noto Serif TC", serif',
+  size: 12,
 };
 
 /** Legacy heuristic glyph width at resume body size (fallback only) */
