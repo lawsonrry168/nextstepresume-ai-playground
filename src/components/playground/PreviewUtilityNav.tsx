@@ -333,22 +333,25 @@ export default function PreviewUtilityNav(props: PreviewUtilityNavProps) {
               key={item.id}
               type="button"
               title={item.label}
+              aria-pressed={active}
               onClick={() => togglePanel(item.id)}
-              className={`p-2 rounded-xl cursor-pointer transition-all ${
+              className={`w-full flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl cursor-pointer transition-all ${
                 active
                   ? "btn-dock-active scale-105"
                   : "text-slate-500 hover:bg-slate-100 hover:text-slate-800"
               }`}
             >
               {item.icon}
+              <span className="text-[8px] font-bold leading-none whitespace-nowrap">{item.label}</span>
             </button>
           );
         })}
         <div className="w-full h-px bg-slate-100 my-0.5" />
         <span
-          className={`${scoreBadge} text-[9px] font-black font-mono px-1.5 py-0.5 leading-none`}
-          title={`ATS ${liveAtsScore}%`}
+          className={`${scoreBadge} text-[9px] font-black font-mono px-1.5 py-0.5 leading-none inline-flex flex-col items-center gap-0.5`}
+          title={`${t("preview.atsMatch")} ${liveAtsScore}%`}
         >
+          <span className="text-[7px] font-sans tracking-wider">ATS</span>
           {liveAtsScore}
         </span>
       </div>

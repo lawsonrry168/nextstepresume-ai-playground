@@ -1,6 +1,6 @@
 html.dark {
   color-scheme: dark;
-  background-color: #0a0e14;
+  background-color: #171512;
 }
 
 html:not(.dark) {
@@ -10,7 +10,7 @@ html:not(.dark) {
 
 html.dark body,
 html.dark #root {
-  background-color: #0a0e14;
+  background-color: #171512;
 }
 
 html:not(.dark) body,
@@ -24,26 +24,26 @@ html:not(.dark) #root {
  */
 
 html.dark .marginalia-theme {
-  --m-paper: #0a0e14;
-  --m-paper-line: #1a2438;
-  --m-margin: #e8635a;
-  --m-rule: #4a7faa;
-  --m-ink: #e8edf4;
-  --m-marker: #b8943a;
-  --m-mint: #142820;
-  --m-mint-ink: #8fd4a8;
-  --m-eraser: #3a2228;
-  --m-graphite: #8b9cb3;
-  --m-red: #e8635a;
-  --m-red-hover: #ff7a71;
-  --m-elevate: #121a26;
-  --m-chrome: #0d1219;
+  --m-paper: #171512;
+  --m-paper-line: #2a2721;
+  --m-margin: #d47f72;
+  --m-rule: #6e8396;
+  --m-ink: #e5e0d4;
+  --m-marker: #b09355;
+  --m-mint: #232b23;
+  --m-mint-ink: #a4c6a6;
+  --m-eraser: #352b28;
+  --m-graphite: #a29c90;
+  --m-red: #d47f72;
+  --m-red-hover: #e29488;
+  --m-elevate: #211e1a;
+  --m-chrome: #1b1916;
   --m-card-shadow:
     0 4px 20px -6px rgba(0, 0, 0, 0.65),
-    0 0 0 1px rgba(74, 127, 170, 0.1);
-  --color-surface: #0a0e14;
-  --color-ink: #e8edf4;
-  --color-accent-muted: #121a26;
+    0 0 0 1px rgba(140, 128, 108, 0.12);
+  --color-surface: #171512;
+  --color-ink: #e5e0d4;
+  --color-accent-muted: #211e1a;
 
   color: var(--m-ink);
 }
@@ -84,7 +84,7 @@ html.dark .marginalia-theme .preview-canvas {
 html.dark .marginalia-theme .preview-canvas:has(.resume-template-marginalia),
 html.dark .marginalia-theme .preview-canvas:has(.preview-resume-sheet),
 html.dark .marginalia-theme .preview-canvas:has(.preview-comparison-slot) {
-  background-color: #151b28;
+  background-color: #232019;
   background-image: none;
 }
 
@@ -94,7 +94,7 @@ html.dark .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewpor
 
 html.dark .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) #canvas-studio-viewport,
 html.dark .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) .canvas-studio-stage {
-  background-color: #151b28;
+  background-color: #232019;
 }
 
 html.dark .marginalia-theme #immersive-preview-studio {
@@ -107,7 +107,7 @@ html.dark .marginalia-theme :is(
   #resume-container-box-workspace,
   #resume-container-box-comparison
 ) {
-  background-color: #151b28 !important;
+  background-color: #232019 !important;
   background-image: none !important;
 }
 
@@ -200,7 +200,7 @@ html.dark .marginalia-theme :is(
 html.dark .marginalia-theme .preview-resume-sheet:not(:has(.resume-template-marginalia)),
 html.dark .marginalia-theme #resume-printable-sheet:not(.resume-template-marginalia) {
   background-color: var(--tpl-paper, #ffffff) !important;
-  color: #1a2438 !important;
+  color: #2a2721 !important;
 }
 
 html.dark .marginalia-theme #preview-col .preview-resume-sheet:has(.resume-template-marginalia),
@@ -213,13 +213,13 @@ html.dark .marginalia-theme #resume-container-box-workspace .preview-resume-shee
 }
 
 html.dark .marginalia-theme #resume-container-box-workspace .preview-resume-stage {
-  background-color: #151b28;
+  background-color: #232019;
   min-height: 100%;
   padding: 1.5rem 1rem;
 }
 
 html.dark .marginalia-theme #resume-container-box .preview-resume-stage {
-  background-color: #151b28;
+  background-color: #232019;
   min-height: 100%;
   padding: 0.75rem 0.5rem;
 }
@@ -227,7 +227,7 @@ html.dark .marginalia-theme #resume-container-box .preview-resume-stage {
 /* Resume document: always print-ready ink on paper (immune to UI dark remaps) */
 html.dark .marginalia-theme .resume-template-marginalia {
   background-color: #faf6eb !important;
-  color: #1a2438 !important;
+  color: #2a2721 !important;
 }
 
 html.dark .marginalia-theme .resume-template-marginalia :is(
@@ -235,7 +235,7 @@ html.dark .marginalia-theme .resume-template-marginalia :is(
   .text-slate-800,
   .text-slate-700
 ) {
-  color: #1a2438 !important;
+  color: #2a2721 !important;
 }
 
 html.dark .marginalia-theme .resume-template-marginalia :is(
@@ -282,7 +282,7 @@ html.dark .marginalia-theme :is(
   .bg-rose-50,
   [class*="bg-rose-50"]
 ) {
-  background-color: color-mix(in srgb, #e8635a 18%, var(--m-elevate)) !important;
+  background-color: color-mix(in srgb, #d47f72 18%, var(--m-elevate)) !important;
 }
 
 html.dark .marginalia-theme :is(
@@ -290,14 +290,14 @@ html.dark .marginalia-theme :is(
   .text-rose-600,
   [class*="text-rose-7"]
 ) {
-  color: #ff9a94 !important;
+  color: #eaa79c !important;
 }
 
 html.dark .marginalia-theme :is(
   .border-rose-200,
   [class*="border-rose-2"]
 ) {
-  border-color: color-mix(in srgb, #e8635a 35%, transparent) !important;
+  border-color: color-mix(in srgb, #d47f72 35%, transparent) !important;
 }
 
 /* ── Slate utility remap (app chrome only) ── */
@@ -408,15 +408,15 @@ html.dark .marginalia-theme code {
 
 /* ── Scrollbars ── */
 html.dark ::-webkit-scrollbar-track {
-  background: var(--m-chrome, #0d1219);
+  background: var(--m-chrome, #1b1916);
 }
 
 html.dark ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--m-rule, #4a7faa) 45%, #1a2438);
+  background: color-mix(in srgb, var(--m-rule, #6e8396) 45%, #2a2721);
 }
 
 html.dark ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--m-rule, #4a7faa) 65%, #1a2438);
+  background: color-mix(in srgb, var(--m-rule, #6e8396) 65%, #2a2721);
 }
 
 /* ── Focus rings ── */
@@ -426,12 +426,12 @@ html.dark .marginalia-theme :focus-visible {
 
 /* ── Studio Canvas viewport (dark desk) ── */
 html.dark .marginalia-theme .canvas-studio-viewport {
-  background-color: #0f1419;
-  border-color: color-mix(in srgb, var(--m-rule) 22%, #1a2438);
+  background-color: #1d1b17;
+  border-color: color-mix(in srgb, var(--m-rule) 22%, #2a2721);
 }
 
 html.dark .marginalia-theme .canvas-studio-stage {
-  background-color: #0f1419;
+  background-color: #1d1b17;
   background-image:
     radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
   background-size: 24px 24px;
@@ -439,66 +439,66 @@ html.dark .marginalia-theme .canvas-studio-stage {
 
 html.dark .marginalia-theme .canvas-studio-hint span {
   background: rgba(21, 27, 40, 0.88);
-  border-color: #2a3344;
-  color: #8b9cb3;
+  border-color: #38342c;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-studio-right-nav,
 html.dark .marginalia-theme .canvas-studio-right-nav-footer {
-  background-color: #151b28;
-  border-color: #2a3344;
+  background-color: #232019;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-nav-tool-btn {
-  background: #1a2438;
-  border-color: #2a3344;
-  color: #8b9cb3;
+  background: #2a2721;
+  border-color: #38342c;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-nav-tool-btn:hover:not(:disabled) {
-  background: #243044;
-  border-color: color-mix(in srgb, var(--m-mint) 28%, #2a3344);
-  color: #e8edf5;
+  background: #33302a;
+  border-color: color-mix(in srgb, var(--m-mint) 28%, #38342c);
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-nav-tool-btn--active {
-  background: color-mix(in srgb, var(--m-mint) 14%, #243044);
-  border-color: color-mix(in srgb, var(--m-mint) 55%, #2a3344);
-  color: #f0f4fa;
+  background: color-mix(in srgb, var(--m-mint) 14%, #33302a);
+  border-color: color-mix(in srgb, var(--m-mint) 55%, #38342c);
+  color: #efeadd;
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--m-mint) 22%, transparent),
     0 0 10px color-mix(in srgb, var(--m-mint) 18%, transparent);
 }
 
 html.dark .marginalia-theme .canvas-nav-tool-btn--active::before {
-  background: color-mix(in srgb, var(--m-mint) 80%, #e8edf5);
+  background: color-mix(in srgb, var(--m-mint) 80%, #e5e0d4);
   box-shadow: 0 0 8px color-mix(in srgb, var(--m-mint) 50%, transparent);
 }
 
 html.dark .marginalia-theme .canvas-nav-tool-btn--active svg {
-  color: color-mix(in srgb, var(--m-mint) 70%, #f0f4fa);
+  color: color-mix(in srgb, var(--m-mint) 70%, #efeadd);
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--m-mint) 40%, transparent));
 }
 
 html.dark .marginalia-theme .canvas-nav-tool-btn--active .canvas-nav-tool-label {
-  color: #f0f4fa;
+  color: #efeadd;
   font-weight: 800;
 }
 
 html.dark .marginalia-theme .canvas-nav-section {
-  border-color: #2a3344;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-grid-strength-control {
-  border-color: #2a3344;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-grid-strength-label {
-  color: #8b9cb3;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-grid-strength-value {
-  color: #e8edf5;
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-grid-strength-slider {
@@ -510,13 +510,13 @@ html.dark .marginalia-theme .canvas-auto-save-status {
 }
 
 html.dark .marginalia-theme .canvas-nav-section-drag {
-  color: #8b9cb3;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-nav-section-drag:hover,
 html.dark .marginalia-theme .canvas-nav-section-drag--active {
-  background: color-mix(in srgb, var(--m-mint) 14%, #243044);
-  color: #e8edf5;
+  background: color-mix(in srgb, var(--m-mint) 14%, #33302a);
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-nav-drop-indicator {
@@ -525,28 +525,28 @@ html.dark .marginalia-theme .canvas-nav-drop-indicator {
 }
 
 html.dark .marginalia-theme .canvas-studio-toolbar {
-  background-color: #151b28;
-  border-color: #2a3344;
+  background-color: #232019;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-studio-tool-btn {
-  background: #1c2433;
-  border-color: #2a3344;
-  color: #8b9cb3;
+  background: #2b2822;
+  border-color: #38342c;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-studio-tool-btn:hover {
-  background: #243044;
-  border-color: color-mix(in srgb, var(--m-mint) 35%, #2a3344);
-  color: #c5d0e0;
+  background: #33302a;
+  border-color: color-mix(in srgb, var(--m-mint) 35%, #38342c);
+  color: #c9c3b6;
 }
 
 html.dark .marginalia-theme .canvas-studio-zoom-label {
-  color: #e8edf5;
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-studio-toolbar-divider {
-  background: #2a3344;
+  background: #38342c;
 }
 
 html.dark .marginalia-theme #resume-container-box-canvas.canvas-studio-node-host {
@@ -555,59 +555,59 @@ html.dark .marginalia-theme #resume-container-box-canvas.canvas-studio-node-host
 
 /* ── Canvas Phase 2 (dark) ── */
 html.dark .marginalia-theme .canvas-layer-panel {
-  background-color: #151b28;
-  border-color: #2a3344;
-  color: #e8edf5;
+  background-color: #232019;
+  border-color: #38342c;
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-layer-panel-header {
-  border-color: #2a3344;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-layer-row {
-  border-color: #2a3344;
-  background: #1c2433;
+  border-color: #38342c;
+  background: #2b2822;
 }
 
 html.dark .marginalia-theme .canvas-layer-row--selected {
-  border-color: color-mix(in srgb, var(--m-mint) 45%, #2a3344);
-  background: #243044;
+  border-color: color-mix(in srgb, var(--m-mint) 45%, #38342c);
+  background: #33302a;
 }
 
 html.dark .marginalia-theme .canvas-layer-icon-btn {
-  border-color: #2a3344;
-  background: #1c2433;
-  color: #8b9cb3;
+  border-color: #38342c;
+  background: #2b2822;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-layer-page-select {
-  border-color: #2a3344;
-  background: #1c2433;
-  color: #c5d0e0;
+  border-color: #38342c;
+  background: #2b2822;
+  color: #c9c3b6;
 }
 
 html.dark .marginalia-theme .canvas-page-strip {
-  background-color: #151b28;
-  border-color: #2a3344;
+  background-color: #232019;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-page-tab {
-  border-color: #2a3344;
-  background: #1c2433;
+  border-color: #38342c;
+  background: #2b2822;
 }
 
 html.dark .marginalia-theme .canvas-page-tab--active {
-  border-color: color-mix(in srgb, var(--m-mint) 50%, #2a3344);
+  border-color: color-mix(in srgb, var(--m-mint) 50%, #38342c);
 }
 
 html.dark .marginalia-theme .canvas-page-tab-label {
-  color: #e8edf5;
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-page-add-btn,
 html.dark .marginalia-theme .canvas-page-tab-remove {
-  border-color: #2a3344;
-  color: #8b9cb3;
+  border-color: #38342c;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-page-sheet--active {
@@ -615,34 +615,34 @@ html.dark .marginalia-theme .canvas-page-sheet--active {
 }
 
 html.dark .marginalia-theme .canvas-page-sheet-label {
-  color: #8b9cb3;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-shortcut-kbd {
-  border-color: #2a3344;
-  background: #1c2433;
-  color: #c5d0e0;
+  border-color: #38342c;
+  background: #2b2822;
+  color: #c9c3b6;
 }
 
 html.dark .marginalia-theme .canvas-shortcut-card {
-  background: #151b28;
-  border-color: #2a3344;
-  color: #e8edf5;
+  background: #232019;
+  border-color: #38342c;
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-shortcut-header,
 html.dark .marginalia-theme .canvas-shortcut-footer {
-  border-color: #2a3344;
+  border-color: #38342c;
 }
 
 html.dark .marginalia-theme .canvas-shortcut-row {
-  background: #1c2433;
+  background: #2b2822;
 }
 
 html.dark .marginalia-theme .canvas-studio-tool-btn--active {
-  background: #243044;
-  border-color: color-mix(in srgb, var(--m-mint) 40%, #2a3344);
-  color: #e8edf5;
+  background: #33302a;
+  border-color: color-mix(in srgb, var(--m-mint) 40%, #38342c);
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-page-sheet--drop-target {
@@ -655,14 +655,14 @@ html.dark .marginalia-theme .canvas-page-snap-guide {
 }
 
 html.dark .marginalia-theme .canvas-layer-drag-handle--active {
-  border-color: color-mix(in srgb, var(--m-mint) 55%, #2a3344);
-  background: #243044;
-  color: #e8edf5;
+  border-color: color-mix(in srgb, var(--m-mint) 55%, #38342c);
+  background: #33302a;
+  color: #e5e0d4;
 }
 
 html.dark .marginalia-theme .canvas-layer-drag-handle {
-  border-color: #2a3344;
-  color: #8b9cb3;
+  border-color: #38342c;
+  color: #a29c90;
 }
 
 html.dark .marginalia-theme .canvas-layer-drop-indicator {

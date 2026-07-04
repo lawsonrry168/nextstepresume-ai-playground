@@ -21,12 +21,22 @@ import { FREE_LAYOUT_PRESETS, type FreeLayoutPresetId } from "../../../lib/resum
 import type { CanvasPageLayoutAction } from "../../../lib/canvasLayoutTools";
 import { useI18n } from "../../../i18n";
 import { getPresetLabel } from "../../../lib/sectionLabels";
+import {
+  TEMPLATE_FAMILIES,
+  getFamilyLabel,
+  getTemplateThemeLabel,
+  getTemplatesByFamily,
+  type TemplateStyle,
+} from "../../../lib/resumeTemplateCatalog";
 
 export interface CanvasLayoutPanelProps {
   sectionCountOnPage: number;
   hasSelection: boolean;
   onApplyPreset: (presetId: FreeLayoutPresetId) => void;
   onApplyPageLayout: (action: CanvasPageLayoutAction) => void;
+  /** All 31 resume templates — selectable directly inside the studio */
+  activeTemplate?: TemplateStyle;
+  onSelectTemplate?: (style: TemplateStyle) => void;
 }
 
 function LayoutBtn({
@@ -63,6 +73,8 @@ export default function CanvasLayoutPanel({
   hasSelection,
   onApplyPreset,
   onApplyPageLayout,
+  activeTemplate,
+  onSelectTemplate,
 }: CanvasLayoutPanelProps) {
   const { t } = useI18n();
   const pageDisabled = sectionCountOnPage === 0;
@@ -76,6 +88,27 @@ export default function CanvasLayoutPanel({
 
   return (
     <div id="canvas-layout-panel" className="canvas-layout-panel">
+      {activeTemplate && onSelectTemplate ? (
+        <select
+          id="canvas-template-select"
+          className="canvas-layout-preset-select w-full text-[10px] font-semibold rounded-md border px-2 py-1.5 mb-1.5 cursor-pointer"
+          value={activeTemplate}
+          onChange={(e) => onSelectTemplate(e.target.value as TemplateStyle)}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={t("preview.resumeTemplate")}
+        >
+          {TEMPLATE_FAMILIES.map((family) => (
+            <optgroup key={family} label={getFamilyLabel(family)}>
+              {getTemplatesByFamily(family).map((theme) => (
+                <option key={theme.id} value={theme.id}>
+                  {getTemplateThemeLabel(theme)}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      ) : null}
       <select
         className="canvas-layout-preset-select w-full text-[10px] font-semibold rounded-md border px-2 py-1.5 mb-2 cursor-pointer"
         value={presetSelectValue}

@@ -831,8 +831,10 @@ export default function ResumeLivePreviewPanel({
       hasSelection: Boolean(canvasDoc.selectedSectionId),
       onApplyPreset: applyLayoutPreset,
       onApplyPageLayout: applyPageLayout,
+      activeTemplate,
+      onSelectTemplate: setActiveTemplate,
     }),
-    [applyLayoutPreset, applyPageLayout, canvasDoc.selectedSectionId, sectionCountOnPage],
+    [activeTemplate, applyLayoutPreset, applyPageLayout, canvasDoc.selectedSectionId, sectionCountOnPage, setActiveTemplate],
   );
 
   const canvasAutoSaveLabel = useMemo(
