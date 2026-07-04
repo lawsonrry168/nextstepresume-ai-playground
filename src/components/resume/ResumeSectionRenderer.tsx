@@ -17,6 +17,8 @@ import {
   resolveResumeTheme,
 } from "../../lib/resumeThemeCustomization";
 import type { ResumeSectionId } from "../../lib/layoutDocument/sectionRegistry";
+import { isCanvasElementId } from "../../lib/canvasElements";
+import CanvasElementContent from "./CanvasElementContent";
 import type { ResumeFlowVariant } from "./resumeDocumentTypes";
 
 export type ResumeSectionRenderMode = "block" | "flow";
@@ -488,6 +490,9 @@ function ResumeSectionRenderer({
       );
 
     default:
+      if (isCanvasElementId(String(sectionId))) {
+        return <CanvasElementContent id={String(sectionId)} editable={mode === "block"} />;
+      }
       return null;
   }
 }

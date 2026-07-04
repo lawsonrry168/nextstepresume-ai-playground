@@ -35,6 +35,21 @@ export async function downloadResumePdfByMode(
     downloadResumeAtsPdf(resumeData, filename, templateStyle);
     return;
   }
+
+  // Vector-first: server Chromium print (selectable text, preview-identical).
+  // Skipped when the free-layout studio is live (custom positions need the
+  // DOM capture path) or when a watermark is required (client-drawn).
+  if (!options?.watermark) {
+    const { findLiveFreeLayoutExportPages } = await import("./resumePdfExport");
+    const studioLayoutActive = findLiveFreeLayoutExportPages().length > 0;
+    if (!studioLayoutActive) {
+      const { tryDownloadServerVisualPdf } = await import("./resumeServerPdfExport");
+      if (await tryDownloadServerVisualPdf(resumeData, templateStyle, filename)) {
+        return;
+      }
+    }
+  }
+
   const { downloadResumeVisualPdf } = await import("./resumePdfExport");
   await downloadResumeVisualPdf(filename, { watermark: options?.watermark });
 }

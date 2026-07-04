@@ -17,6 +17,7 @@ import {
   reorderLayerInPanel,
   type CanvasNavSectionId,
 } from "../lib/canvasStudioTypes";
+import { formatCanvasPageLabel } from "../lib/sectionLabels";
 import { clampPositionToA4Page } from "../lib/canvasPageSnap";
 import { FreeLayoutPosition, FreeLayoutSectionMeta } from "../lib/resumeFreeLayout";
 import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
@@ -103,6 +104,58 @@ function writeUiState(state: CanvasStudioUiState): void {
   }
 }
 
+function buildPagesFromReferencedIds(pageIds: string[]): CanvasPagesDocument {
+  const pages = pageIds.map((id, index) => ({
+    id,
+    label: formatCanvasPageLabel(index + 1),
+  }));
+  return {
+    pages,
+    activePageId: pages[0]?.id ?? createDefaultPagesDocument().activePageId,
+  };
+}
+
+export function syncPagesDocumentToPositions(
+  current: CanvasPagesDocument,
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+): CanvasPagesDocument {
+  const referencedPageIds: string[] = [];
+  for (const id of sectionIds) {
+    const pageId = positions[id]?.pageId;
+    if (pageId && !referencedPageIds.includes(pageId)) {
+      referencedPageIds.push(pageId);
+    }
+  }
+
+  if (!referencedPageIds.length) return current;
+
+  const currentReferencedCount = current.pages.filter((page) => referencedPageIds.includes(page.id)).length;
+  if (currentReferencedCount === 0) {
+    return buildPagesFromReferencedIds(referencedPageIds);
+  }
+
+  let changed = false;
+  const nextPages = [...current.pages];
+  for (const pageId of referencedPageIds) {
+    if (nextPages.some((page) => page.id === pageId)) continue;
+    changed = true;
+    nextPages.push({
+      id: pageId,
+      label: formatCanvasPageLabel(nextPages.length + 1),
+    });
+  }
+
+  if (!changed) return current;
+  const activePageId = nextPages.some((page) => page.id === current.activePageId)
+    ? current.activePageId
+    : nextPages[0]!.id;
+  return {
+    pages: nextPages,
+    activePageId,
+  };
+}
+
 export interface UseCanvasDocumentOptions {
   templateFamily: TemplateFamily;
   sections: FreeLayoutSectionMeta[];
@@ -156,6 +209,10 @@ export function useCanvasDocument({
   useEffect(() => {
     setLayersDoc((prev) => normalizeLayerDocument(prev, sectionIds));
   }, [sectionIds]);
+
+  useEffect(() => {
+    setPagesDoc((prev) => syncPagesDocumentToPositions(prev, sectionIds, positions));
+  }, [positions, sectionIds]);
 
   useEffect(() => {
     schedulePersist(() => {

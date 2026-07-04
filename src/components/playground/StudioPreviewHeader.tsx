@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  Layers, Minimize2, Eye, Move, RotateCcw, Magnet, Undo, Sparkles, Check, Palette, ChevronDown, ChevronUp, PenTool,
+  Layers, Minimize2, Eye, Move, RotateCcw, Magnet, Undo, Redo, Sparkles, Check, Palette, ChevronDown, ChevronUp, PenTool,
 } from "lucide-react";
 import { ResumeData, TemplateStyle } from "../../types";
 import { ResumeThemeCustomization } from "../../lib/resumeThemeCustomization";
@@ -8,6 +8,8 @@ import { FREE_LAYOUT_PRESETS, FreeLayoutPresetId } from "../../lib/resumeFreeLay
 import { type StudioViewMode } from "../../lib/canvasStudioTypes";
 import { formatAutoSaveTime, getPresetLabel } from "../../lib/sectionLabels";
 import { useI18n } from "../../i18n";
+import LayoutSnapshotMenu from "./LayoutSnapshotMenu";
+import { getTemplateFamily } from "../../lib/resumeTemplateCatalog";
 import TemplatePicker from "./TemplatePicker";
 import type { PdfExportMode } from "../../lib/resumePdfTypes";
 import ExportMenuButton from "./ExportMenuButton";
@@ -45,8 +47,10 @@ export interface StudioPreviewHeaderProps {
   setPreviewZoom: (value: number) => void;
   previewAutoFit: boolean;
   setPreviewAutoFit: (value: boolean | ((prev: boolean) => boolean)) => void;
-  history: ResumeData[];
+  history: unknown[];
+  future?: unknown[];
   handleUndo: () => void;
+  handleRedo?: () => void;
   chatOpen: boolean;
   setChatOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   exportToJson: () => void;
@@ -83,7 +87,9 @@ export default function StudioPreviewHeader({
   previewAutoFit,
   setPreviewAutoFit,
   history,
+  future = [],
   handleUndo,
+  handleRedo,
   chatOpen,
   setChatOpen,
   exportToJson,
@@ -360,6 +366,21 @@ export default function StudioPreviewHeader({
           >
             <Undo className="w-3 h-3" />
           </button>
+          <button
+            id="studio-btn-redo"
+            type="button"
+            onClick={handleRedo}
+            disabled={!handleRedo || future.length === 0}
+            className={`${STUDIO_BTN} ${
+              handleRedo && future.length > 0
+                ? "bg-amber-50 text-amber-800 border-amber-200"
+                : "bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed"
+            }`}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <Redo className="w-3 h-3" />
+          </button>
+          <LayoutSnapshotMenu templateFamily={getTemplateFamily(activeTemplate)} />
           <button
             id="studio-btn-chat"
             type="button"

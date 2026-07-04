@@ -55,42 +55,72 @@ const MODERN_PRESETS: Array<Partial<ResumeTemplateTheme>> = [
     roleAccent: "text-[#c0392b]",
     sheetFont: "font-serif",
   },
-  { accentBar: "from-teal-600 via-emerald-600 to-emerald-800", accentText: "text-emerald-600", accentBg: "bg-emerald-600", accentBgSoft: "bg-emerald-50", accentBorder: "border-emerald-100" },
-  { accentBar: "from-emerald-500 via-blue-600 to-blue-800", accentText: "text-emerald-600", accentBg: "bg-emerald-600", accentBgSoft: "bg-emerald-50", accentBorder: "border-emerald-100" },
-  { accentBar: "from-emerald-500 via-teal-600 to-emerald-800", accentText: "text-emerald-600", accentBg: "bg-emerald-600", accentBgSoft: "bg-emerald-50", accentBorder: "border-emerald-100" },
-  { accentBar: "from-slate-500 via-slate-700 to-slate-900", accentText: "text-slate-700", accentBg: "bg-slate-700", accentBgSoft: "bg-slate-100", accentBorder: "border-slate-200" },
-  { accentBar: "from-violet-500 via-purple-600 to-violet-900", accentText: "text-violet-600", accentBg: "bg-violet-600", accentBgSoft: "bg-violet-50", accentBorder: "border-violet-100" },
-  { accentBar: "from-rose-400 via-pink-600 to-rose-800", accentText: "text-rose-600", accentBg: "bg-rose-600", accentBgSoft: "bg-rose-50", accentBorder: "border-rose-100" },
-  { accentBar: "from-amber-400 via-orange-500 to-amber-700", accentText: "text-amber-700", accentBg: "bg-amber-600", accentBgSoft: "bg-amber-50", accentBorder: "border-amber-100" },
-  { accentBar: "from-teal-400 via-cyan-600 to-teal-800", accentText: "text-teal-600", accentBg: "bg-teal-600", accentBgSoft: "bg-teal-50", accentBorder: "border-teal-100" },
-  { accentBar: "from-emerald-900 via-slate-900 to-black", accentText: "text-emerald-900", accentBg: "bg-emerald-900", accentBgSoft: "bg-emerald-50", accentBorder: "border-emerald-200" },
-  { accentBar: "from-zinc-600 via-neutral-800 to-zinc-950", accentText: "text-zinc-800", accentBg: "bg-zinc-800", accentBgSoft: "bg-zinc-100", accentBorder: "border-zinc-200" },
+  // notebook-02 Legal Pad — 黃箋紙 + 雙紅邊線
+  { accentBar: "from-[#C0392B] to-[#A93226]", roleAccent: "text-[#C0392B]", sectionTitle: "border-b-2 border-[#C0392B]/40" },
+  // notebook-03 Graph Paper — 深湖水綠 accent
+  { accentBar: "from-[#2E7D74] to-[#1F5B54]", accentText: "text-[#2E7D74]", accentBg: "bg-[#2E7D74]", tailoredBorder: "border-[#2E7D74]", expHighlightBorder: "border-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", roleAccent: "text-[#2E7D74]", sectionTitle: "border-b border-[#2E7D74]/35" },
+  // notebook-04 Index Card — 紅頂線卡片
+  { accentBar: "from-[#C0392B] to-[#A93226]", sectionTitle: "border-b-2 border-[#C0392B]/30" },
+  // notebook-05 Composition — 置中 + 雙紅底線
+  { accentBar: "from-[#C0392B] to-[#A93226]", nameClass: "font-display text-[#1A2438] tracking-normal", sectionTitle: "border-b-4 border-double border-[#C0392B]/50" },
+  // notebook-06 Sticky Note — mint/marker 便利貼 chip
+  { accentBar: "from-[#C0392B] to-[#A93226]", skillChip: "bg-[#D4EDDA] text-[#1A2438] border-[#C5D9E8]", langChip: "bg-[#F5D76E]/60 text-[#1A2438] border-[#C5D9E8]" },
+  // notebook-07 Highlighter — 螢光掃字重點
+  { accentBar: "from-[#F5D76E] to-[#C0392B]", tailoredBg: "bg-[#F5D76E]/45", expHighlightBg: "bg-[#F5D76E]/35" },
+  // notebook-08 Red Thread — 紅線裝訂時間軸
+  { accentBar: "from-[#C0392B] to-[#A93226]", headerBorder: "border-dashed border-[#C0392B]/60", sectionTitle: "border-b border-[#C0392B]/30" },
+  // notebook-09 Blueprint — 藍格線深階 accent
+  { accentBar: "from-[#5B8FB9] to-[#3E6E93]", accentText: "text-[#5B8FB9]", accentBg: "bg-[#5B8FB9]", tailoredBorder: "border-[#5B8FB9]", expHighlightBorder: "border-[#5B8FB9]", sidebarDot: "bg-[#5B8FB9]", roleAccent: "text-[#5B8FB9]", sectionTitle: "border-b border-[#5B8FB9]/40" },
+  // notebook-10 Teal Ledger — 湖水帳簿隔行底紋
+  { accentBar: "from-[#2E7D74] to-[#1F5B54]", accentText: "text-[#2E7D74]", accentBg: "bg-[#2E7D74]", expHighlightBg: "bg-[#D4EDDA]/55", tailoredBorder: "border-[#2E7D74]", expHighlightBorder: "border-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sectionTitle: "border-b border-[#2E7D74]/35" },
+  // notebook-11 Draft Stamp — 石墨為主、紅印章點綴
+  { accentBar: "from-[#535C68] to-[#1A2438]", accentText: "text-[#535C68]", accentBg: "bg-[#535C68]", nameClass: "font-display text-[#1A2438]", sidebarDot: "bg-[#535C68]", roleAccent: "text-[#535C68]", sectionTitle: "border-b border-[#535C68]/30" },
 ];
 
 const CLASSIC_PRESETS: Array<Pick<ResumeTemplateTheme, "accentText" | "headerBorder" | "nameClass" | "sectionTitle">> = [
-  { accentText: "text-slate-800", headerBorder: "border-slate-300", nameClass: "uppercase tracking-tight", sectionTitle: "border-b border-slate-200" },
-  { accentText: "text-stone-800", headerBorder: "border-stone-400", nameClass: "uppercase tracking-wide", sectionTitle: "border-b-2 border-stone-300" },
-  { accentText: "text-neutral-900", headerBorder: "border-neutral-400", nameClass: "uppercase", sectionTitle: "border-b border-double border-neutral-300" },
-  { accentText: "text-emerald-900", headerBorder: "border-emerald-300", nameClass: "uppercase tracking-tight", sectionTitle: "border-b border-emerald-200" },
-  { accentText: "text-slate-900", headerBorder: "border-slate-500", nameClass: "tracking-normal", sectionTitle: "border-b border-slate-300" },
-  { accentText: "text-amber-950", headerBorder: "border-amber-300", nameClass: "uppercase tracking-wide", sectionTitle: "border-b border-amber-200" },
-  { accentText: "text-slate-700", headerBorder: "border-slate-200", nameClass: "italic", sectionTitle: "border-b border-dashed border-slate-300" },
-  { accentText: "text-zinc-800", headerBorder: "border-zinc-300", nameClass: "tracking-widest uppercase text-xl", sectionTitle: "border-b border-zinc-200" },
-  { accentText: "text-blue-950", headerBorder: "border-blue-200", nameClass: "uppercase", sectionTitle: "border-b-2 border-emerald-100" },
-  { accentText: "text-neutral-800", headerBorder: "border-neutral-300", nameClass: "font-black uppercase", sectionTitle: "border-b border-neutral-200" },
+  // bureau-01 Bureau Classic — 置中經典文書
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "tracking-tight", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-02 Barrister — 英式編年體
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#1A2438]/30", nameClass: "uppercase tracking-wide", sectionTitle: "border-b-2 border-[#C5D9E8]" },
+  // bureau-03 Registrar — 寬字距大寫
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#535C68]/40", nameClass: "uppercase tracking-widest", sectionTitle: "border-b border-double border-[#C5D9E8]" },
+  // bureau-04 Broadsheet — 大報墨色
+  { accentText: "text-[#1A2438]", headerBorder: "border-[#1A2438]/40", nameClass: "uppercase tracking-tight", sectionTitle: "border-b-4 border-double border-[#1A2438]/45" },
+  // bureau-05 Minute Book — 紅色節序號
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "tracking-normal", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-06 Treasury — 深湖水標題 + 字母磚
+  { accentText: "text-[#2E7D74]", headerBorder: "border-[#C5D9E8]", nameClass: "uppercase tracking-wide", sectionTitle: "border-b border-[#2E7D74]/35" },
+  // bureau-07 Chancery — 衡平斜體
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "italic", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-08 Docket — 案卷緊湊 + 點線引導
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#535C68]/30", nameClass: "tracking-widest uppercase text-xl", sectionTitle: "border-b border-dotted border-[#C0392B]/50" },
+  // bureau-09 Archive — 檔案室紅頂線
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C0392B]/60", nameClass: "uppercase", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-10 Signet — 印鑑置中
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "uppercase tracking-widest", sectionTitle: "border-b border-[#C5D9E8]" },
 ];
 
 const MINIMAL_PRESETS: Array<Pick<ResumeTemplateTheme, "accentText" | "sidebarDot" | "sidebarTitle" | "roleAccent">> = [
-  { accentText: "text-emerald-600", sidebarDot: "bg-emerald-500", sidebarTitle: "text-slate-400", roleAccent: "text-emerald-600" },
-  { accentText: "text-slate-700", sidebarDot: "bg-slate-500", sidebarTitle: "text-slate-500", roleAccent: "text-slate-700" },
-  { accentText: "text-zinc-800", sidebarDot: "bg-zinc-600", sidebarTitle: "text-zinc-400", roleAccent: "text-zinc-800" },
-  { accentText: "text-emerald-700", sidebarDot: "bg-emerald-500", sidebarTitle: "text-blue-300", roleAccent: "text-emerald-700" },
-  { accentText: "text-red-600", sidebarDot: "bg-red-500", sidebarTitle: "text-red-300", roleAccent: "text-red-600" },
-  { accentText: "text-emerald-700", sidebarDot: "bg-emerald-400", sidebarTitle: "text-emerald-300", roleAccent: "text-emerald-700" },
-  { accentText: "text-rose-700", sidebarDot: "bg-rose-400", sidebarTitle: "text-rose-300", roleAccent: "text-rose-700" },
-  { accentText: "text-violet-700", sidebarDot: "bg-violet-500", sidebarTitle: "text-violet-300", roleAccent: "text-violet-700" },
-  { accentText: "text-emerald-600", sidebarDot: "bg-emerald-500", sidebarTitle: "text-emerald-300", roleAccent: "text-emerald-600" },
-  { accentText: "text-amber-800", sidebarDot: "bg-amber-500", sidebarTitle: "text-amber-400", roleAccent: "text-amber-800" },
+  // studio-01 Studio Grid — 深湖水 + mint 圓點
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#2E7D74]" },
+  // studio-02 Whiteboard — teal 左邊線
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
+  // studio-03 Marker One — 全墨 + 螢光一筆
+  { accentText: "text-[#1A2438]", sidebarDot: "bg-[#F5D76E]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
+  // studio-04 Mint Tab — 薄荷標籤
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#D4EDDA]", sidebarTitle: "text-[#2E7D74]", roleAccent: "text-[#2E7D74]" },
+  // studio-05 Redline — 紅細線
+  { accentText: "text-[#C0392B]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#C0392B]" },
+  // studio-06 Graphite — 全石墨無彩
+  { accentText: "text-[#535C68]", sidebarDot: "bg-[#535C68]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#535C68]" },
+  // studio-07 Two-Track — 石墨雙欄 + 紅摺角
+  { accentText: "text-[#535C68]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
+  // studio-08 Eraser — mint/粉 chip
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#F2C1C1]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#2E7D74]" },
+  // studio-09 Console — mono + teal 游標
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#2E7D74]", roleAccent: "text-[#2E7D74]" },
+  // studio-10 Gallery — 紅點畫廊
+  { accentText: "text-[#C0392B]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#C0392B]" },
 ];
 
 function buildFamilyThemes(
@@ -133,21 +163,21 @@ const MODERN_DEFAULTS: Omit<ResumeTemplateTheme, "id" | "family"> = {
 
 const CLASSIC_DEFAULTS: Omit<ResumeTemplateTheme, "id" | "family"> = {
   ...MODERN_DEFAULTS,
-  accentBar: "from-stone-400 to-stone-600",
-  accentText: "text-slate-800",
-  accentBg: "bg-slate-800",
-  accentBgSoft: "bg-stone-50",
-  accentBorder: "border-stone-200",
-  sectionHeading: "text-slate-800",
-  skillChip: "text-slate-700",
-  langChip: "text-slate-700",
-  tailoredBg: "bg-amber-50",
-  tailoredBorder: "border-amber-400",
-  expHighlightBg: "bg-emerald-50/55",
-  expHighlightBorder: "border-emerald-400",
-  headerBorder: "border-slate-300",
+  accentBar: "from-[#C0392B] to-[#A93226]",
+  accentText: "text-[#C0392B]",
+  accentBg: "bg-[#1A2438]",
+  accentBgSoft: "bg-[#FAF6EB]",
+  accentBorder: "border-[#C5D9E8]",
+  sectionHeading: "text-[#1A2438]",
+  skillChip: "text-[#535C68]",
+  langChip: "text-[#535C68]",
+  tailoredBg: "bg-[#F5D76E]/30",
+  tailoredBorder: "border-[#C0392B]",
+  expHighlightBg: "bg-[#D4EDDA]/55",
+  expHighlightBorder: "border-[#2E7D74]",
+  headerBorder: "border-[#C5D9E8]",
   nameClass: "uppercase tracking-tight",
-  sectionTitle: "border-b border-slate-200",
+  sectionTitle: "border-b border-[#C5D9E8]",
   sheetFont: "font-serif",
 };
 

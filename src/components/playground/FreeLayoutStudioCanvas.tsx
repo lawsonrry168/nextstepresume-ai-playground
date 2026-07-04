@@ -106,6 +106,7 @@ export default function FreeLayoutStudioCanvas({
   onSectionClearManualSize,
   canvasLayout,
 }: FreeLayoutStudioCanvasProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLDivElement>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const isEdit = variant === "edit";
@@ -122,6 +123,7 @@ export default function FreeLayoutStudioCanvas({
   const resolved = resolvedTheme ?? resolveResumeTheme(templateStyle, DEFAULT_THEME_CUSTOMIZATION);
   const tc = resolved.classes;
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
+  const [multiSelectedIds, setMultiSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [pageSnapGuide, setPageSnapGuide] = useState<{ pageId: string; edge: PageSnapEdge } | null>(null);
   const dropTargetPageRef = useRef<string | null>(null);
   const pageSnapGuideRef = useRef<{ pageId: string; edge: PageSnapEdge } | null>(null);
@@ -132,6 +134,32 @@ export default function FreeLayoutStudioCanvas({
   const pageIds = useMemo(() => canvasLayout?.pages.map((p) => p.id) ?? [], [canvasLayout?.pages]);
   const selectedSectionId = canvasLayout?.selectedSectionId ?? internalSelectedId;
   const setSelectedSectionId = canvasLayout?.onSelectSection ?? setInternalSelectedId;
+
+  const handleSelectSection = useCallback(
+    (sectionId: string, additive?: boolean) => {
+      if (additive) {
+        setMultiSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (selectedSectionId && !next.has(selectedSectionId)) next.add(selectedSectionId);
+          if (next.has(sectionId)) {
+            next.delete(sectionId);
+          } else {
+            next.add(sectionId);
+          }
+          return next;
+        });
+      } else {
+        setMultiSelectedIds(new Set());
+      }
+      setSelectedSectionId(sectionId);
+    },
+    [selectedSectionId, setSelectedSectionId],
+  );
+
+  const clearAllSelection = useCallback(() => {
+    setSelectedSectionId(null);
+    setMultiSelectedIds(new Set());
+  }, [setSelectedSectionId]);
 
   const editSheetExtent = useMemo(() => {
     if (!isEdit || isExport) return CANVAS_PAGE_HEIGHT;
@@ -179,6 +207,56 @@ export default function FreeLayoutStudioCanvas({
     [isMultiPage, isSingleA4Page, snapEnabled],
   );
 
+  /** Group ops across the multi-selection — align edges or distribute spacing. */
+  const applyGroupOperation = useCallback(
+    (op: "align-left" | "align-top" | "align-right" | "distribute-v" | "distribute-h") => {
+      const ids = [...multiSelectedIds].filter((id) => positionsRef.current[id]);
+      if (ids.length < 2) return;
+      const boxes = ids.map((id) => ({ id, pos: positionsRef.current[id]! }));
+      const updates: Array<[string, FreeLayoutPosition]> = [];
+
+      if (op === "align-left") {
+        const minX = Math.min(...boxes.map((b) => b.pos.x));
+        for (const b of boxes) updates.push([b.id, { ...b.pos, x: minX }]);
+      } else if (op === "align-top") {
+        const minY = Math.min(...boxes.map((b) => b.pos.y));
+        for (const b of boxes) updates.push([b.id, { ...b.pos, y: minY }]);
+      } else if (op === "align-right") {
+        const maxRight = Math.max(...boxes.map((b) => b.pos.x + b.pos.width));
+        for (const b of boxes) updates.push([b.id, { ...b.pos, x: maxRight - b.pos.width }]);
+      } else if (op === "distribute-v") {
+        const sorted = [...boxes].sort((a, b) => a.pos.y - b.pos.y);
+        const first = sorted[0]!.pos;
+        const last = sorted[sorted.length - 1]!.pos;
+        const span = last.y + last.height - first.y;
+        const totalH = sorted.reduce((sum, b) => sum + b.pos.height, 0);
+        const gap = Math.max(0, (span - totalH) / (sorted.length - 1));
+        let cursor = first.y;
+        for (const b of sorted) {
+          updates.push([b.id, { ...b.pos, y: Math.round(cursor) }]);
+          cursor += b.pos.height + gap;
+        }
+      } else {
+        const sorted = [...boxes].sort((a, b) => a.pos.x - b.pos.x);
+        const first = sorted[0]!.pos;
+        const last = sorted[sorted.length - 1]!.pos;
+        const span = last.x + last.width - first.x;
+        const totalW = sorted.reduce((sum, b) => sum + b.pos.width, 0);
+        const gap = Math.max(0, (span - totalW) / (sorted.length - 1));
+        let cursor = first.x;
+        for (const b of sorted) {
+          updates.push([b.id, { ...b.pos, x: Math.round(cursor) }]);
+          cursor += b.pos.width + gap;
+        }
+      }
+
+      for (const [id, pos] of updates) {
+        emitPositionChange(id, pos, { skipSnap: true, userMoved: true });
+      }
+    },
+    [emitPositionChange, multiSelectedIds],
+  );
+
   const zoomFactor = previewZoom / 100;
   const effectiveScale = (shouldAutoFitToWidth ? fitScale : 1) * zoomFactor;
   const scaledHeight = canvasHeight * effectiveScale;
@@ -208,7 +286,8 @@ export default function FreeLayoutStudioCanvas({
           compact={isNarrowPanel}
           chromeMode={effectiveChromeMode}
           isSelected={selectedSectionId === section.id}
-          onSelect={() => setSelectedSectionId(section.id)}
+          multiSelected={multiSelectedIds.has(section.id)}
+          onSelect={(additive) => handleSelectSection(section.id, additive)}
           onPositionChange={(next, options) => emitPositionChange(section.id, next, options)}
           onDragPointer={isMultiPage ? handleSectionDragPointer : undefined}
           onDragLocalY={
@@ -402,7 +481,7 @@ export default function FreeLayoutStudioCanvas({
       <div
         ref={isExport ? undefined : canvasRef}
         className={`relative w-full ${isEdit && !isExport ? "min-h-full overflow-visible" : isExport ? "h-full overflow-visible" : "h-full overflow-hidden"}`}
-        onPointerDown={isEdit ? () => setSelectedSectionId(null) : undefined}
+        onPointerDown={isEdit ? clearAllSelection : undefined}
       >
         {isEdit && !isExport && editSheetExtent > CANVAS_PAGE_HEIGHT ? (
           <div
@@ -483,7 +562,7 @@ export default function FreeLayoutStudioCanvas({
                   ref={pageIndex === 0 && !isExport ? canvasRef : undefined}
                   data-page-drop-surface={isEdit ? "" : undefined}
                   className={`relative w-full h-full ${isEdit || isExport ? "overflow-visible" : "overflow-hidden"}`}
-                  onPointerDown={isEdit ? () => setSelectedSectionId(null) : undefined}
+                  onPointerDown={isEdit ? clearAllSelection : undefined}
                 >
                   {family === "modern" && resolved.showAccentBar && (isLiveChrome || isPrintSurface) ? (
                     <div className={`h-2 ${tc.accentBar} rounded-t-lg`} />
@@ -511,6 +590,44 @@ export default function FreeLayoutStudioCanvas({
       className={`${outerClassName ?? defaultOuter} ${grayscaleMode ? "grayscale" : ""}`}
       id={containerId}
     >
+      {isEdit && multiSelectedIds.size >= 2 ? (
+        <div className="sticky top-2 z-[70] flex justify-center pointer-events-none" data-canvas-chrome>
+          <div
+            className="pointer-events-auto flex items-center gap-1 bg-white/95 border border-sky-200 rounded-lg shadow-md px-2 py-1"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <span className="text-[10px] font-bold text-sky-800 pr-1 border-r border-sky-100">
+              {t("canvas.multi.count", { count: multiSelectedIds.size })}
+            </span>
+            {(
+              [
+                ["align-left", t("canvas.multi.alignLeft")],
+                ["align-top", t("canvas.multi.alignTop")],
+                ["align-right", t("canvas.multi.alignRight")],
+                ["distribute-v", t("canvas.multi.distributeV")],
+                ["distribute-h", t("canvas.multi.distributeH")],
+              ] as const
+            ).map(([op, label]) => (
+              <button
+                key={op}
+                type="button"
+                className="text-[10px] font-medium text-sky-700 hover:bg-sky-50 border border-transparent hover:border-sky-200 rounded px-1.5 py-0.5"
+                onClick={() => applyGroupOperation(op)}
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="text-[10px] text-slate-400 hover:text-slate-600 px-1"
+              title={t("canvas.multi.clear")}
+              onClick={clearAllSelection}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div
         className={isNarrowPanel ? "w-full flex justify-center" : "shrink-0 flex justify-center"}
         style={{ minHeight: scaledHeight }}
@@ -536,7 +653,8 @@ interface DraggableSectionProps {
   compact?: boolean;
   chromeMode?: "full" | "live";
   isSelected?: boolean;
-  onSelect?: () => void;
+  multiSelected?: boolean;
+  onSelect?: (additive?: boolean) => void;
   onPositionChange: (pos: FreeLayoutPosition, options?: { skipSnap?: boolean; userMoved?: boolean }) => void;
   locked?: boolean;
   zIndex?: number;
@@ -865,6 +983,7 @@ const DraggableSection = memo(function DraggableSection({
   compact = false,
   chromeMode = "full",
   isSelected = false,
+  multiSelected = false,
   onSelect,
   onPositionChange,
   locked = false,
@@ -918,6 +1037,8 @@ const DraggableSection = memo(function DraggableSection({
       ? isLive
         ? "ring-2 ring-emerald-400/80"
         : "ring-2 ring-emerald-400/80 border-2 border-dashed border-emerald-400/70"
+      : multiSelected
+        ? "ring-2 ring-sky-400/80 border-2 border-dashed border-sky-300/70"
       : isHovered
         ? isLive
           ? "ring-1 ring-emerald-200"
@@ -1032,7 +1153,7 @@ const DraggableSection = memo(function DraggableSection({
       }}
       onPointerDown={(e) => {
         e.stopPropagation();
-        onSelect?.();
+        onSelect?.(e.shiftKey);
       }}
     >
       <div
@@ -1085,13 +1206,20 @@ const DraggableSection = memo(function DraggableSection({
           className={`relative flex flex-col transition-all ${isLive ? "" : "rounded-lg"} ${expansionMode ? "" : "h-full overflow-hidden"} ${shellRingClass}`}
         >
           {contentOverflows ? (
-            <div
-              className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex items-end justify-center pb-0.5"
-              title={t("canvas.dimensions.contentClipped")}
-            >
-              <span className="text-[8px] font-bold text-amber-800 bg-amber-100/95 border border-amber-300 rounded px-1.5 py-0.5 shadow-sm">
-                {t("canvas.dimensions.contentClipped")}
-              </span>
+            <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex items-end justify-center pb-0.5">
+              <button
+                type="button"
+                data-canvas-chrome
+                className="pointer-events-auto text-[8px] font-bold text-red-800 bg-red-100/95 border border-red-300 rounded px-1.5 py-0.5 shadow-sm hover:bg-red-200 cursor-pointer"
+                title={`${t("canvas.dimensions.contentClipped")} — ${t("canvas.dimensions.fitContent")}`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleFitContent();
+                }}
+              >
+                {t("canvas.dimensions.contentClipped")} ↧
+              </button>
             </div>
           ) : null}
           <div ref={contentRef} className={`flex-1 text-left ${contentOverflowClass} ${contentPadClass}`}>

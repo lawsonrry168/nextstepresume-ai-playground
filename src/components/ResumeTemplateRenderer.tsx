@@ -6,6 +6,7 @@
 import { memo } from "react";
 import { ResumeData, TemplateStyle } from "../types";
 import { getTemplateFamily, isMarginaliaNotebookTemplate } from "../lib/resumeTemplateCatalog";
+import { getTemplateDefinition } from "../lib/templates/tokens";
 import { ResolvedResumeTheme } from "../lib/resumeThemeCustomization";
 import ResumeA4FlowDocument from "./resume/ResumeA4FlowDocument";
 import ResumeA4MinimalistDocument from "./resume/ResumeA4MinimalistDocument";
@@ -70,7 +71,20 @@ function ResumeTemplateRenderer({
     resolved,
   };
 
-  if (useA4Layout && !marginalia && (family === "classic" || family === "modern")) {
+  // Layout archetype from the template tokens decides the document component,
+  // so sidebar designs get a real sidebar regardless of legacy family.
+  const archetype = getTemplateDefinition(style).layout;
+  const usesSidebar = archetype === "sidebar-left" || archetype === "sidebar-right";
+
+  if (useA4Layout && !marginalia && usesSidebar) {
+    return (
+      <ResumeDocumentShell resolved={resolved} className={sheetShellClass} a4Surface>
+        <ResumeA4MinimalistDocument {...contentProps} />
+      </ResumeDocumentShell>
+    );
+  }
+
+  if (useA4Layout && !marginalia) {
     return (
       <ResumeDocumentShell
         resolved={resolved}
@@ -83,14 +97,6 @@ function ResumeTemplateRenderer({
         }
       >
         <ResumeA4FlowDocument {...contentProps} />
-      </ResumeDocumentShell>
-    );
-  }
-
-  if (useA4Layout && !marginalia && family === "minimalist") {
-    return (
-      <ResumeDocumentShell resolved={resolved} className={sheetShellClass} a4Surface>
-        <ResumeA4MinimalistDocument {...contentProps} />
       </ResumeDocumentShell>
     );
   }

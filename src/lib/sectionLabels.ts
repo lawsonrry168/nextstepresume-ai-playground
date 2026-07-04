@@ -15,7 +15,15 @@ const SECTION_KEYS: Record<string, string> = {
 
 export function getSectionLabel(sectionId: string, locale?: AppLocale): string {
   const key = SECTION_KEYS[sectionId];
-  if (!key) return sectionId;
+  if (!key) {
+    if (sectionId.startsWith("el-")) {
+      const kind = sectionId.split("-")[1];
+      if (kind === "text" || kind === "photo" || kind === "divider") {
+        return t(`canvas.elements.${kind}`, undefined, locale ?? getActiveLocale());
+      }
+    }
+    return sectionId;
+  }
   return t(key, undefined, locale ?? getActiveLocale());
 }
 

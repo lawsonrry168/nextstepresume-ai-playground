@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, lazy, Suspense, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { Minimize2, TrendingUp, Check } from "lucide-react";
 import { ResumeData, AnalysisResult, TemplateStyle } from "../../types";
@@ -13,6 +13,12 @@ const CanvasPageStrip = lazy(() => import("./canvas/CanvasPageStrip"));
 const CanvasRightNavSections = lazy(() => import("./canvas/CanvasRightNavSections"));
 import type { CanvasToolsBarProps } from "./canvas/CanvasToolsBar";
 import { useLayoutDocument } from "../../hooks/useLayoutDocument";
+import {
+  addCanvasElement,
+  getCanvasElements,
+  subscribeCanvasElements,
+  type CanvasElementKind,
+} from "../../lib/canvasElements";
 import { useCanvasStudioShortcuts } from "../../hooks/useCanvasStudioShortcuts";
 import { getTemplateFamily, isMarginaliaNotebookTemplate } from "../../lib/resumeTemplateCatalog";
 import StudioPreviewHeader from "./StudioPreviewHeader";
@@ -58,8 +64,10 @@ export interface ResumeLivePreviewPanelProps {
   setStudioViewMode: (mode: StudioViewMode) => void;
   activeTemplate: TemplateStyle;
   setActiveTemplate: (style: TemplateStyle) => void;
-  history: ResumeData[];
+  history: unknown[];
+  future?: unknown[];
   handleUndo: () => void;
+  handleRedo?: () => void;
   chatOpen: boolean;
   setChatOpen: (value: boolean | ((prev: boolean) => boolean)) => void;
   pdfExporting: boolean;
@@ -153,7 +161,9 @@ export default function ResumeLivePreviewPanel({
   activeTemplate,
   setActiveTemplate,
   history,
+  future,
   handleUndo,
+  handleRedo,
   chatOpen,
   setChatOpen,
   pdfExporting,
@@ -186,6 +196,9 @@ export default function ResumeLivePreviewPanel({
 
   const [manualSizedSections, setManualSizedSections] = useState<Set<string>>(() => new Set());
 
+  const canvasElements = useSyncExternalStore(subscribeCanvasElements, getCanvasElements, getCanvasElements);
+  const extraSections = useMemo(() => canvasElements.map((el) => ({ id: el.id })), [canvasElements]);
+
   const {
     freeLayout,
     canvasDoc,
@@ -198,7 +211,32 @@ export default function ResumeLivePreviewPanel({
     templateFamily,
     themeCustomization,
     manualSizedSections,
+    extraSections,
   });
+
+  const handleAddElement = useCallback(
+    (kind: CanvasElementKind) => {
+      const element = addCanvasElement(kind);
+      if (!element) return;
+      const defaults =
+        kind === "photo"
+          ? { width: 160, height: 160 }
+          : kind === "divider"
+            ? { width: 320, height: 24 }
+            : { width: 280, height: 120 };
+      freeLayout.updatePosition(
+        element.id,
+        { x: 72, y: 72, ...defaults, pageId: canvasDoc.activePageId },
+        { skipSnap: true, constrainA4: true },
+      );
+      canvasDoc.setSelectedSectionId(element.id);
+    },
+    [canvasDoc, freeLayout],
+  );
+
+  const handleAutoTidy = useCallback(() => {
+    freeLayout.applyPositionsBatch(exportPrintPlan.positions, { constrainA4: true });
+  }, [exportPrintPlan.positions, freeLayout]);
   const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
 
   const showFreeLayoutCanvas = freeLayout.enabled && (!isPreviewMode || studioViewMode === "single");
@@ -377,7 +415,10 @@ export default function ResumeLivePreviewPanel({
       return before.y !== after.y || before.x !== after.x;
     });
     if (changed) {
-      freeLayout.applyPositionsBatch(next, { constrainA4: true });
+      // No A4 clamp here: clamping pulls overflowing sections back up into
+      // the ones above (overlap). The draft sheet extends instead; export
+      // pagination and auto-tidy handle the page split.
+      freeLayout.applyPositionsBatch(next);
     }
   }, [
     canvasDoc.activePageId,
@@ -614,8 +655,8 @@ export default function ResumeLivePreviewPanel({
   );
 
   const familyDefaultPositions = useMemo(
-    () => createFamilyDefaultPositions(templateFamily, freeLayoutSectionIds),
-    [templateFamily, freeLayoutSectionIds],
+    () => createFamilyDefaultPositions(templateFamily, freeLayoutSectionIds, resumeData),
+    [templateFamily, freeLayoutSectionIds, resumeData],
   );
 
   const resetSelectedSection = useMemo(
@@ -764,11 +805,15 @@ export default function ResumeLivePreviewPanel({
       onFit: () => canvasViewportRef.current?.fitToScreen(),
       onZoom100: () => canvasViewportRef.current?.zoomTo(1),
       onZoom50: () => canvasViewportRef.current?.zoomTo(0.5),
+      onAddElement: handleAddElement,
+      onAutoTidy: handleAutoTidy,
     }),
     [
       activePageIndex,
       alignSelectedSection,
       canvasDoc,
+      handleAddElement,
+      handleAutoTidy,
       freeLayout.livePreview,
       handleResetLayout,
       freeLayout.setLivePreview,
@@ -1096,7 +1141,9 @@ export default function ResumeLivePreviewPanel({
             previewAutoFit={previewAutoFit}
             setPreviewAutoFit={setPreviewAutoFit}
             history={history}
+            future={future}
             handleUndo={handleUndo}
+            handleRedo={handleRedo}
             chatOpen={chatOpen}
             setChatOpen={setChatOpen}
             exportToJson={exportToJson}

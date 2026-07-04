@@ -15,6 +15,17 @@ import './dark-marginalia.css';
 purgeLegacyStorage();
 injectLayoutGeometryCss();
 
+const isPrintExportMode = new URLSearchParams(window.location.search).has('print');
+
+if (isPrintExportMode) {
+  void import('./components/PrintExportPage').then(({ default: PrintExportPage }) => {
+    createRoot(document.getElementById('root')!).render(
+      <LocaleProvider>
+        <PrintExportPage />
+      </LocaleProvider>,
+    );
+  });
+} else {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <LocaleProvider>
@@ -29,3 +40,4 @@ createRoot(document.getElementById('root')!).render(
     </LocaleProvider>
   </StrictMode>,
 );
+}

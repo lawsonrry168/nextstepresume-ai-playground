@@ -4,6 +4,7 @@ import { registerAiRoutes } from "./ai/index.ts";
 import { registerAuthRoutes } from "./auth.ts";
 import { registerBillingRoutes } from "./billing.ts";
 import { registerConfigRoutes } from "./config.ts";
+import { registerExportPdfRoutes } from "./exportPdf.ts";
 import { registerHealthRoutes } from "./health.ts";
 import { registerJdRoutes } from "./jd.ts";
 import { registerJobsdbRoutes } from "./jobsdb.ts";
@@ -25,5 +26,6 @@ export function registerCoreRoutes(app: Express, aiEnabled: boolean): void {
 export function registerAppRoutes(app: Express, ai: GoogleGenAI | null): void {
   registerCoreRoutes(app, !!ai);
   registerResumeRoutes(app);
+  registerExportPdfRoutes(app);
   registerAiRoutes(app, ai);
 }

@@ -199,7 +199,7 @@ html.dark .marginalia-theme :is(
 
 html.dark .marginalia-theme .preview-resume-sheet:not(:has(.resume-template-marginalia)),
 html.dark .marginalia-theme #resume-printable-sheet:not(.resume-template-marginalia) {
-  background-color: #ffffff !important;
+  background-color: var(--tpl-paper, #ffffff) !important;
   color: #1a2438 !important;
 }
 

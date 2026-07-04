@@ -18,3 +18,7 @@ blob-report/
 dump.rdb
 *.rdb
 .vercel
+.claude/
+.tmp-pdf-review*/
+tmp-pdf-*.png
+tmp-*.png

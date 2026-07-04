@@ -12,6 +12,7 @@ import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
 import { alignPositionOnPage, nudgePosition, centerOnPage, fillPageWidth, snapPositionToGrid, resizeSection, resetSectionPosition } from "../lib/canvasAlignTools";
 import { detectPageSnapEdge, resolveBoundaryPageCross, clampPositionToA4Page, maxSectionHeightOnPage } from "../lib/canvasPageSnap";
 import { estimatePdfPageCount } from "../lib/canvasPdfPagination";
+import { syncPagesDocumentToPositions } from "../hooks/useCanvasDocument";
 import {
   CANVAS_VIEWPORT_DEFAULTS,
   CANVAS_ZOOM_MAX,
@@ -89,6 +90,20 @@ describe("canvasStudioTypes", () => {
     expect(doc.activePageId).toBe(doc.pages[0].id);
   });
 
+  it("syncs canvas pages to section page ids when imported layout uses new pages", () => {
+    const current = {
+      pages: [{ id: "page-local", label: "Page 1" }],
+      activePageId: "page-local",
+    };
+    const positions = {
+      header: { x: 48, y: 48, width: 698, height: 120, pageId: "export-page-1" },
+      experience: { x: 48, y: 48, width: 698, height: 240, pageId: "export-page-2" },
+    };
+    const synced = syncPagesDocumentToPositions(current, ["header", "experience"], positions);
+    expect(synced.pages.map((page) => page.id)).toEqual(["export-page-1", "export-page-2"]);
+    expect(synced.activePageId).toBe("export-page-1");
+  });
+
   it("reorders layers in panel drag order", () => {
     const next = reorderLayerInPanel(["a", "b", "c"], "c", "a", "before");
     expect(next.indexOf("c")).toBeGreaterThan(next.indexOf("a"));
@@ -143,7 +158,7 @@ describe("canvasPageSnap", () => {
   it("clamps section position within A4 page bounds", () => {
     const clamped = clampPositionToA4Page({ x: 700, y: 1000, width: 400, height: 300 });
     expect(clamped.x + clamped.width).toBeLessThanOrEqual(794);
-    expect(clamped.y).toBe(1000);
+    expect(clamped.y + clamped.height).toBeLessThanOrEqual(1123);
     expect(clamped.x).toBeGreaterThanOrEqual(0);
     expect(clamped.y).toBeGreaterThanOrEqual(0);
   });
@@ -220,14 +235,15 @@ describe("canvasLayoutTools", () => {
 
   it("stack-compact uses tighter gaps than fill-page stack when resume data is present", async () => {
     const { initialResumeData } = await import("../data");
-    const ids = ["header", "summary", "experience", "education", "skills", "languages"];
+    // Content set chosen to genuinely fit one A4 page with accurate heights —
+    // the compact-vs-natural gap invariant is only physical when slack exists.
+    const ids = ["header", "summary", "education", "skills", "languages"];
     const loose = {
       header: { x: 48, y: 48, width: 698, height: 200, pageId },
       summary: { x: 48, y: 300, width: 698, height: 200, pageId },
-      experience: { x: 48, y: 600, width: 698, height: 400, pageId },
-      education: { x: 48, y: 1000, width: 698, height: 120, pageId },
-      skills: { x: 48, y: 1120, width: 698, height: 120, pageId },
-      languages: { x: 48, y: 1240, width: 698, height: 80, pageId },
+      education: { x: 48, y: 600, width: 698, height: 120, pageId },
+      skills: { x: 48, y: 760, width: 698, height: 120, pageId },
+      languages: { x: 48, y: 920, width: 698, height: 80, pageId },
     };
     const content = { resumeData: initialResumeData };
     const stacked = applyPageLayoutAction("stack", ids, loose, pageId, getPageId, undefined, content);

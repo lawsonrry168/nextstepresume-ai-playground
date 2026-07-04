@@ -1,6 +1,11 @@
 import { CANVAS_PAGE_EDGE_SNAP, CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
 import type { FreeLayoutPosition } from "./resumeFreeLayout";
-import { FREE_LAYOUT_MIN_HEIGHT, FREE_LAYOUT_MIN_WIDTH, FREE_LAYOUT_MAX_HEIGHT, FREE_LAYOUT_MAX_WIDTH } from "./resumeFreeLayout";
+import {
+  FREE_LAYOUT_MAX_HEIGHT,
+  FREE_LAYOUT_MAX_WIDTH,
+  FREE_LAYOUT_MIN_HEIGHT,
+  FREE_LAYOUT_MIN_WIDTH,
+} from "./resumeFreeLayout";
 
 export const CANVAS_A4_SIZE = {
   width: CANVAS_PAGE_WIDTH,
@@ -47,7 +52,11 @@ export function resolveBoundaryPageCross(
   return null;
 }
 
-export function clampSectionYToPage(localY: number, sectionHeight: number, pageHeight = CANVAS_PAGE_HEIGHT): number {
+export function clampSectionYToPage(
+  localY: number,
+  sectionHeight: number,
+  pageHeight = CANVAS_PAGE_HEIGHT,
+): number {
   return Math.max(0, Math.min(localY, Math.max(0, pageHeight - sectionHeight)));
 }
 
@@ -64,8 +73,7 @@ export function clampPositionToA4Page(pos: FreeLayoutPosition): FreeLayoutPositi
     CANVAS_PAGE_HEIGHT,
   );
   const x = Math.max(0, Math.min(pos.x, CANVAS_PAGE_WIDTH - width));
-  // Allow vertical overflow past page bottom — clamping y upward causes column overlap
-  const y = Math.max(0, pos.y);
+  const y = Math.max(0, Math.min(pos.y, CANVAS_PAGE_HEIGHT - height));
   return { ...pos, x, y, width, height };
 }
 

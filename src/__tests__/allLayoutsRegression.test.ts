@@ -11,6 +11,7 @@ import {
 import {
   createFamilyDefaultPositions,
   createFreeLayoutPresetPositions,
+  mergeFreeLayoutPositions,
 } from "../lib/layoutPresets";
 import {
   buildFreeLayoutSections,
@@ -115,6 +116,21 @@ describe("all layout presets — export-ready regression", () => {
       expect(sectionOverflowsPrintPage(pos)).toBe(false);
     }
     assertNoOverlaps(positions, SECTION_IDS);
+  });
+
+  it("repairs legacy stored overflow layouts back to valid family defaults", () => {
+    const brokenStored = {
+      header: { x: 48, y: 48, width: 698, height: 150 },
+      summary: { x: 48, y: 1180, width: 698, height: 240, pageId: "page-overflow" },
+    };
+    const merged = mergeFreeLayoutPositions(brokenStored, SECTION_IDS, "modern", initialResumeData);
+
+    for (const id of SECTION_IDS) {
+      const pos = merged[id];
+      if (!pos) continue;
+      assertWithinA4(pos);
+      expect(pos.pageId).not.toBe("page-overflow");
+    }
   });
 });
 

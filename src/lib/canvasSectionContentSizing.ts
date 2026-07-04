@@ -10,44 +10,49 @@ import {
 } from "./resumeFreeLayout";
 import { CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
 import { CANVAS_PAGE_MARGIN } from "./canvasAlignTools";
+import { getHkPersonalMetaLines } from "./resumeHkMeta";
+import {
+  countWrappedLines,
+  fallbackWrappedLineCount,
+  isPixelMeasureAvailable,
+  FALLBACK_CHAR_WIDTH,
+  RESUME_BODY_FONT,
+} from "./measure/textMeasure";
 
 const LINE_HEIGHT = 22;
 const SECTION_CHROME = 48;
 /** Live canvas overlay chrome + padding */
 export const SECTION_CONTENT_PADDING = 24;
 /** Approximate glyph width at resume body size */
-const CHAR_WIDTH = 7.2;
+const CHAR_WIDTH = FALLBACK_CHAR_WIDTH;
 
 /** Max section height on A4 canvas (printable band) */
 export const CANVAS_SECTION_MAX_HEIGHT = 1027;
 
 export function estimateWrappedLineCount(text: string, charsPerLine: number): number {
-  const trimmed = text.trim();
-  if (!trimmed) return 0;
-  const words = trimmed.split(/\s+/);
-  let lines = 1;
-  let col = 0;
-  for (const word of words) {
-    const token = word.length;
-    if (token >= charsPerLine) {
-      lines += Math.ceil(token / charsPerLine);
-      col = 0;
-      continue;
-    }
-    if (col === 0) {
-      col = token;
-    } else if (col + 1 + token > charsPerLine) {
-      lines += 1;
-      col = token;
-    } else {
-      col += 1 + token;
-    }
-  }
-  return lines;
+  return fallbackWrappedLineCount(text, charsPerLine);
 }
 
-function estimateBlockLines(texts: string[], charsPerLine: number, extraLines = 0): number {
-  return extraLines + texts.reduce((sum, t) => sum + estimateWrappedLineCount(t, charsPerLine), 0);
+/** Wrap text at a section content width — pixel-accurate in the browser, heuristic elsewhere. */
+function wrappedLinesAtWidth(text: string, contentWidth: number, charsPerLine: number): number {
+  if (isPixelMeasureAvailable()) {
+    return countWrappedLines(text, contentWidth, RESUME_BODY_FONT);
+  }
+  return fallbackWrappedLineCount(text, charsPerLine);
+}
+
+function sectionContentWidth(width: number): number {
+  return Math.max(120, width - SECTION_CONTENT_PADDING * 2);
+}
+
+function estimateBlockLines(
+  texts: string[],
+  charsPerLine: number,
+  extraLines = 0,
+  contentWidth?: number,
+): number {
+  const w = contentWidth ?? charsPerLine * CHAR_WIDTH;
+  return extraLines + texts.reduce((sum, t) => sum + wrappedLinesAtWidth(t, w, charsPerLine), 0);
 }
 
 export function getSectionTextLength(sectionId: string, data: ResumeData): number {
@@ -100,19 +105,25 @@ export function estimateSectionHeightForContent(
   if (textLen === 0) return defaultSectionHeight(sectionId);
 
   const charsPerLine = estimateCharsPerLine(width);
+  const contentWidth = sectionContentWidth(width);
   let contentLines = 0;
 
   switch (sectionId) {
     case "header": {
+      // Block-mode header renders each contact field and HK meta entry on its
+      // own row — count them individually or the box underestimates and the
+      // auto-expanding content overlaps the section below.
       const p = data.personalInfo;
-      contentLines = estimateBlockLines(
-        [p.name, p.title, [p.email, p.phone, p.location].filter(Boolean).join(" · "), [p.website, p.linkedin].filter(Boolean).join(" · ")],
-        charsPerLine,
-      );
+      contentLines = estimateBlockLines([p.name, p.title], charsPerLine, 0, contentWidth);
+      // Contact/meta rows render at ~16px (0.75 of a body line)
+      const contactRows =
+        [p.email, p.phone, p.location, p.website, p.linkedin].filter(Boolean).length +
+        getHkPersonalMetaLines(p).length;
+      contentLines += contactRows * 0.75;
       break;
     }
     case "summary":
-      contentLines = 1 + estimateWrappedLineCount(data.summary ?? "", charsPerLine);
+      contentLines = 1 + wrappedLinesAtWidth(data.summary ?? "", contentWidth, charsPerLine);
       break;
     case "experience": {
       contentLines = 1;
@@ -125,6 +136,7 @@ export function estimateSectionHeightForContent(
           ],
           charsPerLine,
           1,
+          contentWidth,
         );
       }
       break;
@@ -136,6 +148,7 @@ export function estimateSectionHeightForContent(
           [item.degree, `${item.institution} · ${item.gradDate}${item.field ? ` · ${item.field}` : ""}`],
           charsPerLine,
           1,
+          contentWidth,
         );
       }
       break;
@@ -147,6 +160,7 @@ export function estimateSectionHeightForContent(
           [item.name, item.description, item.techStack ? `Tech: ${item.techStack}` : ""].filter(Boolean),
           charsPerLine,
           1,
+          contentWidth,
         );
       }
       break;

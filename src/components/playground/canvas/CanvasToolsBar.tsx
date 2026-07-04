@@ -17,18 +17,22 @@ import {
   EyeOff,
   Focus,
   Grid3x3,
+  ImagePlus,
   Lock,
   LockOpen,
   Magnet,
   Maximize2,
   MoveDown,
   MoveRight,
+  Minus,
   MoveUp,
   Plus,
   RotateCcw,
   Square,
   Trash2,
+  Type,
   Unlock,
+  Wand2,
 } from "lucide-react";
 import type { CanvasAlignHorizontal, CanvasAlignVertical } from "../../../lib/canvasAlignTools";
 import type { CanvasNavSectionId } from "../../../lib/canvasStudioTypes";
@@ -75,6 +79,10 @@ export interface CanvasToolsBarProps {
   onFit: () => void;
   onZoom100: () => void;
   onZoom50: () => void;
+  /** Custom element insertion (phase 8) */
+  onAddElement?: (kind: "text" | "photo" | "divider") => void;
+  /** One-click engine tidy (phase 9) */
+  onAutoTidy?: () => void;
 }
 
 function ToolBtn({
@@ -156,6 +164,8 @@ export function buildCanvasToolSections(
     onFit,
     onZoom100,
     onZoom50,
+    onAddElement,
+    onAutoTidy,
   } = props;
 
   return {
@@ -305,6 +315,24 @@ export function buildCanvasToolSections(
         <ToolBtn title={t("canvas.tools.resetLayout")} label={t("canvas.tools.resetLayout")} onClick={onResetLayout}>
           <RotateCcw className="w-4 h-4" />
         </ToolBtn>
+        {onAutoTidy ? (
+          <ToolBtn title={t("canvas.tools.autoTidy")} label={t("canvas.tools.autoTidy")} onClick={onAutoTidy}>
+            <Wand2 className="w-4 h-4" />
+          </ToolBtn>
+        ) : null}
+        {onAddElement ? (
+          <>
+            <ToolBtn title={t("canvas.elements.addText")} label={t("canvas.elements.text")} onClick={() => onAddElement("text")}>
+              <Type className="w-4 h-4" />
+            </ToolBtn>
+            <ToolBtn title={t("canvas.elements.addPhoto")} label={t("canvas.elements.photo")} onClick={() => onAddElement("photo")}>
+              <ImagePlus className="w-4 h-4" />
+            </ToolBtn>
+            <ToolBtn title={t("canvas.elements.addDivider")} label={t("canvas.elements.divider")} onClick={() => onAddElement("divider")}>
+              <Minus className="w-4 h-4" />
+            </ToolBtn>
+          </>
+        ) : null}
       </ToolGrid>
     ),
   };

@@ -6,6 +6,7 @@ import {
   TemplateStyle,
 } from "./resumeTemplateCatalog";
 import { NSR_STORAGE_KEYS } from "./storageKeys";
+import { getTemplateDefinition, templateCssVariables } from "./templates/tokens";
 
 export const THEME_CUSTOMIZATION_STORAGE_KEY = NSR_STORAGE_KEYS.themeCustomization;
 
@@ -249,6 +250,9 @@ export function resolveResumeTheme(
   const enabled = customization.enabled;
 
   const cssVars: CSSProperties = {};
+  for (const [key, value] of Object.entries(templateCssVariables(getTemplateDefinition(templateStyle)))) {
+    cssVars[key as string] = value;
+  }
   const themeAccent = extractAccentHex(theme);
   const accent = customization.accentColor ?? (enabled && customization.accentGradientEnd ? themeAccent : null);
   const accentEnd = customization.accentGradientEnd ?? accent;

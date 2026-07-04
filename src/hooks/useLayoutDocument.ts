@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { ResumeData } from "../types";
 import { TemplateFamily } from "../lib/resumeTemplateCatalog";
 import { ResumeThemeCustomization } from "../lib/resumeThemeCustomization";
+import type { FreeLayoutSectionMeta } from "../lib/resumeFreeLayout";
 import { useFreeLayout } from "./useFreeLayout";
 import { useCanvasDocument } from "./useCanvasDocument";
 import { buildLayoutDocument, exportPositionsFromDocument } from "../lib/layoutDocument";
@@ -25,6 +26,8 @@ export interface UseLayoutDocumentOptions {
   templateFamily: TemplateFamily;
   themeCustomization: ResumeThemeCustomization;
   manualSizedSections?: ReadonlySet<string>;
+  /** Custom canvas elements (text/photo/divider) joining the layout */
+  extraSections?: FreeLayoutSectionMeta[];
 }
 
 /**
@@ -36,8 +39,9 @@ export function useLayoutDocument({
   templateFamily,
   themeCustomization,
   manualSizedSections,
+  extraSections,
 }: UseLayoutDocumentOptions) {
-  const freeLayout = useFreeLayout(resumeData, templateFamily);
+  const freeLayout = useFreeLayout(resumeData, templateFamily, extraSections);
   const canvasDoc = useCanvasDocument({
     templateFamily,
     sections: freeLayout.sections,

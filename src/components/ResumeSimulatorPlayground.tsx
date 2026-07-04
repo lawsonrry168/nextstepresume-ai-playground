@@ -288,7 +288,7 @@ export default function ResumeSimulatorPlayground({
     }
   };
 
-  const { history, handleUndo, saveImmediateSnapshot } = useResumeUndoHistory(resumeData, setResumeData);
+  const { history, future, handleUndo, handleRedo, saveImmediateSnapshot } = useResumeUndoHistory(resumeData, setResumeData);
 
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
   const { studioViewMode, setStudioViewMode } = useStudioViewMode();
@@ -370,7 +370,9 @@ export default function ResumeSimulatorPlayground({
     activeTemplate,
     setActiveTemplate,
     history,
+    future,
     handleUndo,
+    handleRedo,
     chatOpen,
     setChatOpen,
     pdfExporting,

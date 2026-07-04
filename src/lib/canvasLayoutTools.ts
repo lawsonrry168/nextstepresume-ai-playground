@@ -2,7 +2,7 @@ import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
 import { clampPositionToA4Page } from "./canvasPageSnap";
 import { CANVAS_PAGE_MARGIN, snapPositionToGrid, type CanvasAlignHorizontal } from "./canvasAlignTools";
 import type { FreeLayoutPosition } from "./resumeFreeLayout";
-import { defaultSectionHeight, FREE_LAYOUT_MAX_WIDTH, FREE_LAYOUT_MIN_HEIGHT, snapToGrid, SNAP_GRID_SIZE, clampSectionHeight } from "./resumeFreeLayout";
+import { clampSectionPosition, defaultSectionHeight, FREE_LAYOUT_MAX_WIDTH, FREE_LAYOUT_MIN_HEIGHT, snapToGrid, SNAP_GRID_SIZE, clampSectionHeight } from "./resumeFreeLayout";
 import type { ResumeData } from "../types";
 import {
   estimateContentAwareGap,
@@ -188,13 +188,15 @@ function computeA4VerticalStack(
   opts: ReturnType<typeof resolveOpts>,
   mode: A4StackFillMode,
   preferredGap?: number,
+  startY?: number,
 ): Record<string, FreeLayoutPosition> {
   if (!orderedIds.length) return patches;
 
+  const stackTop = startY ?? opts.margin;
   const next: Record<string, FreeLayoutPosition> = { ...patches };
   const heights = orderedIds.map((id) => next[id]?.height ?? 0);
   const totalH = heights.reduce((a, b) => a + b, 0);
-  const usable = a4UsableHeight(opts);
+  const usable = opts.pageHeight - stackTop - opts.margin;
   const count = orderedIds.length;
 
   let gap: number;
@@ -223,6 +225,9 @@ function computeA4VerticalStack(
         : 0;
   } else {
     gap = resolveStackGap(heights, opts, preferredGap);
+    if (count > 1 && totalH + gap * (count - 1) > usable) {
+      gap = Math.max(A4_MIN_SECTION_GAP, Math.floor((usable - totalH) / (count - 1)));
+    }
   }
 
   let y: number;
@@ -239,7 +244,7 @@ function computeA4VerticalStack(
     return next;
   }
 
-  y = opts.margin;
+  y = stackTop;
 
   for (let i = 0; i < orderedIds.length; i++) {
     const id = orderedIds[i];
@@ -285,24 +290,50 @@ function groupIdsByColumnX(
   return byColumn;
 }
 
-/** Per-column A4 fill for multi-column layouts */
+/** Width threshold above which a section counts as a full-width band spanning all columns */
+const FULL_WIDTH_BAND_RATIO = 0.7;
+const BAND_TO_COLUMN_GAP = 16;
+
+/** Per-column A4 fill for multi-column layouts.
+ * Full-width bands (e.g. header/summary spanning all columns) stack first at the top;
+ * each column then flows below the last band instead of overlapping it. */
 function fillColumnsToA4(
   patches: Record<string, FreeLayoutPosition>,
   opts: ReturnType<typeof resolveOpts>,
   mode: A4StackFillMode = "fill-page-exact",
 ): Record<string, FreeLayoutPosition> {
-  const byColumn = groupIdsByColumnX(patches);
+  const printableWidth = opts.pageWidth - opts.margin * 2;
+  const bandIds: string[] = [];
+  const columnPatches: Record<string, FreeLayoutPosition> = {};
+  for (const [id, pos] of Object.entries(patches)) {
+    if (pos.width >= printableWidth * FULL_WIDTH_BAND_RATIO) {
+      bandIds.push(id);
+    } else {
+      columnPatches[id] = pos;
+    }
+  }
 
   let next = { ...patches };
+  bandIds.sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+  let bandBottom = opts.margin;
+  for (const id of bandIds) {
+    const pos = next[id];
+    if (!pos) continue;
+    next[id] = { ...pos, y: bandBottom };
+    bandBottom += pos.height + A4_MIN_SECTION_GAP;
+  }
+  const columnStartY = bandIds.length ? bandBottom - A4_MIN_SECTION_GAP + BAND_TO_COLUMN_GAP : opts.margin;
+
+  const byColumn = groupIdsByColumnX(columnPatches);
   for (const [columnX, ids] of byColumn.entries()) {
-    const ordered = opts.layerOrder?.length
-      ? sortSectionsByPanelOrder(ids, opts.layerOrder)
-      : [...ids].sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+    // Reflow preserves the visual (y) order — layer order is z-depth, and
+    // sorting by it vertically inverts the document (header ends up at the bottom).
+    const ordered = [...ids].sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
     for (const id of ordered) {
       const pos = next[id];
       if (pos) next[id] = { ...pos, x: columnX };
     }
-    next = computeA4VerticalStack(ordered, next, opts, mode);
+    next = computeA4VerticalStack(ordered, next, opts, mode, undefined, columnStartY);
   }
   return next;
 }
@@ -336,7 +367,8 @@ export function reflowPageColumnsNatural(
 
   if (isSingleColumnStack) {
     const stackMode = content?.stackFillMode ?? "natural";
-    const reflowed = computeA4VerticalStack(onPage, patches, opts, stackMode);
+    const orderedByY = [...onPage].sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+    const reflowed = computeA4VerticalStack(orderedByY, patches, opts, stackMode);
     return patchPositions(positions, reflowed);
   }
 
@@ -373,7 +405,10 @@ function patchPositions(
 ): Record<string, FreeLayoutPosition> {
   const next: Record<string, FreeLayoutPosition> = {};
   for (const [id, pos] of Object.entries(patches)) {
-    next[id] = clampPositionToA4Page({ ...positions[id], ...pos });
+    // Clamp horizontally only — pulling an overflowing stack back inside the
+    // A4 band stacks the tail sections on top of each other. Vertical overflow
+    // extends the draft sheet; export pagination splits it into pages.
+    next[id] = clampSectionPosition({ ...positions[id], ...pos });
   }
   return next;
 }

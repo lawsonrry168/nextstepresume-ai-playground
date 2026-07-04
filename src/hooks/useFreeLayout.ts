@@ -6,6 +6,7 @@ import {
   FREE_LAYOUT_SNAP_KEY,
   FREE_LAYOUT_LIVE_PREVIEW_KEY,
   FreeLayoutPosition,
+  FreeLayoutSectionMeta,
   applyMagneticSnap,
   buildFreeLayoutSections,
   FREE_LAYOUT_CANVAS,
@@ -21,6 +22,7 @@ import {
 import { CANVAS_PAGE_HEIGHT } from "../lib/canvasStudioTypes";
 import { clampPositionToA4Page } from "../lib/canvasPageSnap";
 import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
+import { emitLayoutPositions, registerLayoutUndoBridge } from "../lib/undoRegistry";
 
 function readBool(key: string, fallback: boolean): boolean {
   try {
@@ -35,13 +37,21 @@ function readBool(key: string, fallback: boolean): boolean {
 function loadPositionsForFamily(
   family: TemplateFamily,
   sectionIds: string[],
+  resumeData: ResumeData,
 ): Record<string, FreeLayoutPosition> {
   const storage = readFamilyLayoutStorage();
-  return mergeFreeLayoutPositions(storage[family] ?? null, sectionIds, family);
+  return mergeFreeLayoutPositions(storage[family] ?? null, sectionIds, family, resumeData);
 }
 
-export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFamily) {
-  const sections = useMemo(() => buildFreeLayoutSections(resumeData), [resumeData]);
+export function useFreeLayout(
+  resumeData: ResumeData,
+  templateFamily: TemplateFamily,
+  extraSections?: FreeLayoutSectionMeta[],
+) {
+  const sections = useMemo(
+    () => [...buildFreeLayoutSections(resumeData), ...(extraSections ?? [])],
+    [resumeData, extraSections],
+  );
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
   const familyRef = useRef(templateFamily);
 
@@ -57,15 +67,15 @@ export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFa
   }, []);
 
   const [positions, setPositions] = useState<Record<string, FreeLayoutPosition>>(() =>
-    loadPositionsForFamily(templateFamily, sectionIds),
+    loadPositionsForFamily(templateFamily, sectionIds, resumeData),
   );
 
   useEffect(() => {
     if (familyRef.current === templateFamily) return;
     familyRef.current = templateFamily;
     skipNextPersistFlash.current = true;
-    setPositions(loadPositionsForFamily(templateFamily, sectionIds));
-  }, [templateFamily, sectionIds]);
+    setPositions(loadPositionsForFamily(templateFamily, sectionIds, resumeData));
+  }, [templateFamily, sectionIds, resumeData]);
 
   useEffect(() => {
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
@@ -78,6 +88,7 @@ export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFa
         return;
       }
       markSaved();
+      emitLayoutPositions({ family: templateFamily, positions });
     }, 320);
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
@@ -85,8 +96,23 @@ export function useFreeLayout(resumeData: ResumeData, templateFamily: TemplateFa
   }, [positions, templateFamily, markSaved]);
 
   useEffect(() => {
-    setPositions((prev) => mergeFreeLayoutPositions(prev, sectionIds, templateFamily));
-  }, [sectionIds, templateFamily]);
+    return registerLayoutUndoBridge({
+      family: templateFamily,
+      applyPositions: (restored) => {
+        setPositions((prev) => {
+          const next = { ...prev };
+          for (const [id, pos] of Object.entries(restored)) {
+            next[id] = { ...prev[id], ...pos };
+          }
+          return next;
+        });
+      },
+    });
+  }, [templateFamily]);
+
+  useEffect(() => {
+    setPositions((prev) => mergeFreeLayoutPositions(prev, sectionIds, templateFamily, resumeData));
+  }, [sectionIds, templateFamily, resumeData]);
 
   useEffect(() => {
     try {
