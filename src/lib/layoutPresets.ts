@@ -313,6 +313,27 @@ export function createDefaultFreeLayoutPositions(
   return createFamilyDefaultPositions(family, sectionIds);
 }
 
+/**
+ * Signature of layouts corrupted by the old z-order stacking bug: the header
+ * pushed off the first page (or to the bottom band) while minor sections sit
+ * alone on page 1. A resume header belongs at the top of the first page —
+ * anything else came from the inverted reflow and should self-heal.
+ */
+function hasCorruptHeaderPlacement(merged: Record<string, FreeLayoutPosition>): boolean {
+  const header = merged.header;
+  if (!header) return false;
+  if (header.y > PAGE_H * 0.6) return true;
+
+  const headerPage = header.pageId ?? "";
+  const pages = new Set<string>();
+  for (const pos of Object.values(merged)) {
+    pages.add(pos.pageId ?? "");
+  }
+  if (pages.size <= 1) return false;
+  const firstPage = [...pages].sort()[0]!;
+  return headerPage !== firstPage;
+}
+
 export function mergeFreeLayoutPositions(
   stored: Record<string, Partial<FreeLayoutPosition>> | null,
   sectionIds: string[],
@@ -330,6 +351,10 @@ export function mergeFreeLayoutPositions(
     if (usesLegacyOverflowPage(merged[id]) || isClearlyOutOfBounds(merged[id])) {
       shouldResetToDefaults = true;
     }
+  }
+
+  if (hasCorruptHeaderPlacement(merged)) {
+    shouldResetToDefaults = true;
   }
 
   return shouldResetToDefaults ? defaults : merged;

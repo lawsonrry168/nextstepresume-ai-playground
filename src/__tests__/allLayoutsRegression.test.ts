@@ -132,6 +132,35 @@ describe("all layout presets — export-ready regression", () => {
       expect(pos.pageId).not.toBe("page-overflow");
     }
   });
+
+  it("repairs layouts corrupted by the z-order stacking bug (header off page 1)", () => {
+    // Signature: minor section alone on page 1, header pushed to page 2
+    const corruptPaged = {
+      languages: { x: 48, y: 48, width: 320, height: 96, pageId: "export-page-1" },
+      header: { x: 48, y: 48, width: 698, height: 216, pageId: "export-page-2" },
+      summary: { x: 48, y: 280, width: 698, height: 120, pageId: "export-page-2" },
+    };
+    const repaired = mergeFreeLayoutPositions(corruptPaged, SECTION_IDS, "classic", initialResumeData);
+    expect(repaired.header!.y).toBeLessThan(200);
+    const pages = new Set(Object.values(repaired).map((pos) => pos.pageId ?? ""));
+    expect(pages.size).toBe(1);
+
+    // Signature: header crushed into the bottom band of the page
+    const corruptBottom = {
+      header: { x: 48, y: 907, width: 600, height: 216 },
+      summary: { x: 48, y: 1003, width: 600, height: 120 },
+    };
+    const repairedBottom = mergeFreeLayoutPositions(corruptBottom, SECTION_IDS, "classic", initialResumeData);
+    expect(repairedBottom.header!.y).toBeLessThan(200);
+
+    // A legitimate custom layout (header near the top) is preserved
+    const legit = {
+      header: { x: 48, y: 64, width: 500, height: 220 },
+    };
+    const kept = mergeFreeLayoutPositions(legit, SECTION_IDS, "classic", initialResumeData);
+    expect(kept.header!.y).toBe(64);
+    expect(kept.header!.width).toBe(500);
+  });
 });
 
 describe("resume template catalog regression", () => {
