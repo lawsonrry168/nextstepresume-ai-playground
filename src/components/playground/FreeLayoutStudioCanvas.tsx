@@ -40,6 +40,8 @@ import ResumeSectionRenderer from "../resume/ResumeSectionRenderer";
 import CanvasPageMarginGuides from "./canvas/CanvasPageMarginGuides";
 import { useI18n } from "../../i18n";
 import { getSectionLabel } from "../../lib/sectionLabels";
+import { isCanvasElementId, removeCanvasElement } from "../../lib/canvasElements";
+import { Trash2 } from "lucide-react";
 import { useResponsiveScale } from "../../hooks/useResponsiveScale";
 
 export interface FreeLayoutStudioCanvasProps {
@@ -1183,6 +1185,21 @@ const DraggableSection = memo(function DraggableSection({
               <GripVertical className="w-3.5 h-3.5 shrink-0" />
               <span className="text-[10px] font-bold truncate">{displayLabel}</span>
               <span className="ml-auto text-[9px] opacity-70">{t("canvas.dimensions.dragHint")}</span>
+              {isCanvasElementId(sectionId) ? (
+                <button
+                  type="button"
+                  className="shrink-0 p-0.5 rounded text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                  title={t("canvas.elements.remove")}
+                  aria-label={t("canvas.elements.remove")}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeCanvasElement(sectionId);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              ) : null}
             </div>
             {isSelected ? (
               <DimensionControls

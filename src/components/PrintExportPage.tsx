@@ -60,12 +60,13 @@ export default function PrintExportPage() {
       document.head.appendChild(link);
     }
 
-    const localeReady =
-      payload.locale === "en" || payload.locale === "zh-TW"
-        ? ensureLocaleLoaded(payload.locale as AppLocale).then(() => {
-            setActiveLocale(payload.locale as AppLocale);
-          })
-        : Promise.resolve();
+    const isKnownLocale =
+      payload.locale === "en" || payload.locale === "zh-TW" || payload.locale === "zh-HK";
+    const localeReady = isKnownLocale
+      ? ensureLocaleLoaded(payload.locale as AppLocale).then(() => {
+          setActiveLocale(payload.locale as AppLocale);
+        })
+      : Promise.resolve();
 
     void Promise.all([localeReady, fontsLoaded])
       .then(() => document.fonts.ready)

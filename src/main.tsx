@@ -18,6 +18,17 @@ injectLayoutGeometryCss();
 const isPrintExportMode = new URLSearchParams(window.location.search).has('print');
 
 if (isPrintExportMode) {
+  // Seed the UI locale from the print payload BEFORE LocaleProvider reads it,
+  // so section titles render in the requested language.
+  try {
+    const raw = localStorage.getItem('nsr_print_payload');
+    const payloadLocale = raw ? (JSON.parse(raw) as { locale?: string }).locale : undefined;
+    if (payloadLocale === 'en' || payloadLocale === 'zh-TW' || payloadLocale === 'zh-HK') {
+      localStorage.setItem('nsr_ui_locale', payloadLocale);
+    }
+  } catch {
+    /* ignore */
+  }
   void import('./components/PrintExportPage').then(({ default: PrintExportPage }) => {
     createRoot(document.getElementById('root')!).render(
       <LocaleProvider>
