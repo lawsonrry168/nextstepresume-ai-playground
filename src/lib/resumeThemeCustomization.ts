@@ -243,8 +243,11 @@ export interface ResolvedResumeTheme {
 
 export function resolveResumeTheme(
   templateStyle: TemplateStyle,
-  customization: ResumeThemeCustomization,
+  customizationInput?: ResumeThemeCustomization | null,
 ): ResolvedResumeTheme {
+  // Callers such as the server print surface may pass no customization
+  // (template-flow exports have no layout payload). Never dereference undefined.
+  const customization = customizationInput ?? DEFAULT_THEME_CUSTOMIZATION;
   const theme = getResumeTemplateTheme(templateStyle);
   const family = getTemplateFamily(templateStyle);
   const enabled = customization.enabled;
