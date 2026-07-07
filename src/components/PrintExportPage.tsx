@@ -102,6 +102,16 @@ export default function PrintExportPage() {
     document.documentElement.classList.remove("dark");
     let cancelled = false;
 
+    // Bound every readiness dependency so a slow/failed resource (external
+    // webfonts, a dynamic chunk, document.fonts.ready) can never leave the
+    // surface hanging — which would stall the serverless exporter until its
+    // waitForSelector times out and returns a 500.
+    const settleWithin = <T,>(promise: Promise<T> | T, ms: number): Promise<T | undefined> =>
+      Promise.race([
+        Promise.resolve(promise).catch(() => undefined),
+        new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), ms)),
+      ]);
+
     let fontsLoaded: Promise<unknown> = Promise.resolve();
     if (!document.querySelector('link[data-print-fonts="true"]')) {
       const link = document.createElement("link");
@@ -130,15 +140,27 @@ export default function PrintExportPage() {
       ? import("./playground/FreeLayoutStudioCanvas")
       : Promise.resolve();
 
-    void Promise.all([localeReady, fontsLoaded, canvasReady])
-      .then(() => document.fonts.ready)
+    // Absolute safety net: flip ready even if a dependency wedges, so the
+    // exporter always gets a snapshot instead of a hard timeout.
+    const hardFallback = setTimeout(() => {
+      if (!cancelled) setReady(true);
+    }, 20000);
+
+    void Promise.all([
+      settleWithin(localeReady, 8000),
+      settleWithin(fontsLoaded, 8000),
+      settleWithin(canvasReady, 12000),
+    ])
+      .then(() => settleWithin(document.fonts.ready, 8000))
       .then(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
       .then(() => {
         if (!cancelled) setReady(true);
-      });
+      })
+      .finally(() => clearTimeout(hardFallback));
 
     return () => {
       cancelled = true;
+      clearTimeout(hardFallback);
     };
   }, [payload.locale]);
 
