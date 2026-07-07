@@ -1488,7 +1488,7 @@ export default function ResumeLivePreviewPanel({
               ref={canvasViewportRef}
               contentWidth={FREE_LAYOUT_CANVAS.width}
               contentHeight={canvasContentHeight}
-              className="studio-workspace-grid flex-1 min-h-0 rounded-none border-0 shadow-none"
+              className="flex-1 min-h-0 rounded-none border-0 shadow-none"
               rightNav={
                 <CanvasRightNavSections
                   order={canvasDoc.navSectionOrder}
