@@ -425,6 +425,12 @@ html:not(.dark) .marginalia-theme {
 .marginalia-theme #export-dock {
   grid-row: 2;
   z-index: 50;
+  flex-shrink: 0;
+}
+
+.marginalia-theme .preview-panel-frame > #export-dock {
+  position: relative;
+  z-index: 50;
 }
 
 .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) #preview-studio-header {

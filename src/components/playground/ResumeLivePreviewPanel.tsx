@@ -1610,9 +1610,9 @@ export default function ResumeLivePreviewPanel({
           )}
         </div>
       ) : (
-        <div className="relative flex flex-1 min-h-0 overflow-hidden rounded-2xl preview-panel-frame">
+        <div className="relative flex flex-col flex-1 min-h-0 overflow-hidden rounded-2xl preview-panel-frame">
           <div
-            className={`absolute inset-0 flex flex-col min-w-0 min-h-0 ${
+            className={`relative flex-1 min-w-0 min-h-0 ${
               showFreeLayoutCanvas ? "overflow-auto scrollbar-thin" : "overflow-hidden"
             }`}
           >
