@@ -43,12 +43,26 @@ import {
 } from "../../lib/canvasLayoutTools";
 import { buildContentFitSignature, buildThemeFitSignature, themeContentScale } from "../../lib/canvasSectionContentSizing";
 import { EXPORT_SURFACE_HOST_ID } from "../../lib/layoutExportSurface";
-import { editorPositionsFromDraftThroughPrintPlan } from "../../lib/layoutDocument";
+import { editorPositionsFromDraftThroughPrintPlan, editorPositionsFromPrintPlan } from "../../lib/layoutDocument";
 import type { FreeLayoutPresetId, FreeLayoutPosition } from "../../lib/resumeFreeLayout";
 import { estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
 import { LAYOUT_PAGE_HEIGHT, LAYOUT_PAGE_WIDTH } from "../../lib/layoutDocument/geometry";
 import { createFamilyDefaultPositions, createFreeLayoutPresetPositions } from "../../lib/layoutPresets";
 import { useResponsiveScale } from "../../hooks/useResponsiveScale";
+import { setPrintExportSnapshot } from "../../lib/printExportBridge";
+import ExportDock from "./ExportDock";
+import CanvasContextMenu, { type CanvasContextMenuState } from "./CanvasContextMenu";
+import {
+  copyCanvasSelection,
+  duplicateCanvasSelection,
+  hasCanvasClipboard,
+  pasteCanvasClipboard,
+} from "../../lib/canvasClipboard";
+import { isCanvasElementId, removeCanvasElement } from "../../lib/canvasElements";
+import { clampSectionHeight, FREE_LAYOUT_MAX_HEIGHT } from "../../lib/resumeFreeLayout";
+import { estimateSectionHeightForContent } from "../../lib/canvasSectionContentSizing";
+import { buildCanvasLayoutSyncSnapshot, scheduleCanvasLayoutCloudPush } from "../../lib/sync/canvasLayoutSync";
+import { runSmartLayoutPipeline } from "../../lib/canvasSmartLayout";
 
 export interface ResumeLivePreviewPanelProps {
   isPreviewMode: boolean;
@@ -205,6 +219,8 @@ export default function ResumeLivePreviewPanel({
     sectionIds: freeLayoutSectionIds,
     exportPrintPlan,
     exportSurfacePositions,
+    exportSections,
+    exportSectionSlices,
     exportCanvasLayout,
   } = useLayoutDocument({
     resumeData,
@@ -235,10 +251,108 @@ export default function ResumeLivePreviewPanel({
   );
 
   const handleAutoTidy = useCallback(() => {
-    freeLayout.applyPositionsBatch(exportPrintPlan.positions, { constrainA4: true });
-  }, [exportPrintPlan.positions, freeLayout]);
-  const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
+    // Map the print plan back to base-section editor positions so entry-split
+    // fragment IDs (e.g. `experience#frag-1`) never leak into the editor state.
+    const editorPositions = editorPositionsFromPrintPlan(freeLayoutSectionIds, exportPrintPlan);
+    freeLayout.applyPositionsBatch(editorPositions, { constrainA4: true });
+  }, [exportPrintPlan, freeLayoutSectionIds, freeLayout]);
 
+  const [smartLayoutFeedback, setSmartLayoutFeedback] = useState<string | null>(null);
+
+  const handleSmartLayout = useCallback(() => {
+    const result = runSmartLayoutPipeline({
+      sectionIds: freeLayoutSectionIds,
+      positions: freeLayout.positions,
+      pageIds: canvasDoc.pages.map((page) => page.id),
+      getPageId: canvasDoc.getSectionPageId,
+      resumeData,
+      layerOrder: canvasDoc.layers.order,
+      themeFontScale: themeContentScale(themeCustomization),
+      manualSizedSections,
+    });
+    // Applying the batch triggers syncPagesDocumentToPositions, which creates any
+    // referenced page with its exact id — avoiding the addPage()/export-page-* race.
+    freeLayout.applyPositionsBatch(result.editorPositions, { constrainA4: true });
+    setSmartLayoutFeedback(t(result.analysis.rationaleKey));
+    window.setTimeout(() => setSmartLayoutFeedback(null), 5000);
+  }, [
+    canvasDoc,
+    freeLayout,
+    freeLayoutSectionIds,
+    manualSizedSections,
+    resumeData,
+    t,
+    themeCustomization,
+  ]);
+  const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
+  const canvasSelectionRef = useRef<{ primary: string | null; multi: ReadonlySet<string> }>({
+    primary: null,
+    multi: new Set(),
+  });
+  const [contextMenu, setContextMenu] = useState<CanvasContextMenuState | null>(null);
+
+  const getActiveSelectionIds = useCallback((): string[] => {
+    const { primary, multi } = canvasSelectionRef.current;
+    if (multi.size > 0) return [...multi];
+    if (primary) return [primary];
+    return [];
+  }, []);
+
+  const handleCanvasSelectionChange = useCallback((primary: string | null, multi: ReadonlySet<string>) => {
+    canvasSelectionRef.current = { primary, multi };
+  }, []);
+
+  const handleCanvasCopy = useCallback(() => {
+    const ids = getActiveSelectionIds();
+    if (!ids.length) return;
+    copyCanvasSelection(templateFamily, ids, freeLayout.positions);
+  }, [freeLayout.positions, getActiveSelectionIds, templateFamily]);
+
+  const handleCanvasPaste = useCallback(() => {
+    const pasted = pasteCanvasClipboard({
+      family: templateFamily,
+      activePageId: canvasDoc.activePageId,
+      applyPosition: (id, pos, options) => {
+        freeLayout.updatePosition(id, pos, { skipSnap: true, constrainA4: true, layoutOverride: options?.layoutOverride });
+      },
+    });
+    if (pasted[0]) canvasDoc.setSelectedSectionId(pasted[0]);
+  }, [canvasDoc, freeLayout, templateFamily]);
+
+  const handleCanvasDuplicate = useCallback(() => {
+    const ids = getActiveSelectionIds();
+    if (!ids.length) return;
+    const pasted = duplicateCanvasSelection(templateFamily, ids, freeLayout.positions, {
+      family: templateFamily,
+      activePageId: canvasDoc.activePageId,
+      applyPosition: (id, pos, options) => {
+        freeLayout.updatePosition(id, pos, { skipSnap: true, constrainA4: true, layoutOverride: options?.layoutOverride });
+      },
+    });
+    if (pasted[0]) canvasDoc.setSelectedSectionId(pasted[0]);
+  }, [canvasDoc, freeLayout, getActiveSelectionIds, templateFamily]);
+
+  const handleContextMenuSection = useCallback((sectionId: string, clientX: number, clientY: number) => {
+    canvasDoc.setSelectedSectionId(sectionId);
+    setContextMenu({ sectionId, x: clientX, y: clientY });
+  }, [canvasDoc]);
+
+  const handleDeleteCanvasElement = useCallback((sectionId: string) => {
+    removeCanvasElement(sectionId);
+    canvasDoc.setSelectedSectionId(null);
+  }, [canvasDoc]);
+
+  const handleFitSectionContent = useCallback((sectionId: string) => {
+    const pos = freeLayout.positions[sectionId];
+    if (!pos) return;
+    const height = clampSectionHeight(
+      estimateSectionHeightForContent(sectionId, resumeData, pos.width),
+      FREE_LAYOUT_MAX_HEIGHT,
+    );
+    freeLayout.updatePosition(sectionId, { ...pos, height }, { skipSnap: true, constrainA4: true });
+  }, [freeLayout, resumeData]);
+
+  const showPrintPreview = isPreviewMode && studioViewMode === "print";
   const showFreeLayoutCanvas = freeLayout.enabled && (!isPreviewMode || studioViewMode === "single");
   const showCanvasViewport = isPreviewMode && studioViewMode === "canvas";
   const showFreeLayoutEditor = showFreeLayoutCanvas || showCanvasViewport;
@@ -252,6 +366,52 @@ export default function ResumeLivePreviewPanel({
   }, [showCanvasViewport, canvasDoc.pages.length, freeLayoutSectionIds, freeLayout.positions]);
 
   const canvasClampDoneRef = useRef(false);
+
+  useEffect(() => {
+    setPrintExportSnapshot({
+      resumeData,
+      activeTemplate,
+      highlightChanges,
+      analysisResult,
+      grayscaleMode,
+      themeCustomization,
+      freeLayoutEnabled: freeLayout.enabled,
+      sections: exportSections,
+      exportSurfacePositions,
+      exportPages: exportPrintPlan.pageIds.map((id, index) => ({
+        id,
+        label: formatCanvasPageLabel(index + 1),
+      })),
+      sectionPageMap:
+        exportCanvasLayout?.sectionPageMap ??
+        Object.fromEntries(
+          exportSections
+            .filter((s) => exportSurfacePositions[s.id])
+            .map((s) => [s.id, exportSurfacePositions[s.id]!.pageId ?? exportPrintPlan.pageIds[0]!]),
+        ),
+      layerOrder: canvasDoc.layers.order,
+      hiddenSections: canvasDoc.layers.hidden,
+      sectionSlices: exportSectionSlices,
+    });
+    return () => setPrintExportSnapshot(null);
+  }, [
+    activeTemplate,
+    analysisResult,
+    canvasDoc.layers.hidden,
+    canvasDoc.layers.order,
+    exportPrintPlan.pageIds,
+    exportCanvasLayout?.sectionPageMap,
+    exportSectionSlices,
+    exportSections,
+    exportSurfacePositions,
+    freeLayout.enabled,
+    freeLayout.sections,
+    grayscaleMode,
+    highlightChanges,
+    resumeData,
+    themeCustomization,
+  ]);
+
   useEffect(() => {
     if (!showCanvasViewport) {
       canvasClampDoneRef.current = false;
@@ -745,8 +905,11 @@ export default function ResumeLivePreviewPanel({
       onGrowHeight: () => transformSelectedSection((pos) => resizeSection(pos, 0, 1)),
       onShrinkHeight: () => transformSelectedSection((pos) => resizeSection(pos, 0, -1)),
       onResetSection: resetSelectedSection,
+      onCopy: handleCanvasCopy,
+      onPaste: handleCanvasPaste,
+      onDuplicate: handleCanvasDuplicate,
     }),
-    [activePageIndex, alignSelectedSection, canvasDoc, handleResetLayout, moveSelectedToActivePage, nudgeSelectedSection, resetSelectedSection, transformSelectedSection],
+    [activePageIndex, alignSelectedSection, canvasDoc, handleCanvasCopy, handleCanvasDuplicate, handleCanvasPaste, handleResetLayout, moveSelectedToActivePage, nudgeSelectedSection, resetSelectedSection, transformSelectedSection],
   );
 
   useCanvasStudioShortcuts(showCanvasViewport, shortcutActions);
@@ -807,6 +970,7 @@ export default function ResumeLivePreviewPanel({
       onZoom50: () => canvasViewportRef.current?.zoomTo(0.5),
       onAddElement: handleAddElement,
       onAutoTidy: handleAutoTidy,
+      onSmartLayout: handleSmartLayout,
     }),
     [
       activePageIndex,
@@ -814,6 +978,7 @@ export default function ResumeLivePreviewPanel({
       canvasDoc,
       handleAddElement,
       handleAutoTidy,
+      handleSmartLayout,
       freeLayout.livePreview,
       handleResetLayout,
       freeLayout.setLivePreview,
@@ -838,8 +1003,8 @@ export default function ResumeLivePreviewPanel({
   );
 
   const canvasAutoSaveLabel = useMemo(
-    () => formatAutoSaveTime(freeLayout.lastSavedAt),
-    [freeLayout.lastSavedAt],
+    () => smartLayoutFeedback ?? formatAutoSaveTime(freeLayout.lastSavedAt),
+    [freeLayout.lastSavedAt, smartLayoutFeedback],
   );
 
   const canvasActivePageLabel = useMemo(() => {
@@ -859,6 +1024,8 @@ export default function ResumeLivePreviewPanel({
             selectedSectionId: canvasDoc.selectedSectionId,
             onSelectSection: canvasDoc.setSelectedSectionId,
             getZIndex: canvasDoc.getZIndex,
+            onSelectionChange: handleCanvasSelectionChange,
+            onSectionContextMenu: handleContextMenuSection,
           }
         : undefined,
     [
@@ -870,6 +1037,8 @@ export default function ResumeLivePreviewPanel({
       canvasDoc.sectionPageMap,
       canvasDoc.selectedSectionId,
       canvasDoc.setSelectedSectionId,
+      handleCanvasSelectionChange,
+      handleContextMenuSection,
     ],
   );
 
@@ -878,6 +1047,21 @@ export default function ResumeLivePreviewPanel({
       void import("./FreeLayoutStudioCanvas");
     }
   }, [freeLayout.enabled]);
+
+  useEffect(() => {
+    if (!showCanvasViewport && !freeLayout.enabled) return;
+    scheduleCanvasLayoutCloudPush(buildCanvasLayoutSyncSnapshot);
+  }, [
+    canvasDoc.layers.hidden,
+    canvasDoc.layers.locked,
+    canvasDoc.layers.order,
+    canvasDoc.pages,
+    canvasDoc.sectionPageMap,
+    freeLayout.enabled,
+    freeLayout.lastSavedAt,
+    freeLayout.positions,
+    showCanvasViewport,
+  ]);
 
   useEffect(() => {
     if (isPreviewMode && studioViewMode === "canvas" && !freeLayout.enabled) {
@@ -1104,6 +1288,37 @@ export default function ResumeLivePreviewPanel({
     runColumnReflow,
   ]);
 
+  const contextMenuActions = useMemo(() => {
+    const sectionId = contextMenu?.sectionId;
+    if (!sectionId) return {};
+    return {
+      onCopy: handleCanvasCopy,
+      onPaste: handleCanvasPaste,
+      onDuplicate: handleCanvasDuplicate,
+      onDelete: () => handleDeleteCanvasElement(sectionId),
+      onToggleLock: () => canvasDoc.toggleLocked(sectionId),
+      onToggleHide: () => canvasDoc.toggleHidden(sectionId),
+      onBringFront: () => canvasDoc.reorderLayer(sectionId, "front"),
+      onSendBack: () => canvasDoc.reorderLayer(sectionId, "back"),
+      onFitContent: () => handleFitSectionContent(sectionId),
+      onMoveToActivePage: moveSelectedToActivePage,
+      canPaste: hasCanvasClipboard(templateFamily),
+      isCanvasElement: isCanvasElementId(sectionId),
+      isLocked: Boolean(canvasDoc.layers.locked[sectionId]),
+      isHidden: Boolean(canvasDoc.layers.hidden[sectionId]),
+    };
+  }, [
+    canvasDoc,
+    contextMenu?.sectionId,
+    handleCanvasCopy,
+    handleCanvasDuplicate,
+    handleCanvasPaste,
+    handleDeleteCanvasElement,
+    handleFitSectionContent,
+    moveSelectedToActivePage,
+    templateFamily,
+  ]);
+
   return (
     <div
       className={`${
@@ -1155,6 +1370,7 @@ export default function ResumeLivePreviewPanel({
             themeCustomization={themeCustomization}
             onThemeCustomizationChange={onThemeCustomizationChange}
             onThemeCustomizationReset={onThemeCustomizationReset}
+            freeLayoutSectionIds={freeLayoutSectionIds}
           />
     
           {/* Immersive Workspace Container */}
@@ -1231,13 +1447,48 @@ export default function ResumeLivePreviewPanel({
                 ))}
               </div>
             </div>
+          ) : showPrintPreview ? (
+            <div
+              id="studio-print-preview"
+              className="flex-1 min-h-0 overflow-auto preview-canvas bg-slate-100/80 p-4 md:p-6"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3 text-center">
+                {t("studio.printPreviewHint")}
+              </p>
+              <Suspense fallback={<CanvasLoadingFallback />}>
+                <FreeLayoutStudioCanvas
+                  variant="export"
+                  resumeData={resumeData}
+                  highlightChanges={false}
+                  analysisResult={analysisResult}
+                  previewZoom={100}
+                  grayscaleMode={grayscaleMode}
+                  sections={exportSections}
+                  positions={exportSurfacePositions}
+                  exportSections={exportSections}
+                  sectionSlices={exportSectionSlices}
+                  onPositionChange={() => {}}
+                  chromeMode="full"
+                  autoFitContentHeight={false}
+                  manualSizedSections={manualSizedSections}
+                  templateStyle={activeTemplate}
+                  resolvedTheme={resolvedTheme}
+                  containerId="studio-print-preview-inner"
+                  outerClassName="mx-auto"
+                  showGrid={false}
+                  showMargins={false}
+                  snapEnabled={false}
+                  canvasLayout={exportCanvasLayout}
+                />
+              </Suspense>
+            </div>
           ) : showCanvasViewport ? (
             <Suspense fallback={<CanvasLoadingFallback />}>
             <CanvasStudioViewport
               ref={canvasViewportRef}
               contentWidth={FREE_LAYOUT_CANVAS.width}
               contentHeight={canvasContentHeight}
-              className="flex-1 min-h-0 rounded-none border-0 shadow-none"
+              className="studio-workspace-grid flex-1 min-h-0 rounded-none border-0 shadow-none"
               rightNav={
                 <CanvasRightNavSections
                   order={canvasDoc.navSectionOrder}
@@ -1437,6 +1688,17 @@ export default function ResumeLivePreviewPanel({
             onThemeCustomizationChange={onThemeCustomizationChange}
             onThemeCustomizationReset={onThemeCustomizationReset}
           />
+          <ExportDock
+            pdfExporting={pdfExporting}
+            exportToPDF={exportToPDF}
+            exportToDocx={exportToDocx}
+            exportToJson={exportToJson}
+          />
+          <CanvasContextMenu
+            menu={contextMenu}
+            actions={contextMenuActions}
+            onClose={() => setContextMenu(null)}
+          />
         </div>
       )}
     
@@ -1622,8 +1884,10 @@ export default function ResumeLivePreviewPanel({
               analysisResult={analysisResult}
               previewZoom={100}
               grayscaleMode={grayscaleMode}
-              sections={freeLayout.sections}
+              sections={exportSections}
               positions={exportSurfacePositions}
+              exportSections={exportSections}
+              sectionSlices={exportSectionSlices}
               onPositionChange={() => {}}
               chromeMode="full"
               autoFitContentHeight={false}

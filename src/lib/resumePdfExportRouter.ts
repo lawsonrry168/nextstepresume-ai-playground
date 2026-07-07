@@ -2,6 +2,12 @@ import type { ResumeData } from "../types";
 import type { TemplateStyle } from "./resumeTemplateCatalog";
 import type { PdfExportMode } from "./resumePdfTypes";
 import { isE2ePdfStubEnabled } from "./e2eExportTrack";
+import {
+  buildLayoutPayloadFromSnapshot,
+  getPrintExportSnapshot,
+} from "./printExportBridge";
+import type { PrintLayoutPayload } from "./printExportPayload";
+import { downloadServerVisualPdf, isServerPdfFailure } from "./resumeServerPdfExport";
 
 export function buildResumePdfFilename(resumeData: ResumeData): string {
   return `NextStepResume_${resumeData.personalInfo.name.trim().replace(/\s+/g, "_") || "ATS_Resume"}.pdf`;
@@ -12,7 +18,7 @@ export async function downloadResumePdfByMode(
   resumeData: ResumeData,
   filename: string,
   templateStyle?: TemplateStyle,
-  options?: { watermark?: string },
+  options?: { watermark?: string; layout?: PrintLayoutPayload },
 ): Promise<void> {
   if (mode === "visual" && isE2ePdfStubEnabled()) {
     const { jsPDF } = await import("jspdf");
@@ -36,20 +42,17 @@ export async function downloadResumePdfByMode(
     return;
   }
 
-  // Vector-first: server Chromium print (selectable text, preview-identical).
-  // Skipped when the free-layout studio is live (custom positions need the
-  // DOM capture path) or when a watermark is required (client-drawn).
-  if (!options?.watermark) {
-    const { findLiveFreeLayoutExportPages } = await import("./resumePdfExport");
-    const studioLayoutActive = findLiveFreeLayoutExportPages().length > 0;
-    if (!studioLayoutActive) {
-      const { tryDownloadServerVisualPdf } = await import("./resumeServerPdfExport");
-      if (await tryDownloadServerVisualPdf(resumeData, templateStyle, filename)) {
-        return;
-      }
-    }
-  }
+  const snapshot = getPrintExportSnapshot();
+  const layout =
+    options?.layout ??
+    (snapshot ? buildLayoutPayloadFromSnapshot(snapshot) : undefined);
 
-  const { downloadResumeVisualPdf } = await import("./resumePdfExport");
-  await downloadResumeVisualPdf(filename, { watermark: options?.watermark });
+  const serverResult = await downloadServerVisualPdf(resumeData, templateStyle, filename, {
+    watermark: options?.watermark,
+    layout,
+  });
+
+  if (isServerPdfFailure(serverResult)) {
+    throw new Error(serverResult.error);
+  }
 }

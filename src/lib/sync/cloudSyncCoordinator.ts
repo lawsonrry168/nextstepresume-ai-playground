@@ -9,6 +9,7 @@ import {
   pushRemoteWorkspace,
 } from "./cloudSyncApi";
 import type { ApplicationPackagesSyncSnapshot, WorkspaceSyncSnapshot } from "./types";
+import { reconcileCanvasLayoutCloud, buildCanvasLayoutSyncSnapshot } from "./canvasLayoutSync";
 
 let syncEnabled = false;
 let workspacePushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -201,6 +202,7 @@ export async function pullCloudSnapshots(): Promise<void> {
   if (!syncEnabled) return;
   await reconcileWorkspace();
   await reconcileApplicationPackages();
+  await reconcileCanvasLayoutCloud(buildCanvasLayoutSyncSnapshot());
 }
 
 export function touchWorkspaceCloudTimestamp(): string {

@@ -5,7 +5,7 @@ import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
 function readStudioViewMode(): StudioViewMode {
   try {
     const raw = localStorage.getItem(NSR_STORAGE_KEYS.studioViewMode);
-    if (raw === "single" || raw === "canvas") return raw;
+    if (raw === "single" || raw === "canvas" || raw === "print") return raw;
     if (raw === "compare") return "canvas";
   } catch {
     // ignore

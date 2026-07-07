@@ -155,4 +155,78 @@ export function registerSyncRoutes(app: Express): void {
       res.status(500).json({ error: "sync_write_failed" });
     }
   });
+
+  app.get("/api/sync/canvas-layout", async (req, res) => {
+    if (!isPostgresSyncConfigured()) {
+      res.status(503).json({ error: "sync_not_configured" });
+      return;
+    }
+
+    const auth = requireAuthedUser(req);
+    if (!auth) {
+      res.status(401).json({ error: "auth_required" });
+      return;
+    }
+
+    try {
+      const record = await getPostgresSyncStore().getCanvasLayout(auth.user.id);
+      if (!record) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      res.json({
+        layoutPositions: record.layoutPositions,
+        canvasDocument: record.canvasDocument,
+        canvasElements: record.canvasElements,
+        updatedAt: record.updatedAt,
+      });
+    } catch (err) {
+      console.error("[sync/canvas-layout] get failed", err);
+      res.status(500).json({ error: "sync_read_failed" });
+    }
+  });
+
+  app.put("/api/sync/canvas-layout", async (req, res) => {
+    if (!isPostgresSyncConfigured()) {
+      res.status(503).json({ error: "sync_not_configured" });
+      return;
+    }
+
+    const auth = requireAuthedUser(req);
+    if (!auth) {
+      res.status(401).json({ error: "auth_required" });
+      return;
+    }
+
+    const layoutPositions =
+      req.body?.layoutPositions && typeof req.body.layoutPositions === "object"
+        ? req.body.layoutPositions
+        : {};
+    const canvasDocument =
+      req.body?.canvasDocument && typeof req.body.canvasDocument === "object"
+        ? req.body.canvasDocument
+        : {};
+    const canvasElements = Array.isArray(req.body?.canvasElements) ? req.body.canvasElements : [];
+    const updatedAt =
+      typeof req.body?.updatedAt === "string" ? req.body.updatedAt : new Date().toISOString();
+
+    try {
+      const saved = await getPostgresSyncStore().upsertCanvasLayout(auth.user.id, {
+        layoutPositions,
+        canvasDocument,
+        canvasElements,
+        updatedAt,
+      });
+      res.json({
+        ok: true,
+        layoutPositions: saved.layoutPositions,
+        canvasDocument: saved.canvasDocument,
+        canvasElements: saved.canvasElements,
+        updatedAt: saved.updatedAt,
+      });
+    } catch (err) {
+      console.error("[sync/canvas-layout] put failed", err);
+      res.status(500).json({ error: "sync_write_failed" });
+    }
+  });
 }

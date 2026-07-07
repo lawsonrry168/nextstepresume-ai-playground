@@ -57,6 +57,13 @@ describe("phase 24 postgres cloud sync", () => {
         memory.set(`pkg:${userId}`, record);
         return record;
       },
+      async getCanvasLayout(userId) {
+        return (memory.get(`canvas:${userId}`) as Awaited<ReturnType<PostgresSyncStore["getCanvasLayout"]>>) ?? null;
+      },
+      async upsertCanvasLayout(userId, record) {
+        memory.set(`canvas:${userId}`, record);
+        return record;
+      },
     };
 
     setPostgresSyncStoreForTests(store);

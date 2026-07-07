@@ -20,6 +20,7 @@ import type { ResumeSectionId } from "../../lib/layoutDocument/sectionRegistry";
 import { isCanvasElementId } from "../../lib/canvasElements";
 import CanvasElementContent from "./CanvasElementContent";
 import type { ResumeFlowVariant } from "./resumeDocumentTypes";
+import type { SectionContentSlice } from "../../lib/layoutEntryPagination";
 
 export type ResumeSectionRenderMode = "block" | "flow";
 
@@ -39,6 +40,8 @@ export interface ResumeSectionRendererProps {
   highlightMatcherActive?: boolean;
   /** Flow layout variant — minimalist main column uses alternate section rhythm */
   flowVariant?: ResumeFlowVariant;
+  /** Print fragment slice — renders a subset of section entries across pages */
+  contentSlice?: SectionContentSlice;
 }
 
 function SectionHeading({
@@ -73,6 +76,7 @@ function ResumeSectionRenderer({
   missingKeywords = [],
   highlightMatcherActive = false,
   flowVariant = "standard",
+  contentSlice,
 }: ResumeSectionRendererProps) {
   const { t, locale } = useI18n();
   const family = getTemplateFamily(templateStyle);
@@ -265,38 +269,72 @@ function ResumeSectionRenderer({
         </div>,
       );
 
-    case "experience":
+    case "experience": {
+      const experienceSlices = contentSlice?.experience;
+      const experienceEntries = experienceSlices
+        ? experienceSlices
+            .map((slice) => {
+              const exp = data.experience.find((e) => e.id === slice.entryId);
+              if (!exp) return null;
+              const allBullets = getDisplayBullets(exp.id, exp.bullets);
+              return {
+                exp,
+                bullets: allBullets.slice(slice.bulletStart, slice.bulletEnd),
+                showHeader: slice.showEntryHeader,
+              };
+            })
+            .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+        : data.experience.map((exp) => ({
+            exp,
+            bullets: getDisplayBullets(exp.id, exp.bullets),
+            showHeader: true,
+          }));
+      const showExperienceHeading = contentSlice ? contentSlice.showHeading : true;
+      const continuedLabel = contentSlice?.continued ? ` (${t("canvas.entrySplit.continued")})` : "";
+
       if (isFlow && flowVariant === "minimalist") {
         return wrap(
           <div className={`space-y-3 ${tc.sheetFont}`}>
-            <SectionHeading title={getSectionLabel("experience", locale)} accentText={tc.accentText} sectionTitle={tc.sectionTitle} />
+            {showExperienceHeading ? (
+              <SectionHeading
+                title={`${getSectionLabel("experience", locale)}${continuedLabel}`}
+                accentText={tc.accentText}
+                sectionTitle={tc.sectionTitle}
+              />
+            ) : null}
             <div className={flowBlockClass}>
-              {data.experience.map((exp) => {
-                const bullets = getDisplayBullets(exp.id, exp.bullets);
+              {experienceEntries.map(({ exp, bullets, showHeader }) => {
                 const isOptimized = isTailoredBullet(exp.id);
+                if (!showHeader && bullets.length === 0) return null;
                 return (
-                  <div key={exp.id} className="space-y-1">
-                    <div className="flex justify-between items-baseline">
-                      <span className="font-bold text-slate-950 text-sm">{exp.role}</span>
-                      <span className="text-[10px] font-mono font-medium text-slate-400">
-                        {exp.startDate} - {exp.endDate}
-                      </span>
-                    </div>
-                    <div className={`text-xs font-semibold ${tc.roleAccent} uppercase tracking-wide`}>
-                      {exp.company} —{" "}
-                      <span className="text-slate-400 font-normal lowercase italic">{exp.location}</span>
-                    </div>
-                    <ul
-                      className={`list-disc pl-4 space-y-1.5 text-xs text-slate-700 mt-2 ${
-                        isOptimized ? `${tc.expHighlightBg} p-3 border-l-4 ${tc.expHighlightBorder} rounded-r text-slate-900` : ""
-                      }`}
-                    >
-                      {bullets.map((bullet, i) => (
-                        <li key={i} className="leading-relaxed">
-                          {renderText(bullet)}
-                        </li>
-                      ))}
-                    </ul>
+                  <div key={`${exp.id}-${bullets.length}-${showHeader ? "h" : "c"}`} className="space-y-1">
+                    {showHeader ? (
+                      <>
+                        <div className="flex justify-between items-baseline">
+                          <span className="font-bold text-slate-950 text-sm">{exp.role}</span>
+                          <span className="text-[10px] font-mono font-medium text-slate-400">
+                            {exp.startDate} - {exp.endDate}
+                          </span>
+                        </div>
+                        <div className={`text-xs font-semibold ${tc.roleAccent} uppercase tracking-wide`}>
+                          {exp.company} —{" "}
+                          <span className="text-slate-400 font-normal lowercase italic">{exp.location}</span>
+                        </div>
+                      </>
+                    ) : null}
+                    {bullets.length > 0 ? (
+                      <ul
+                        className={`list-disc pl-4 space-y-1.5 text-xs text-slate-700 mt-2 ${
+                          isOptimized ? `${tc.expHighlightBg} p-3 border-l-4 ${tc.expHighlightBorder} rounded-r text-slate-900` : ""
+                        }`}
+                      >
+                        {bullets.map((bullet, i) => (
+                          <li key={i} className="leading-relaxed">
+                            {renderText(bullet)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 );
               })}
@@ -306,52 +344,77 @@ function ResumeSectionRenderer({
       }
       return wrap(
         <div className={`space-y-3 ${tc.sheetFont}`}>
-          <SectionHeading title={getSectionLabel("experience", locale)} accentText={tc.accentText} sectionTitle={tc.sectionTitle} />
-          {data.experience.map((exp) => {
-            const bullets = getDisplayBullets(exp.id, exp.bullets);
+          {showExperienceHeading ? (
+            <SectionHeading
+              title={`${getSectionLabel("experience", locale)}${continuedLabel}`}
+              accentText={tc.accentText}
+              sectionTitle={tc.sectionTitle}
+            />
+          ) : null}
+          {experienceEntries.map(({ exp, bullets, showHeader }) => {
             const isOptimized = isTailoredBullet(exp.id);
+            if (!showHeader && bullets.length === 0) return null;
             return (
-            <div key={exp.id} className={`space-y-1 ${flowBlockClass} ${isFlow ? "resume-a4-exp-item" : ""}`}>
-              <div className="flex justify-between gap-2 text-xs">
-                <span className="font-bold text-slate-900">
+            <div key={`${exp.id}-${bullets.length}-${showHeader ? "h" : "c"}`} className={`space-y-1 ${flowBlockClass} ${isFlow ? "resume-a4-exp-item" : ""}`}>
+              {showHeader ? (
+                <>
+                  <div className="flex justify-between gap-2 text-xs">
+                    <span className="font-bold text-slate-900">
+                      {family === "classic" ? (
+                        exp.company
+                      ) : (
+                        <>
+                          {exp.role} <span className="text-slate-400 font-normal">{t("resumeLivePreview.atCompany")}</span>{" "}
+                          <span className={`${tc.accentText} font-bold`}>{exp.company}</span>
+                        </>
+                      )}
+                    </span>
+                    <span className="text-slate-400 shrink-0 font-mono text-[10px]">
+                      {exp.startDate} – {exp.endDate}
+                    </span>
+                  </div>
                   {family === "classic" ? (
-                    exp.company
-                  ) : (
-                    <>
-                      {exp.role} <span className="text-slate-400 font-normal">{t("resumeLivePreview.atCompany")}</span>{" "}
-                      <span className={`${tc.accentText} font-bold`}>{exp.company}</span>
-                    </>
-                  )}
-                </span>
-                <span className="text-slate-400 shrink-0 font-mono text-[10px]">
-                  {exp.startDate} – {exp.endDate}
-                </span>
-              </div>
-              {family === "classic" ? (
-                <div className="text-[11px] italic font-semibold text-slate-700">{exp.role}</div>
+                    <div className="text-[11px] italic font-semibold text-slate-700">{exp.role}</div>
+                  ) : null}
+                </>
               ) : null}
-              <ul
-                className={`list-disc pl-4 space-y-1 text-[11px] text-slate-600 ${
-                  isOptimized ? `${tc.expHighlightBg} p-2 border-l-4 ${tc.expHighlightBorder} rounded-r` : ""
-                }`}
-              >
-                {bullets.map((bullet, i) => (
-                  <li key={i} className="leading-relaxed">
-                    {isFlow ? renderText(bullet) : bullet}
-                  </li>
-                ))}
-              </ul>
+              {bullets.length > 0 ? (
+                <ul
+                  className={`list-disc pl-4 space-y-1 text-[11px] text-slate-600 ${
+                    isOptimized ? `${tc.expHighlightBg} p-2 border-l-4 ${tc.expHighlightBorder} rounded-r` : ""
+                  }`}
+                >
+                  {bullets.map((bullet, i) => (
+                    <li key={i} className="leading-relaxed">
+                      {isFlow ? renderText(bullet) : bullet}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
             );
           })}
         </div>,
       );
+    }
 
-    case "education":
+    case "education": {
+      const educationEntries = contentSlice?.education
+        ? contentSlice.education
+            .map((slice) => data.education.find((e) => e.id === slice.entryId))
+            .filter((edu): edu is NonNullable<typeof edu> => Boolean(edu))
+        : data.education;
+      const continuedLabel = contentSlice?.continued ? ` (${t("canvas.entrySplit.continued")})` : "";
       return wrap(
         <div className={`space-y-2 ${tc.sheetFont}`}>
-          <SectionHeading title={getSectionLabel("education", locale)} accentText={tc.accentText} sectionTitle={tc.sectionTitle} />
-          {data.education.map((edu) => (
+          {contentSlice?.showHeading === false ? null : (
+            <SectionHeading
+              title={`${getSectionLabel("education", locale)}${continuedLabel}`}
+              accentText={tc.accentText}
+              sectionTitle={tc.sectionTitle}
+            />
+          )}
+          {educationEntries.map((edu) => (
             <div key={edu.id} className={`flex justify-between gap-2 text-xs ${flowBlockClass}`}>
               <div>
                 <span className="font-bold text-slate-900">{edu.institution}</span>
@@ -365,22 +428,43 @@ function ResumeSectionRenderer({
           ))}
         </div>,
       );
+    }
 
-    case "projects":
+    case "projects": {
+      const projectEntries = contentSlice?.projects
+        ? contentSlice.projects
+            .map((slice) => {
+              const proj = data.projects.find((p) => p.id === slice.entryId);
+              if (!proj) return null;
+              return { proj, showHeader: slice.showEntryHeader };
+            })
+            .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+        : data.projects.map((proj) => ({ proj, showHeader: true }));
+      const continuedLabel = contentSlice?.continued ? ` (${t("canvas.entrySplit.continued")})` : "";
       if (isFlow && flowVariant === "minimalist") {
         return wrap(
           <div className={`space-y-2 ${tc.sheetFont}`}>
-            <SectionHeading title={getSectionLabel("projects", locale)} accentText={tc.accentText} sectionTitle={tc.sectionTitle} />
+            {contentSlice?.showHeading === false ? null : (
+              <SectionHeading
+                title={`${getSectionLabel("projects", locale)}${continuedLabel}`}
+                accentText={tc.accentText}
+                sectionTitle={tc.sectionTitle}
+              />
+            )}
             <div className={flowBlockClass}>
-              {data.projects.map((proj) => (
+              {projectEntries.map(({ proj, showHeader }) => (
                 <div key={proj.id} className="space-y-1 text-xs">
-                  <div className="flex justify-between items-center font-bold text-slate-900">
-                    <span>{proj.name}</span>
-                    {proj.url && (
-                      <span className="text-[10px] text-slate-400 font-mono font-normal">{proj.url}</span>
-                    )}
-                  </div>
-                  <div className="text-[10px] font-mono text-slate-500">Tech Stack: {proj.techStack}</div>
+                  {showHeader ? (
+                    <>
+                      <div className="flex justify-between items-center font-bold text-slate-900">
+                        <span>{proj.name}</span>
+                        {proj.url && (
+                          <span className="text-[10px] text-slate-400 font-mono font-normal">{proj.url}</span>
+                        )}
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-500">Tech Stack: {proj.techStack}</div>
+                    </>
+                  ) : null}
                   <p className="text-slate-650 leading-normal">{renderText(proj.description)}</p>
                 </div>
               ))}
@@ -390,16 +474,27 @@ function ResumeSectionRenderer({
       }
       return wrap(
         <div className={`space-y-2 ${tc.sheetFont}`}>
-          <SectionHeading title={getSectionLabel("projects", locale)} accentText={tc.accentText} sectionTitle={tc.sectionTitle} />
-          {data.projects.map((proj) => (
+          {contentSlice?.showHeading === false ? null : (
+            <SectionHeading
+              title={`${getSectionLabel("projects", locale)}${continuedLabel}`}
+              accentText={tc.accentText}
+              sectionTitle={tc.sectionTitle}
+            />
+          )}
+          {projectEntries.map(({ proj, showHeader }) => (
             <div key={proj.id} className={`text-xs space-y-0.5 ${flowBlockClass}`}>
-              <div className="font-bold text-slate-900">{proj.name}</div>
-              <div className={`text-[10px] ${tc.accentText}`}>{proj.techStack}</div>
+              {showHeader ? (
+                <>
+                  <div className="font-bold text-slate-900">{proj.name}</div>
+                  <div className={`text-[10px] ${tc.accentText}`}>{proj.techStack}</div>
+                </>
+              ) : null}
               <p className="text-slate-600 leading-relaxed">{isFlow ? renderText(proj.description) : proj.description}</p>
             </div>
           ))}
         </div>,
       );
+    }
 
     case "skills":
       if (isFlow && family === "classic") {

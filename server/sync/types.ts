@@ -12,6 +12,13 @@ export interface ApplicationPackagesSyncRecord {
   updatedAt: string;
 }
 
+export interface CanvasLayoutSyncRecord {
+  layoutPositions: Record<string, unknown>;
+  canvasDocument: Record<string, unknown>;
+  canvasElements: unknown[];
+  updatedAt: string;
+}
+
 export interface PostgresSyncStore {
   getWorkspace(userId: string): Promise<WorkspaceSyncRecord | null>;
   upsertWorkspace(userId: string, record: WorkspaceSyncRecord): Promise<WorkspaceSyncRecord>;
@@ -20,4 +27,6 @@ export interface PostgresSyncStore {
     userId: string,
     record: ApplicationPackagesSyncRecord,
   ): Promise<ApplicationPackagesSyncRecord>;
+  getCanvasLayout(userId: string): Promise<CanvasLayoutSyncRecord | null>;
+  upsertCanvasLayout(userId: string, record: CanvasLayoutSyncRecord): Promise<CanvasLayoutSyncRecord>;
 }

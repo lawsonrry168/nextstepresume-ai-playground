@@ -1,9 +1,9 @@
 import type { FreeLayoutPosition } from "./resumeFreeLayout";
+import type { CanvasLayerDocument, CanvasPagesDocument } from "./canvasStudioTypes";
 
 /**
- * Bridge between the free-layout hook (deep in the preview panel) and the
- * global undo history (top-level playground). Lets layout drags, presets,
- * and resets join the same Ctrl+Z / Ctrl+Shift+Z history as content edits.
+ * Bridge between layout/canvas hooks and the global undo history.
+ * Content edits, layout drags, page changes, and layer ops share Ctrl+Z / Ctrl+Shift+Z.
  */
 
 export interface LayoutPositionsSnapshot {
@@ -11,41 +11,110 @@ export interface LayoutPositionsSnapshot {
   positions: Record<string, FreeLayoutPosition>;
 }
 
+export interface CanvasDocumentSnapshot {
+  family: string;
+  pages: CanvasPagesDocument;
+  layers: CanvasLayerDocument;
+}
+
+export interface CanvasUndoSnapshot {
+  family: string;
+  positions: Record<string, FreeLayoutPosition>;
+  pages?: CanvasPagesDocument;
+  layers?: CanvasLayerDocument;
+}
+
 interface LayoutUndoBridge {
   family: string;
   applyPositions: (positions: Record<string, FreeLayoutPosition>) => void;
 }
 
-let bridge: LayoutUndoBridge | null = null;
+interface CanvasUndoBridge {
+  family: string;
+  applyCanvasDocument: (snapshot: CanvasDocumentSnapshot) => void;
+}
+
+let layoutBridge: LayoutUndoBridge | null = null;
+let canvasBridge: CanvasUndoBridge | null = null;
 let suppressEmitUntil = 0;
-const listeners = new Set<(snapshot: LayoutPositionsSnapshot) => void>();
+
+const layoutListeners = new Set<(snapshot: LayoutPositionsSnapshot) => void>();
+const canvasListeners = new Set<(snapshot: CanvasDocumentSnapshot) => void>();
 
 export function registerLayoutUndoBridge(next: LayoutUndoBridge): () => void {
-  bridge = next;
+  layoutBridge = next;
   return () => {
-    if (bridge === next) bridge = null;
+    if (layoutBridge === next) layoutBridge = null;
   };
 }
 
-/** Apply positions from an undo/redo entry; ignored when the family no longer matches. */
+export function registerCanvasUndoBridge(next: CanvasUndoBridge): () => void {
+  canvasBridge = next;
+  return () => {
+    if (canvasBridge === next) canvasBridge = null;
+  };
+}
+
 export function applyLayoutUndoPositions(snapshot: LayoutPositionsSnapshot): boolean {
-  if (!bridge || bridge.family !== snapshot.family) return false;
+  if (!layoutBridge || layoutBridge.family !== snapshot.family) return false;
   suppressEmitUntil = Date.now() + 900;
-  bridge.applyPositions(snapshot.positions);
+  layoutBridge.applyPositions(snapshot.positions);
   return true;
 }
 
-/** Called by the layout hook when the user changed positions (post-debounce). */
+export function applyCanvasUndoDocument(snapshot: CanvasDocumentSnapshot): boolean {
+  if (!canvasBridge || canvasBridge.family !== snapshot.family) return false;
+  suppressEmitUntil = Date.now() + 900;
+  canvasBridge.applyCanvasDocument(snapshot);
+  return true;
+}
+
+export function applyCanvasUndoSnapshot(snapshot: CanvasUndoSnapshot): boolean {
+  const layoutOk = applyLayoutUndoPositions({
+    family: snapshot.family,
+    positions: snapshot.positions,
+  });
+
+  // A canvas-document portion is only valid when BOTH pages and layers are
+  // present (they are always captured together). Ignore a partial snapshot.
+  const hasCanvasDoc = Boolean(snapshot.pages && snapshot.layers);
+  const canvasOk = hasCanvasDoc
+    ? applyCanvasUndoDocument({
+        family: snapshot.family,
+        pages: snapshot.pages!,
+        layers: snapshot.layers!,
+      })
+    : true;
+
+  // Require every captured portion to apply. Reporting success on a partial
+  // restore would push a corrupt entry onto the redo stack.
+  return hasCanvasDoc ? layoutOk && canvasOk : layoutOk;
+}
+
 export function emitLayoutPositions(snapshot: LayoutPositionsSnapshot): void {
   if (Date.now() < suppressEmitUntil) return;
-  for (const listener of listeners) listener(snapshot);
+  for (const listener of layoutListeners) listener(snapshot);
+}
+
+export function emitCanvasDocumentChange(snapshot: CanvasDocumentSnapshot): void {
+  if (Date.now() < suppressEmitUntil) return;
+  for (const listener of canvasListeners) listener(snapshot);
 }
 
 export function subscribeLayoutPositions(
   listener: (snapshot: LayoutPositionsSnapshot) => void,
 ): () => void {
-  listeners.add(listener);
+  layoutListeners.add(listener);
   return () => {
-    listeners.delete(listener);
+    layoutListeners.delete(listener);
+  };
+}
+
+export function subscribeCanvasDocument(
+  listener: (snapshot: CanvasDocumentSnapshot) => void,
+): () => void {
+  canvasListeners.add(listener);
+  return () => {
+    canvasListeners.delete(listener);
   };
 }

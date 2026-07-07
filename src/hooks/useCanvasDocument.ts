@@ -20,89 +20,13 @@ import {
 import { formatCanvasPageLabel } from "../lib/sectionLabels";
 import { clampPositionToA4Page } from "../lib/canvasPageSnap";
 import { FreeLayoutPosition, FreeLayoutSectionMeta } from "../lib/resumeFreeLayout";
-import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
-
-type FamilyPagesStore = Partial<Record<TemplateFamily, CanvasPagesDocument>>;
-type FamilyLayersStore = Partial<Record<TemplateFamily, CanvasLayerDocument>>;
-
-function readPagesStore(): FamilyPagesStore {
-  try {
-    const raw = localStorage.getItem(NSR_STORAGE_KEYS.canvasPages);
-    return raw ? (JSON.parse(raw) as FamilyPagesStore) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writePagesStore(store: FamilyPagesStore): void {
-  try {
-    localStorage.setItem(NSR_STORAGE_KEYS.canvasPages, JSON.stringify(store));
-  } catch {
-    // ignore
-  }
-}
-
-function readLayersStore(): FamilyLayersStore {
-  try {
-    const raw = localStorage.getItem(NSR_STORAGE_KEYS.canvasLayers);
-    return raw ? (JSON.parse(raw) as FamilyLayersStore) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeLayersStore(store: FamilyLayersStore): void {
-  try {
-    localStorage.setItem(NSR_STORAGE_KEYS.canvasLayers, JSON.stringify(store));
-  } catch {
-    // ignore
-  }
-}
-
-function readUiState(): CanvasStudioUiState {
-  try {
-    const raw = localStorage.getItem(NSR_STORAGE_KEYS.canvasStudioUi);
-    if (!raw) {
-      return {
-        layerPanelOpen: false,
-        rightNavOpen: true,
-        shortcutsDismissed: false,
-        showGrid: true,
-        showMargins: false,
-        gridStrength: CANVAS_GRID_STRENGTH_DEFAULT,
-        navSectionOrder: normalizeNavSectionOrder(undefined),
-      };
-    }
-    const parsed = JSON.parse(raw) as Partial<CanvasStudioUiState>;
-    return {
-        layerPanelOpen: parsed.layerPanelOpen ?? false,
-      rightNavOpen: parsed.rightNavOpen ?? true,
-      shortcutsDismissed: parsed.shortcutsDismissed ?? false,
-      showGrid: parsed.showGrid ?? true,
-      showMargins: parsed.showMargins ?? false,
-      gridStrength: clampGridStrength(parsed.gridStrength),
-      navSectionOrder: normalizeNavSectionOrder(parsed.navSectionOrder),
-    };
-  } catch {
-    return {
-      layerPanelOpen: false,
-      rightNavOpen: true,
-      shortcutsDismissed: false,
-      showGrid: true,
-      showMargins: false,
-      gridStrength: CANVAS_GRID_STRENGTH_DEFAULT,
-      navSectionOrder: normalizeNavSectionOrder(undefined),
-    };
-  }
-}
-
-function writeUiState(state: CanvasStudioUiState): void {
-  try {
-    localStorage.setItem(NSR_STORAGE_KEYS.canvasStudioUi, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
-}
+import { loadCanvasDocument, saveCanvasDocument } from "../lib/canvasDocument";
+import { emitCanvasDocumentChange, registerCanvasUndoBridge } from "../lib/undoRegistry";
+import {
+  duplicateCanvasElement,
+  getCanvasElement,
+  isCanvasElementId,
+} from "../lib/canvasElements";
 
 function buildPagesFromReferencedIds(pageIds: string[]): CanvasPagesDocument {
   const pages = pageIds.map((id, index) => ({
@@ -171,18 +95,18 @@ export function useCanvasDocument({
 }: UseCanvasDocumentOptions) {
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
 
-  const [pagesDoc, setPagesDoc] = useState<CanvasPagesDocument>(() => {
-    const store = readPagesStore();
-    return normalizePagesDocument(store[templateFamily]);
-  });
+  const [pagesDoc, setPagesDoc] = useState<CanvasPagesDocument>(() =>
+    loadCanvasDocument(templateFamily, sectionIds).pages,
+  );
 
-  const [layersDoc, setLayersDoc] = useState<CanvasLayerDocument>(() => {
-    const store = readLayersStore();
-    return normalizeLayerDocument(store[templateFamily], sectionIds);
-  });
+  const [layersDoc, setLayersDoc] = useState<CanvasLayerDocument>(() =>
+    loadCanvasDocument(templateFamily, sectionIds).layers,
+  );
 
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
-  const [uiState, setUiState] = useState<CanvasStudioUiState>(readUiState);
+  const [uiState, setUiState] = useState<CanvasStudioUiState>(
+    () => loadCanvasDocument(templateFamily, sectionIds).ui,
+  );
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -199,10 +123,10 @@ export function useCanvasDocument({
   );
 
   useEffect(() => {
-    const store = readPagesStore();
-    setPagesDoc(normalizePagesDocument(store[templateFamily]));
-    const layerStore = readLayersStore();
-    setLayersDoc(normalizeLayerDocument(layerStore[templateFamily], sectionIds));
+    const doc = loadCanvasDocument(templateFamily, sectionIds);
+    setPagesDoc(doc.pages);
+    setLayersDoc(normalizeLayerDocument(doc.layers, sectionIds));
+    setUiState(doc.ui);
     setSelectedSectionId(null);
   }, [templateFamily, sectionIds]);
 
@@ -215,24 +139,52 @@ export function useCanvasDocument({
   }, [positions, sectionIds]);
 
   useEffect(() => {
+    return registerCanvasUndoBridge({
+      family: templateFamily,
+      applyCanvasDocument: (snapshot) => {
+        setPagesDoc(snapshot.pages);
+        setLayersDoc(normalizeLayerDocument(snapshot.layers, sectionIds));
+        saveCanvasDocument(templateFamily, {
+          pages: snapshot.pages,
+          layers: snapshot.layers,
+        });
+      },
+    });
+  }, [sectionIds, templateFamily]);
+
+  useEffect(() => {
     schedulePersist(() => {
-      const store = readPagesStore();
-      store[templateFamily] = pagesDoc;
-      writePagesStore(store);
+      saveCanvasDocument(templateFamily, { pages: pagesDoc });
     });
   }, [pagesDoc, templateFamily, schedulePersist]);
 
   useEffect(() => {
     schedulePersist(() => {
-      const store = readLayersStore();
-      store[templateFamily] = layersDoc;
-      writeLayersStore(store);
+      saveCanvasDocument(templateFamily, { layers: layersDoc });
     });
   }, [layersDoc, templateFamily, schedulePersist]);
 
+  const notifyCanvasUndo = useCallback(() => {
+    emitCanvasDocumentChange({
+      family: templateFamily,
+      pages: pagesDoc,
+      layers: layersDoc,
+    });
+  }, [layersDoc, pagesDoc, templateFamily]);
+
+  /** Re-read pages/layers/ui from localStorage (used after cloud hydrate). */
+  const reloadFromStorage = useCallback(() => {
+    const doc = loadCanvasDocument(templateFamily, sectionIds);
+    setPagesDoc(doc.pages);
+    setLayersDoc(normalizeLayerDocument(doc.layers, sectionIds));
+    setUiState(doc.ui);
+  }, [templateFamily, sectionIds]);
+
   useEffect(() => {
-    schedulePersist(() => writeUiState(uiState));
-  }, [uiState, schedulePersist]);
+    schedulePersist(() => {
+      saveCanvasDocument(templateFamily, { ui: uiState });
+    });
+  }, [uiState, templateFamily, schedulePersist]);
 
   const getSectionPageId = useCallback(
     (sectionId: string): string => {
@@ -263,10 +215,12 @@ export function useCanvasDocument({
       const nextPage = createDefaultCanvasPage(prev.pages.length + 1);
       return { pages: [...prev.pages, nextPage], activePageId: nextPage.id };
     });
-  }, []);
+    queueMicrotask(() => notifyCanvasUndo());
+  }, [notifyCanvasUndo]);
 
   const removePage = useCallback(
     (pageId: string) => {
+      let removed = false;
       setPagesDoc((prev) => {
         if (prev.pages.length <= 1) return prev;
         const fallback = prev.pages.find((p) => p.id !== pageId) ?? prev.pages[0];
@@ -279,13 +233,15 @@ export function useCanvasDocument({
             updatePosition(id, { ...pos, pageId: fallback.id });
           }
         }
+        removed = true;
         return {
           pages: nextPages,
           activePageId: prev.activePageId === pageId ? fallback.id : prev.activePageId,
         };
       });
+      if (removed) queueMicrotask(() => notifyCanvasUndo());
     },
-    [positions, sectionIds, updatePosition],
+    [notifyCanvasUndo, positions, sectionIds, updatePosition],
   );
 
   const renamePage = useCallback((pageId: string, label: string) => {
@@ -421,13 +377,34 @@ export function useCanvasDocument({
   }, [pagesDoc.activePageId, removePage]);
 
   const duplicateActivePage = useCallback(() => {
-    setPagesDoc((prev) => {
-      const active = prev.pages.find((p) => p.id === prev.activePageId);
-      const newPage = createDefaultCanvasPage(prev.pages.length + 1);
-      newPage.label = `${active?.label ?? "第 1 頁"} 副本`;
-      return { pages: [...prev.pages, newPage], activePageId: newPage.id };
-    });
-  }, []);
+    const activeId = pagesDoc.activePageId;
+    const active = pagesDoc.pages.find((p) => p.id === activeId);
+    const newPage = createDefaultCanvasPage(pagesDoc.pages.length + 1);
+    newPage.label = `${active?.label ?? "第 1 頁"} 副本`;
+
+    for (const id of sectionIds) {
+      if (!isCanvasElementId(id)) continue;
+      const pos = positions[id];
+      if (!pos) continue;
+      const onActive = (pos.pageId ?? activeId) === activeId;
+      if (!onActive) continue;
+      const source = getCanvasElement(id);
+      if (!source) continue;
+      const clone = duplicateCanvasElement(source);
+      if (!clone) continue;
+      updatePosition(
+        clone.id,
+        clampPositionToA4Page({ ...pos, pageId: newPage.id }),
+        { skipSnap: true, constrainA4: true },
+      );
+    }
+
+    setPagesDoc((prev) => ({
+      pages: [...prev.pages, newPage],
+      activePageId: newPage.id,
+    }));
+    queueMicrotask(() => notifyCanvasUndo());
+  }, [pagesDoc.activePageId, pagesDoc.pages, positions, sectionIds, updatePosition, notifyCanvasUndo]);
 
   const sectionPageMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -486,5 +463,6 @@ export function useCanvasDocument({
     unlockAllLayers,
     removeActivePage,
     duplicateActivePage,
+    reloadFromStorage,
   };
 }

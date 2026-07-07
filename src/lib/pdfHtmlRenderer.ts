@@ -77,11 +77,6 @@ export function applyPdfWatermark(canvas: HTMLCanvasElement, text: string): HTML
   return output;
 }
 
-function maybeWatermark(canvas: HTMLCanvasElement, options: PdfCanvasExportOptions): HTMLCanvasElement {
-  if (!options.watermark?.trim()) return canvas;
-  return applyPdfWatermark(canvas, options.watermark.trim());
-}
-
 export function computeSinglePageCanvasPlacement(
   pdfWidth: number,
   pdfHeight: number,
@@ -219,43 +214,6 @@ export async function renderHtmlSectionsToPdf(
     const canvas = await htmlBlockToCanvas(sections[i]);
     appendCanvasToPdf(pdf, canvas, i > 0);
   }
-
-  pdf.save(filename);
-}
-
-export function downloadPdfFromCanvas(
-  canvas: HTMLCanvasElement,
-  filename: string,
-  options: PdfCanvasExportOptions = {}
-): void {
-  if (canvas.width < 2 || canvas.height < 2) {
-    throw new Error("PDF export produced empty canvas");
-  }
-
-  pdfHasContent = false;
-  const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-  appendCanvasToPdf(pdf, maybeWatermark(canvas, options), false, options);
-  pdf.save(filename);
-}
-
-export function downloadPdfFromCanvases(
-  canvases: HTMLCanvasElement[],
-  filename: string,
-  options: PdfCanvasExportOptions = {},
-): void {
-  if (!canvases.length) {
-    throw new Error("PDF export produced no pages");
-  }
-
-  pdfHasContent = false;
-  const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-
-  canvases.forEach((canvas, index) => {
-    if (canvas.width < 2 || canvas.height < 2) {
-      throw new Error(`PDF export produced empty canvas on page ${index + 1}`);
-    }
-    appendCanvasToPdf(pdf, maybeWatermark(canvas, options), index > 0, options);
-  });
 
   pdf.save(filename);
 }

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ResumeData } from "../types";
 import { TemplateFamily } from "../lib/resumeTemplateCatalog";
 import { ResumeThemeCustomization } from "../lib/resumeThemeCustomization";
@@ -6,6 +6,8 @@ import type { FreeLayoutSectionMeta } from "../lib/resumeFreeLayout";
 import { useFreeLayout } from "./useFreeLayout";
 import { useCanvasDocument } from "./useCanvasDocument";
 import { buildLayoutDocument, exportPositionsFromDocument } from "../lib/layoutDocument";
+import { exportSectionsFromPrintPlan } from "../lib/layoutEntryPagination";
+import { registerCanvasLayoutHydrateHandler } from "../lib/sync/canvasLayoutSync";
 import { themeContentScale } from "../lib/canvasSectionContentSizing";
 import { formatCanvasPageLabel } from "../lib/sectionLabels";
 import type { CanvasPage } from "../lib/canvasStudioTypes";
@@ -54,6 +56,17 @@ export function useLayoutDocument({
     [freeLayout.sections],
   );
 
+  // Cloud hydrate: after remote canvas layout is written to localStorage,
+  // reload positions/pages/layers so the studio reflects the pulled state.
+  const reloadFreeLayout = freeLayout.reloadFromStorage;
+  const reloadCanvasDoc = canvasDoc.reloadFromStorage;
+  useEffect(() => {
+    return registerCanvasLayoutHydrateHandler(() => {
+      reloadFreeLayout();
+      reloadCanvasDoc();
+    });
+  }, [reloadFreeLayout, reloadCanvasDoc]);
+
   const layoutDocument = useMemo(
     () =>
       buildLayoutDocument({
@@ -87,8 +100,21 @@ export function useLayoutDocument({
     [layoutDocument],
   );
 
+  const exportSectionIds = useMemo(
+    () => exportSectionsFromPrintPlan(sectionIds, exportSurfacePositions, canvasDoc.layers.order),
+    [exportSurfacePositions, sectionIds, canvasDoc.layers.order],
+  );
+
+  const exportSections = useMemo(
+    () => exportSectionIds.map((id) => ({ id })),
+    [exportSectionIds],
+  );
+
+  const exportSectionSlices = exportPrintPlan.sectionSlices;
+
   const exportCanvasLayout = useMemo((): ExportCanvasLayoutContext | undefined => {
-    if (exportPrintPlan.pageIds.length <= 1) return undefined;
+    const hasFragments = Boolean(exportSectionSlices && Object.keys(exportSectionSlices).length > 0);
+    if (exportPrintPlan.pageIds.length <= 1 && !hasFragments) return undefined;
     const primaryPageId = exportPrintPlan.pageIds[0]!;
     return {
       pages: exportPrintPlan.pageIds.map((id, index) => ({
@@ -97,7 +123,7 @@ export function useLayoutDocument({
       })),
       activePageId: primaryPageId,
       sectionPageMap: Object.fromEntries(
-        sectionIds
+        exportSectionIds
           .filter((id) => exportSurfacePositions[id])
           .map((id) => [id, exportSurfacePositions[id]!.pageId ?? primaryPageId]),
       ),
@@ -112,8 +138,9 @@ export function useLayoutDocument({
     canvasDoc.layers.hidden,
     canvasDoc.layers.locked,
     exportPrintPlan.pageIds,
+    exportSectionIds,
+    exportSectionSlices,
     exportSurfacePositions,
-    sectionIds,
   ]);
 
   return {
@@ -123,6 +150,8 @@ export function useLayoutDocument({
     layoutDocument,
     exportPrintPlan,
     exportSurfacePositions,
+    exportSections,
+    exportSectionSlices,
     exportCanvasLayout,
   };
 }

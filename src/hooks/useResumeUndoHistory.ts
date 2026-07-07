@@ -1,30 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ResumeData } from "../types";
 import {
-  applyLayoutUndoPositions,
+  applyCanvasUndoSnapshot,
+  subscribeCanvasDocument,
   subscribeLayoutPositions,
-  type LayoutPositionsSnapshot,
+  type CanvasUndoSnapshot,
 } from "../lib/undoRegistry";
 
 interface UndoEntry {
   resumeData: ResumeData;
-  /** Layout snapshot at the time of the edit (null when free layout not mounted) */
-  layout: LayoutPositionsSnapshot | null;
+  /** Layout + canvas snapshot at the time of the edit */
+  canvas: CanvasUndoSnapshot | null;
 }
 
 function cloneResumeData(data: ResumeData): ResumeData {
   return JSON.parse(JSON.stringify(data)) as ResumeData;
 }
 
-function cloneLayout(snapshot: LayoutPositionsSnapshot | null): LayoutPositionsSnapshot | null {
-  return snapshot ? (JSON.parse(JSON.stringify(snapshot)) as LayoutPositionsSnapshot) : null;
+function cloneCanvas(snapshot: CanvasUndoSnapshot | null): CanvasUndoSnapshot | null {
+  return snapshot ? (JSON.parse(JSON.stringify(snapshot)) as CanvasUndoSnapshot) : null;
 }
 
 const HISTORY_LIMIT = 50;
 
 /**
- * Unified undo/redo — content edits AND free-layout changes share one history.
- * Ctrl+Z undoes, Ctrl+Shift+Z / Ctrl+Y redoes.
+ * Unified undo/redo — content edits, layout drags, page/layer changes share one history.
  */
 export function useResumeUndoHistory(
   resumeData: ResumeData,
@@ -38,11 +38,11 @@ export function useResumeUndoHistory(
 
   const resumeDataRef = useRef(resumeData);
   resumeDataRef.current = resumeData;
-  /** Latest layout emitted by the free-layout hook */
-  const latestLayoutRef = useRef<LayoutPositionsSnapshot | null>(null);
-  /** Layout state before the current burst of drags */
-  const preDragLayoutRef = useRef<LayoutPositionsSnapshot | null>(null);
+
+  const latestCanvasRef = useRef<CanvasUndoSnapshot | null>(null);
+  const preDragCanvasRef = useRef<CanvasUndoSnapshot | null>(null);
   const layoutBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressLayoutCaptureRef = useRef(0);
 
   const pushEntry = useCallback((entry: UndoEntry) => {
@@ -66,7 +66,7 @@ export function useResumeUndoHistory(
         if (isDifferent) {
           pushEntry({
             resumeData: preEditStateRef.current,
-            layout: cloneLayout(latestLayoutRef.current),
+            canvas: cloneCanvas(latestCanvasRef.current),
           });
         }
       }
@@ -78,26 +78,67 @@ export function useResumeUndoHistory(
     };
   }, [resumeData, pushEntry]);
 
+  const scheduleLayoutBurst = useCallback(() => {
+    if (layoutBurstTimerRef.current) clearTimeout(layoutBurstTimerRef.current);
+    layoutBurstTimerRef.current = setTimeout(() => {
+      const before = preDragCanvasRef.current;
+      preDragCanvasRef.current = null;
+      if (!before) return;
+      pushEntry({
+        resumeData: cloneResumeData(resumeDataRef.current),
+        canvas: before,
+      });
+    }, 700);
+  }, [pushEntry]);
+
   useEffect(() => {
     return subscribeLayoutPositions((snapshot) => {
-      const previous = latestLayoutRef.current;
-      latestLayoutRef.current = cloneLayout(snapshot);
+      const previous = latestCanvasRef.current;
+      latestCanvasRef.current = {
+        family: snapshot.family,
+        positions: JSON.parse(JSON.stringify(snapshot.positions)) as CanvasUndoSnapshot["positions"],
+        pages: previous?.pages,
+        layers: previous?.layers,
+      };
 
       if (Date.now() < suppressLayoutCaptureRef.current) return;
       if (!previous || previous.family !== snapshot.family) return;
       if (JSON.stringify(previous.positions) === JSON.stringify(snapshot.positions)) return;
 
-      if (!preDragLayoutRef.current) {
-        preDragLayoutRef.current = previous;
+      if (!preDragCanvasRef.current) {
+        preDragCanvasRef.current = cloneCanvas(previous);
       }
-      if (layoutBurstTimerRef.current) clearTimeout(layoutBurstTimerRef.current);
-      layoutBurstTimerRef.current = setTimeout(() => {
-        const before = preDragLayoutRef.current;
-        preDragLayoutRef.current = null;
+      scheduleLayoutBurst();
+    });
+  }, [scheduleLayoutBurst]);
+
+  useEffect(() => {
+    return subscribeCanvasDocument((snapshot) => {
+      const previous = latestCanvasRef.current;
+      latestCanvasRef.current = {
+        family: snapshot.family,
+        positions: previous?.positions ?? {},
+        pages: JSON.parse(JSON.stringify(snapshot.pages)) as CanvasUndoSnapshot["pages"],
+        layers: JSON.parse(JSON.stringify(snapshot.layers)) as CanvasUndoSnapshot["layers"],
+      };
+
+      if (Date.now() < suppressLayoutCaptureRef.current) return;
+      if (!previous || previous.family !== snapshot.family) return;
+      const pagesSame = JSON.stringify(previous.pages) === JSON.stringify(snapshot.pages);
+      const layersSame = JSON.stringify(previous.layers) === JSON.stringify(snapshot.layers);
+      if (pagesSame && layersSame) return;
+
+      if (!preDragCanvasRef.current) {
+        preDragCanvasRef.current = cloneCanvas(previous);
+      }
+      if (canvasBurstTimerRef.current) clearTimeout(canvasBurstTimerRef.current);
+      canvasBurstTimerRef.current = setTimeout(() => {
+        const before = preDragCanvasRef.current;
+        preDragCanvasRef.current = null;
         if (!before) return;
         pushEntry({
           resumeData: cloneResumeData(resumeDataRef.current),
-          layout: before,
+          canvas: before,
         });
       }, 700);
     });
@@ -106,6 +147,7 @@ export function useResumeUndoHistory(
   useEffect(
     () => () => {
       if (layoutBurstTimerRef.current) clearTimeout(layoutBurstTimerRef.current);
+      if (canvasBurstTimerRef.current) clearTimeout(canvasBurstTimerRef.current);
     },
     [],
   );
@@ -114,7 +156,7 @@ export function useResumeUndoHistory(
     if (timerRef.current) clearTimeout(timerRef.current);
     pushEntry({
       resumeData: cloneResumeData(resumeDataRef.current),
-      layout: cloneLayout(latestLayoutRef.current),
+      canvas: cloneCanvas(latestCanvasRef.current),
     });
     isInTypingSessionRef.current = false;
   }, [pushEntry]);
@@ -122,7 +164,7 @@ export function useResumeUndoHistory(
   const currentEntry = useCallback(
     (): UndoEntry => ({
       resumeData: cloneResumeData(resumeDataRef.current),
-      layout: cloneLayout(latestLayoutRef.current),
+      canvas: cloneCanvas(latestCanvasRef.current),
     }),
     [],
   );
@@ -131,11 +173,11 @@ export function useResumeUndoHistory(
     (entry: UndoEntry) => {
       isInTypingSessionRef.current = true;
       setResumeData(cloneResumeData(entry.resumeData));
-      if (entry.layout) {
+      if (entry.canvas) {
         suppressLayoutCaptureRef.current = Date.now() + 1200;
-        const applied = applyLayoutUndoPositions(entry.layout);
+        const applied = applyCanvasUndoSnapshot(entry.canvas);
         if (applied) {
-          latestLayoutRef.current = cloneLayout(entry.layout);
+          latestCanvasRef.current = cloneCanvas(entry.canvas);
         }
       }
       setTimeout(() => {

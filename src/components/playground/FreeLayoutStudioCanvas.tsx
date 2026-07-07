@@ -26,6 +26,7 @@ import {
   resolvePageDropFromPoint,
 } from "../../lib/canvasStudioTypes";
 import { detectPageSnapEdge, resolveBoundaryPageCross, clampPositionToA4Page, maxSectionHeightOnPage, type PageSnapEdge } from "../../lib/canvasPageSnap";
+import { sectionOverflowsPrintPage } from "../../lib/layoutExportSurface";
 import { CANVAS_PAGE_MARGIN } from "../../lib/canvasAlignTools";
 import {
   estimateSectionHeightForContent,
@@ -41,6 +42,10 @@ import CanvasPageMarginGuides from "./canvas/CanvasPageMarginGuides";
 import { useI18n } from "../../i18n";
 import { getSectionLabel } from "../../lib/sectionLabels";
 import { isCanvasElementId, removeCanvasElement } from "../../lib/canvasElements";
+import {
+  baseSectionIdFromFragment,
+  type SectionContentSlice,
+} from "../../lib/layoutEntryPagination";
 import { Trash2 } from "lucide-react";
 import { useResponsiveScale } from "../../hooks/useResponsiveScale";
 
@@ -70,6 +75,9 @@ export interface FreeLayoutStudioCanvasProps {
   manualSizedSections?: ReadonlySet<string>;
   onSectionManualSize?: (sectionId: string) => void;
   onSectionClearManualSize?: (sectionId: string) => void;
+  /** Export-only section list (includes entry fragments) */
+  exportSections?: FreeLayoutSectionMeta[];
+  sectionSlices?: Record<string, SectionContentSlice>;
   canvasLayout?: {
     pages: CanvasPage[];
     activePageId: string;
@@ -79,6 +87,8 @@ export interface FreeLayoutStudioCanvasProps {
     selectedSectionId: string | null;
     onSelectSection: (id: string | null) => void;
     getZIndex: (id: string) => number;
+    onSelectionChange?: (primary: string | null, multi: ReadonlySet<string>) => void;
+    onSectionContextMenu?: (sectionId: string, clientX: number, clientY: number) => void;
   };
 }
 
@@ -106,6 +116,8 @@ export default function FreeLayoutStudioCanvas({
   manualSizedSections,
   onSectionManualSize,
   onSectionClearManualSize,
+  exportSections,
+  sectionSlices,
   canvasLayout,
 }: FreeLayoutStudioCanvasProps) {
   const { t } = useI18n();
@@ -126,6 +138,15 @@ export default function FreeLayoutStudioCanvas({
   const tc = resolved.classes;
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
   const [multiSelectedIds, setMultiSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [marqueeRect, setMarqueeRect] = useState<{
+    pageId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const marqueeStartRef = useRef<{ pageId: string; x: number; y: number } | null>(null);
+  const marqueeActiveRef = useRef(false);
   const [pageSnapGuide, setPageSnapGuide] = useState<{ pageId: string; edge: PageSnapEdge } | null>(null);
   const dropTargetPageRef = useRef<string | null>(null);
   const pageSnapGuideRef = useRef<{ pageId: string; edge: PageSnapEdge } | null>(null);
@@ -163,6 +184,103 @@ export default function FreeLayoutStudioCanvas({
     setMultiSelectedIds(new Set());
   }, [setSelectedSectionId]);
 
+  useEffect(() => {
+    canvasLayout?.onSelectionChange?.(selectedSectionId, multiSelectedIds);
+  }, [canvasLayout, multiSelectedIds, selectedSectionId]);
+
+  const selectSectionsInMarquee = useCallback(
+    (pageId: string, x1: number, y1: number, x2: number, y2: number) => {
+      const left = Math.min(x1, x2);
+      const top = Math.min(y1, y2);
+      const right = Math.max(x1, x2);
+      const bottom = Math.max(y1, y2);
+      // Candidate ids = rendered sections + any custom canvas element that has a
+      // position but hasn't been synced into `sections` yet (e.g. freshly added).
+      const candidateIds = new Set<string>(sections.map((s) => s.id));
+      for (const id of Object.keys(positionsRef.current)) {
+        if (isCanvasElementId(id)) candidateIds.add(id);
+      }
+      const hits = new Set<string>();
+      for (const id of candidateIds) {
+        if (canvasLayout?.hiddenSections[id]) continue;
+        const pos = positionsRef.current[id];
+        if (!pos) continue;
+        const sectionPageId = pos.pageId ?? pageId;
+        if (sectionPageId !== pageId) continue;
+        const secRight = pos.x + pos.width;
+        const secBottom = pos.y + pos.height;
+        if (pos.x < right && secRight > left && pos.y < bottom && secBottom > top) {
+          hits.add(id);
+        }
+      }
+      if (hits.size > 0) {
+        setMultiSelectedIds(hits);
+        setSelectedSectionId([...hits][0]!);
+      } else {
+        clearAllSelection();
+      }
+    },
+    [canvasLayout?.hiddenSections, clearAllSelection, sections, setSelectedSectionId],
+  );
+
+  const handlePageSurfacePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, pageId: string) => {
+      if (!isEdit) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      marqueeStartRef.current = { pageId, x, y };
+      marqueeActiveRef.current = false;
+      setMarqueeRect(null);
+      event.currentTarget.setPointerCapture(event.pointerId);
+    },
+    [isEdit],
+  );
+
+  const handlePageSurfacePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, pageId: string) => {
+      const start = marqueeStartRef.current;
+      if (!start || start.pageId !== pageId) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const dx = Math.abs(x - start.x);
+      const dy = Math.abs(y - start.y);
+      if (!marqueeActiveRef.current && dx < 4 && dy < 4) return;
+      marqueeActiveRef.current = true;
+      setMarqueeRect({
+        pageId,
+        x: Math.min(start.x, x),
+        y: Math.min(start.y, y),
+        width: Math.abs(x - start.x),
+        height: Math.abs(y - start.y),
+      });
+    },
+    [],
+  );
+
+  const handlePageSurfacePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>, pageId: string) => {
+      const start = marqueeStartRef.current;
+      if (!start || start.pageId !== pageId) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      if (marqueeActiveRef.current) {
+        selectSectionsInMarquee(pageId, start.x, start.y, x, y);
+      } else {
+        clearAllSelection();
+      }
+      marqueeStartRef.current = null;
+      marqueeActiveRef.current = false;
+      setMarqueeRect(null);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [clearAllSelection, selectSectionsInMarquee],
+  );
+
   const editSheetExtent = useMemo(() => {
     if (!isEdit || isExport) return CANVAS_PAGE_HEIGHT;
     let maxBottom = CANVAS_PAGE_HEIGHT;
@@ -181,6 +299,7 @@ export default function FreeLayoutStudioCanvas({
     padding: isNarrowPanel ? 24 : 40,
   });
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
+  const renderSections = exportSections ?? sections;
   const pageCount = canvasLayout?.pages.length ?? 1;
   const isSingleA4Page = !isMultiPage;
   const singleSheetHeight = isEdit && !isExport ? editSheetExtent : CANVAS_PAGE_HEIGHT;
@@ -277,7 +396,11 @@ export default function FreeLayoutStudioCanvas({
       height: defaultSectionHeight(section.id),
     };
     const locked = Boolean(canvasLayout?.lockedSections[section.id]);
-    const zIndex = canvasLayout?.getZIndex(section.id) ?? 10;
+    // Entry-split fragments (e.g. `experience@f0`) are not in the layer order,
+    // so resolve z-index from their base section to preserve stacking.
+    const zIndexLookupId = baseSectionIdFromFragment(section.id);
+    const zIndex = canvasLayout?.getZIndex(zIndexLookupId) ?? 10;
+    const pageOverflows = isEdit && sectionOverflowsPrintPage(pos);
 
     if (isEdit) {
       return (
@@ -285,11 +408,13 @@ export default function FreeLayoutStudioCanvas({
           key={section.id}
           sectionId={section.id}
           position={pos}
+          pageOverflows={pageOverflows}
           compact={isNarrowPanel}
           chromeMode={effectiveChromeMode}
           isSelected={selectedSectionId === section.id}
           multiSelected={multiSelectedIds.has(section.id)}
           onSelect={(additive) => handleSelectSection(section.id, additive)}
+          onContextMenu={canvasLayout?.onSectionContextMenu}
           onPositionChange={(next, options) => emitPositionChange(section.id, next, options)}
           onDragPointer={isMultiPage ? handleSectionDragPointer : undefined}
           onDragLocalY={
@@ -339,13 +464,14 @@ export default function FreeLayoutStudioCanvas({
           resumeData={resumeData}
         >
           <ResumeSectionRenderer
-            sectionId={section.id}
+            sectionId={sectionSlices?.[section.id] ? sectionSlices[section.id]!.baseSectionId : baseSectionIdFromFragment(section.id)}
             data={resumeData}
             highlightChanges={highlightChanges}
             analysisResult={analysisResult}
             templateStyle={templateStyle}
             resolvedTheme={resolved}
             mode="block"
+            contentSlice={sectionSlices?.[section.id]}
           />
         </DraggableSection>
       );
@@ -367,13 +493,14 @@ export default function FreeLayoutStudioCanvas({
         }}
       >
         <ResumeSectionRenderer
-          sectionId={section.id}
+          sectionId={sectionSlices?.[section.id] ? sectionSlices[section.id]!.baseSectionId : baseSectionIdFromFragment(section.id)}
           data={resumeData}
           highlightChanges={highlightChanges}
           analysisResult={analysisResult}
           templateStyle={templateStyle}
           resolvedTheme={resolved}
           mode="block"
+          contentSlice={sectionSlices?.[section.id]}
         />
       </div>
     );
@@ -455,10 +582,12 @@ export default function FreeLayoutStudioCanvas({
   );
 
   const renderPageSections = (pageId: string, pageIndex: number) => {
-    const pageSections = sections.filter((s) => (canvasLayout?.sectionPageMap[s.id] ?? pageId) === pageId);
+    const pageSections = renderSections.filter((s) => (canvasLayout?.sectionPageMap[s.id] ?? pageId) === pageId);
     const pageMaxY = isMultiPage ? CANVAS_PAGE_HEIGHT : undefined;
     return pageSections.map((section) => renderSection(section, pageMaxY, pageId, pageIndex));
   };
+
+  const singlePageId = canvasLayout?.activePageId ?? canvasLayout?.pages[0]?.id ?? "page-1";
 
   const renderSingleSheet = () => (
     <ResumeThemeRoot
@@ -483,7 +612,9 @@ export default function FreeLayoutStudioCanvas({
       <div
         ref={isExport ? undefined : canvasRef}
         className={`relative w-full ${isEdit && !isExport ? "min-h-full overflow-visible" : isExport ? "h-full overflow-visible" : "h-full overflow-hidden"}`}
-        onPointerDown={isEdit ? clearAllSelection : undefined}
+        onPointerDown={isEdit ? (e) => handlePageSurfacePointerDown(e, singlePageId) : undefined}
+        onPointerMove={isEdit ? (e) => handlePageSurfacePointerMove(e, singlePageId) : undefined}
+        onPointerUp={isEdit ? (e) => handlePageSurfacePointerUp(e, singlePageId) : undefined}
       >
         {isEdit && !isExport && editSheetExtent > CANVAS_PAGE_HEIGHT ? (
           <div
@@ -496,7 +627,20 @@ export default function FreeLayoutStudioCanvas({
           <div className={`h-2 ${tc.accentBar} rounded-t-lg`} />
         ) : null}
         {isEdit && showGrid ? renderGrid(isLiveChrome) : null}
-        {sections.map((section) => renderSection(section))}
+        {renderSections.map((section) => renderSection(section))}
+        {isEdit && marqueeRect?.pageId === singlePageId ? (
+          <div
+            className="absolute border border-sky-500 bg-sky-400/15 pointer-events-none z-[120]"
+            style={{
+              left: marqueeRect.x,
+              top: marqueeRect.y,
+              width: marqueeRect.width,
+              height: marqueeRect.height,
+            }}
+            data-canvas-chrome
+            aria-hidden
+          />
+        ) : null}
       </div>
     </ResumeThemeRoot>
   );
@@ -564,7 +708,9 @@ export default function FreeLayoutStudioCanvas({
                   ref={pageIndex === 0 && !isExport ? canvasRef : undefined}
                   data-page-drop-surface={isEdit ? "" : undefined}
                   className={`relative w-full h-full ${isEdit || isExport ? "overflow-visible" : "overflow-hidden"}`}
-                  onPointerDown={isEdit ? clearAllSelection : undefined}
+                  onPointerDown={isEdit ? (e) => handlePageSurfacePointerDown(e, page.id) : undefined}
+                  onPointerMove={isEdit ? (e) => handlePageSurfacePointerMove(e, page.id) : undefined}
+                  onPointerUp={isEdit ? (e) => handlePageSurfacePointerUp(e, page.id) : undefined}
                 >
                   {family === "modern" && resolved.showAccentBar && (isLiveChrome || isPrintSurface) ? (
                     <div className={`h-2 ${tc.accentBar} rounded-t-lg`} />
@@ -577,6 +723,19 @@ export default function FreeLayoutStudioCanvas({
                     <div className="canvas-page-snap-guide canvas-page-snap-guide--bottom" data-canvas-chrome aria-hidden />
                   ) : null}
                   {renderPageSections(page.id, pageIndex)}
+                  {isEdit && marqueeRect?.pageId === page.id ? (
+                    <div
+                      className="absolute border border-sky-500 bg-sky-400/15 pointer-events-none z-[120]"
+                      style={{
+                        left: marqueeRect.x,
+                        top: marqueeRect.y,
+                        width: marqueeRect.width,
+                        height: marqueeRect.height,
+                      }}
+                      data-canvas-chrome
+                      aria-hidden
+                    />
+                  ) : null}
                 </div>
               </ResumeThemeRoot>
             </div>
@@ -657,6 +816,7 @@ interface DraggableSectionProps {
   isSelected?: boolean;
   multiSelected?: boolean;
   onSelect?: (additive?: boolean) => void;
+  onContextMenu?: (sectionId: string, clientX: number, clientY: number) => void;
   onPositionChange: (pos: FreeLayoutPosition, options?: { skipSnap?: boolean; userMoved?: boolean }) => void;
   locked?: boolean;
   zIndex?: number;
@@ -680,6 +840,7 @@ interface DraggableSectionProps {
   children: React.ReactNode;
   resumeData?: ResumeData;
   pageHeight?: number;
+  pageOverflows?: boolean;
 }
 
 const CHROME_ESTIMATE_COLLAPSED = 40;
@@ -987,6 +1148,7 @@ const DraggableSection = memo(function DraggableSection({
   isSelected = false,
   multiSelected = false,
   onSelect,
+  onContextMenu,
   onPositionChange,
   locked = false,
   zIndex = 10,
@@ -1006,6 +1168,7 @@ const DraggableSection = memo(function DraggableSection({
   children,
   resumeData,
   pageHeight = CANVAS_PAGE_HEIGHT,
+  pageOverflows = false,
 }: DraggableSectionProps) {
   const { t } = useI18n();
   const displayLabel = getSectionLabel(sectionId);
@@ -1033,7 +1196,9 @@ const DraggableSection = memo(function DraggableSection({
 
   const contentPadClass = compact ? "p-2" : "p-3";
   const contentOverflowClass = expansionMode ? "overflow-visible" : "min-h-0 overflow-hidden";
-  const shellRingClass = isDragging
+  const shellRingClass = pageOverflows
+    ? "ring-2 ring-red-500/90 border-2 border-dashed border-red-400/80"
+    : isDragging
     ? "ring-2 ring-emerald-500 shadow-xl"
     : isSelected
       ? isLive
@@ -1157,6 +1322,11 @@ const DraggableSection = memo(function DraggableSection({
         e.stopPropagation();
         onSelect?.(e.shiftKey);
       }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onContextMenu?.(sectionId, e.clientX, e.clientY);
+      }}
     >
       <div
         className="relative"
@@ -1222,6 +1392,16 @@ const DraggableSection = memo(function DraggableSection({
         <div
           className={`relative flex flex-col transition-all ${isLive ? "" : "rounded-lg"} ${expansionMode ? "" : "h-full overflow-hidden"} ${shellRingClass}`}
         >
+          {pageOverflows ? (
+            <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none flex justify-center pt-0.5">
+              <span
+                data-canvas-chrome
+                className="text-[8px] font-bold text-red-800 bg-red-50/95 border border-red-300 rounded px-1.5 py-0.5 shadow-sm"
+              >
+                {t("canvas.dimensions.pageOverflow")}
+              </span>
+            </div>
+          ) : null}
           {contentOverflows ? (
             <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none flex items-end justify-center pb-0.5">
               <button

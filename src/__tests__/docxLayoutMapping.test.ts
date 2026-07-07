@@ -29,6 +29,13 @@ describe("DOCX layout archetype mapping", () => {
     expect(children.some((child) => child instanceof Table)).toBe(true);
   });
 
+  it("renders timeline templates as a date/content table", () => {
+    const def = getTemplateDefinition("modern-08");
+    expect(def.layout).toBe("timeline");
+    const children = buildLayoutAwareResumeChildren(initialResumeData, "modern-08", "en");
+    expect(children.some((child) => child instanceof Table)).toBe(true);
+  });
+
   it("keeps single-column templates as a plain paragraph flow", () => {
     const children = buildLayoutAwareResumeChildren(initialResumeData, "classic-01", "en");
     expect(children.every((child) => child instanceof Paragraph)).toBe(true);

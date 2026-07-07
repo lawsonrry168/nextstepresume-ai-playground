@@ -411,6 +411,22 @@ html:not(.dark) .marginalia-theme {
   min-height: 0;
 }
 
+.marginalia-theme .studio-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+.marginalia-theme #studio-print-preview {
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+}
+
+.marginalia-theme #export-dock {
+  grid-row: 2;
+  z-index: 50;
+}
+
 .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) #preview-studio-header {
   position: relative;
   z-index: 60;

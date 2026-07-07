@@ -75,8 +75,17 @@ function ResumeTemplateRenderer({
   // so sidebar designs get a real sidebar regardless of legacy family.
   const archetype = getTemplateDefinition(style).layout;
   const usesSidebar = archetype === "sidebar-left" || archetype === "sidebar-right";
+  const usesTwoColumn = archetype === "two-column";
 
   if (useA4Layout && !marginalia && usesSidebar) {
+    return (
+      <ResumeDocumentShell resolved={resolved} className={sheetShellClass} a4Surface>
+        <ResumeA4MinimalistDocument {...contentProps} />
+      </ResumeDocumentShell>
+    );
+  }
+
+  if (useA4Layout && !marginalia && usesTwoColumn) {
     return (
       <ResumeDocumentShell resolved={resolved} className={sheetShellClass} a4Surface>
         <ResumeA4MinimalistDocument {...contentProps} />

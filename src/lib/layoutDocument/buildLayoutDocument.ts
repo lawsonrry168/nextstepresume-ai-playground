@@ -1,4 +1,5 @@
 import { buildPrintReadyExportLayout, type PrintExportPlan } from "../layoutExportSurface";
+import { makeFragmentId } from "../layoutEntryPagination";
 import type { FreeLayoutPosition } from "../resumeFreeLayout";
 import type { BuildLayoutDocumentInput, LayoutDocument } from "./types";
 
@@ -51,14 +52,25 @@ export function editorPositionsFromPrintPlan(
   const multiPage = printPlan.pageIds.length > 1;
   const primaryPageId = printPlan.pageIds[0];
 
-  for (const id of sectionIds) {
-    const pos = printPlan.positions[id];
-    if (!pos) continue;
+  const resolvePlacement = (pos: FreeLayoutPosition): FreeLayoutPosition => {
     const { pageId, ...rest } = pos;
-    patches[id] = {
+    return {
       ...rest,
       ...(multiPage && pageId ? { pageId } : primaryPageId ? { pageId: primaryPageId } : {}),
     };
+  };
+
+  for (const id of sectionIds) {
+    let pos = printPlan.positions[id];
+    if (!pos) {
+      // The section may have been entry-split into fragments (base id removed
+      // from the plan). Collapse the base editor placement onto its first
+      // fragment so auto-tidy / smart layout still reposition the section.
+      const firstFragment = printPlan.positions[makeFragmentId(id, 0)];
+      if (!firstFragment) continue;
+      pos = firstFragment;
+    }
+    patches[id] = resolvePlacement(pos);
   }
 
   return patches;

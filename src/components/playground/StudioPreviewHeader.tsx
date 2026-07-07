@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  Layers, Minimize2, Eye, Move, RotateCcw, Magnet, Undo, Redo, Sparkles, Check, Palette, ChevronDown, ChevronUp, PenTool,
+  Layers, Minimize2, Eye, Move, RotateCcw, Magnet, Undo, Redo, Sparkles, Check, Palette, ChevronDown, ChevronUp, PenTool, Printer,
 } from "lucide-react";
 import { ResumeData, TemplateStyle } from "../../types";
 import { ResumeThemeCustomization } from "../../lib/resumeThemeCustomization";
@@ -60,6 +60,7 @@ export interface StudioPreviewHeaderProps {
   themeCustomization: ResumeThemeCustomization;
   onThemeCustomizationChange: (patch: Partial<ResumeThemeCustomization>) => void;
   onThemeCustomizationReset: () => void;
+  freeLayoutSectionIds: string[];
 }
 
 export default function StudioPreviewHeader({
@@ -99,6 +100,7 @@ export default function StudioPreviewHeader({
   themeCustomization,
   onThemeCustomizationChange,
   onThemeCustomizationReset,
+  freeLayoutSectionIds,
 }: StudioPreviewHeaderProps) {
   const { t } = useI18n();
   const [themeExpanded, setThemeExpanded] = useState(themeCustomization.enabled);
@@ -209,7 +211,25 @@ export default function StudioPreviewHeader({
               <span>{t("studio.canvas")}</span>
             </button>
 
-            {!isCanvasMode ? (
+            <button
+              id="studio-btn-print-preview"
+              type="button"
+              onClick={() => {
+                setFreeLayoutEnabled(true);
+                setStudioViewMode("print");
+              }}
+              className={
+                studioViewMode === "print"
+                  ? `${STUDIO_BTN} bg-amber-50 text-amber-800 border-amber-200`
+                  : STUDIO_BTN_IDLE
+              }
+              title={t("studio.printPreviewTitle")}
+            >
+              <Printer className="w-3 h-3" />
+              <span>{t("studio.printPreview")}</span>
+            </button>
+
+            {!isCanvasMode && studioViewMode !== "print" ? (
               <>
                     <span className={STUDIO_DIVIDER} />
                     <div className="min-w-[12rem] max-w-[18rem] shrink-0">
@@ -380,7 +400,7 @@ export default function StudioPreviewHeader({
           >
             <Redo className="w-3 h-3" />
           </button>
-          <LayoutSnapshotMenu templateFamily={getTemplateFamily(activeTemplate)} />
+          <LayoutSnapshotMenu templateFamily={getTemplateFamily(activeTemplate)} sectionIds={freeLayoutSectionIds} />
           <button
             id="studio-btn-chat"
             type="button"

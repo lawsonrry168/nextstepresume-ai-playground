@@ -33,3 +33,9 @@ await esbuild.build({
   outfile: path.join(root, "api", "index.js"),
   footer: { js: "module.exports = module.exports.default ?? module.exports;" },
 });
+await esbuild.build({
+  ...esbuildBase,
+  entryPoints: [path.join(root, "server", "exportPdfStandalone.ts")],
+  outfile: path.join(root, "api", "export-pdf.js"),
+  footer: { js: "module.exports = module.exports.default ?? module.exports;" },
+});

@@ -1,82 +1,46 @@
 import { useCallback, useState } from "react";
 import { Bookmark, Check, Trash2, X } from "lucide-react";
 import type { TemplateFamily } from "../../lib/resumeTemplateCatalog";
-import type { FreeLayoutPosition } from "../../lib/resumeFreeLayout";
-import { readFamilyLayoutStorage } from "../../lib/resumeFreeLayout";
-import { applyLayoutUndoPositions } from "../../lib/undoRegistry";
+import {
+  applyLayoutFullSnapshot,
+  captureCurrentLayoutSnapshot,
+  deleteLayoutSnapshot,
+  readLayoutSnapshots,
+  saveLayoutSnapshot,
+  type LayoutFullSnapshot,
+} from "../../lib/layoutSnapshots";
 import { useI18n } from "../../i18n";
 
-interface LayoutSnapshot {
-  id: string;
-  name: string;
-  family: TemplateFamily;
-  positions: Record<string, FreeLayoutPosition>;
-  savedAt: number;
-}
-
-const STORAGE_KEY = "nsr_layout_snapshots_v1";
-const MAX_SNAPSHOTS = 12;
-
-function readSnapshots(): LayoutSnapshot[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as LayoutSnapshot[]) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeSnapshots(snapshots: LayoutSnapshot[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshots));
-  } catch {
-    // ignore quota errors
-  }
+interface LayoutSnapshotMenuProps {
+  templateFamily: TemplateFamily;
+  sectionIds: string[];
 }
 
 /**
- * Named layout snapshots — save the current free-layout arrangement under a
- * name (e.g. "投行版" / "初創版") and re-apply it later. Applying goes through
- * the undo bridge, so it lands in the global Ctrl+Z history.
+ * Named layout snapshots — save positions, pages, layers, and canvas elements.
+ * Applying goes through the undo bridge for global Ctrl+Z history.
  */
-export default function LayoutSnapshotMenu({ templateFamily }: { templateFamily: TemplateFamily }) {
+export default function LayoutSnapshotMenu({ templateFamily, sectionIds }: LayoutSnapshotMenuProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [snapshots, setSnapshots] = useState<LayoutSnapshot[]>(readSnapshots);
+  const [snapshots, setSnapshots] = useState<LayoutFullSnapshot[]>(readLayoutSnapshots);
   const [draftName, setDraftName] = useState("");
 
   const familySnapshots = snapshots.filter((snap) => snap.family === templateFamily);
 
   const saveCurrent = useCallback(() => {
-    const positions = readFamilyLayoutStorage()[templateFamily];
-    if (!positions || !Object.keys(positions).length) return;
-    const name = draftName.trim() || new Date().toLocaleString();
-    const snapshot: LayoutSnapshot = {
-      id: `snap-${Date.now().toString(36)}`,
-      name,
-      family: templateFamily,
-      positions: JSON.parse(JSON.stringify(positions)) as Record<string, FreeLayoutPosition>,
-      savedAt: Date.now(),
-    };
-    setSnapshots((prev) => {
-      const next = [snapshot, ...prev].slice(0, MAX_SNAPSHOTS);
-      writeSnapshots(next);
-      return next;
-    });
+    const snapshot = captureCurrentLayoutSnapshot(templateFamily, draftName, sectionIds);
+    if (!snapshot) return;
+    setSnapshots(saveLayoutSnapshot(snapshot));
     setDraftName("");
-  }, [draftName, templateFamily]);
+  }, [draftName, sectionIds, templateFamily]);
 
-  const applySnapshot = useCallback((snapshot: LayoutSnapshot) => {
-    applyLayoutUndoPositions({ family: snapshot.family, positions: snapshot.positions });
+  const applySnapshot = useCallback((snapshot: LayoutFullSnapshot) => {
+    applyLayoutFullSnapshot(snapshot);
   }, []);
 
-  const deleteSnapshot = useCallback((id: string) => {
-    setSnapshots((prev) => {
-      const next = prev.filter((snap) => snap.id !== id);
-      writeSnapshots(next);
-      return next;
-    });
+  const removeSnapshot = useCallback((id: string) => {
+    setSnapshots(deleteLayoutSnapshot(id));
   }, []);
 
   return (
@@ -102,6 +66,7 @@ export default function LayoutSnapshotMenu({ templateFamily }: { templateFamily:
               <X className="w-3 h-3" />
             </button>
           </div>
+          <p className="text-[9px] text-slate-400 leading-snug">{t("canvas.snapshots.fullHint")}</p>
           <div className="flex gap-1">
             <input
               type="text"
@@ -139,7 +104,7 @@ export default function LayoutSnapshotMenu({ templateFamily }: { templateFamily:
                   <button
                     type="button"
                     className="text-slate-300 hover:text-red-500 shrink-0"
-                    onClick={() => deleteSnapshot(snapshot.id)}
+                    onClick={() => removeSnapshot(snapshot.id)}
                     title={t("canvas.snapshots.delete")}
                   >
                     <Trash2 className="w-3 h-3" />

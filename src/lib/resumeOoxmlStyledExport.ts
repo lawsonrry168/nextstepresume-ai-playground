@@ -400,6 +400,77 @@ function buildFooterParagraph(palette: DocxResumePalette): Paragraph {
   });
 }
 
+function buildTimelineExperienceRows(
+  resumeData: ResumeData,
+  palette: DocxResumePalette,
+  locale: AppLocale,
+): TableRow[] {
+  if (!resumeData.experience?.length) return [];
+  const rows: TableRow[] = [
+    new TableRow({
+      children: [
+        new TableCell({
+          width: { size: 22, type: WidthType.PERCENTAGE },
+          borders: CELL_BORDERS,
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: getSectionLabel("experience", locale).toUpperCase(),
+                  bold: true,
+                  size: 20,
+                  color: palette.accent,
+                  font: palette.bodyFont,
+                }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 78, type: WidthType.PERCENTAGE },
+          borders: CELL_BORDERS,
+          children: [new Paragraph({ children: [] })],
+        }),
+      ],
+    }),
+  ];
+
+  for (const exp of resumeData.experience) {
+    const dates = [exp.startDate, exp.endDate].filter(Boolean).join(" – ");
+    const meta = [dates, exp.location].filter(Boolean).join("\n");
+    const content: Paragraph[] = [
+      new Paragraph({
+        children: [
+          new TextRun({ text: exp.role, bold: true, size: 24, color: palette.ink, font: palette.bodyFont }),
+          new TextRun({ text: " · ", size: 22, color: palette.muted, font: palette.bodyFont }),
+          new TextRun({ text: exp.company, bold: true, size: 24, color: palette.accent, font: palette.bodyFont }),
+        ],
+        spacing: { before: 120, after: 60 },
+      }),
+      ...exp.bullets.map((bullet) => bulletItem(bullet, palette)),
+    ];
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 22, type: WidthType.PERCENTAGE },
+            borders: CELL_BORDERS,
+            verticalAlign: VerticalAlign.TOP,
+            children: meta ? [bodyText(meta, palette, { color: palette.muted, size: 18 })] : [new Paragraph({})],
+          }),
+          new TableCell({
+            width: { size: 78, type: WidthType.PERCENTAGE },
+            borders: CELL_BORDERS,
+            verticalAlign: VerticalAlign.TOP,
+            children: content,
+          }),
+        ],
+      }),
+    );
+  }
+  return rows;
+}
+
 function buildMainColumnParagraphs(resumeData: ResumeData, palette: DocxResumePalette, locale: AppLocale): Paragraph[] {
   return [
     ...buildSummaryParagraphs(resumeData, palette, locale),
@@ -518,6 +589,40 @@ export function buildLayoutAwareResumeChildren(
       widthPct: 50,
     };
     return [...header, layoutColumnsTable([left, right]), buildFooterParagraph(palette)];
+  }
+
+  if (def.layout === "timeline") {
+    const timelineRows = buildTimelineExperienceRows(resumeData, palette, locale);
+    const timelineTable =
+      timelineRows.length > 0
+        ? new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+              top: NO_TABLE_BORDER,
+              bottom: NO_TABLE_BORDER,
+              left: NO_TABLE_BORDER,
+              right: NO_TABLE_BORDER,
+              insideHorizontal: NO_TABLE_BORDER,
+              insideVertical: NO_TABLE_BORDER,
+            },
+            rows: timelineRows,
+          })
+        : null;
+    const tail = [
+      ...buildSummaryParagraphs(resumeData, palette, locale),
+      ...buildEducationParagraphs(resumeData, palette, locale),
+      ...buildProjectParagraphs(resumeData, palette, locale),
+      ...buildSkillParagraphs(resumeData, palette, locale),
+      ...buildLanguageParagraphs(resumeData, palette, locale),
+      ...buildCertificationParagraphs(resumeData, palette, locale),
+      ...buildVolunteerParagraphs(resumeData, palette, locale),
+    ];
+    return [
+      ...header,
+      ...(timelineTable ? [timelineTable] : []),
+      ...tail,
+      buildFooterParagraph(palette),
+    ];
   }
 
   return buildStyledResumeParagraphs(resumeData, templateStyle, locale);

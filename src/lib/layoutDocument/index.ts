@@ -5,7 +5,7 @@
  * L1 document   → buildLayoutDocument (draft + printPlan)
  * L2 engine     → canvasLayoutTools, layoutExportSurface (reflow / pagination)
  * L3 render     → ResumeSectionRenderer | ResumeA4FlowDocument | ResumeA4MinimalistDocument | ResumeMarginaliaDocument | ResumeEmbedded* | ResumeTemplateRenderer (router)
- * L4 export     → resumePdfExport (capture print surface only)
+ * L4 export     → resumePdfExportRouter → server Chromium print (vector PDF)
  *
  * Rules:
  * 1. Geometry constants live ONLY in geometry.ts (re-exported elsewhere).

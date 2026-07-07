@@ -127,8 +127,9 @@ describe("layoutDocument kernel", () => {
 
   it("layout-geometry.css stays in sync with geometry.ts", () => {
     const cssPath = resolve(process.cwd(), "src/styles/layout-geometry.css");
-    const onDisk = readFileSync(cssPath, "utf8").trim();
-    const generated = buildLayoutGeometryCssText().trim();
-    expect(onDisk).toBe(generated);
+    const onDisk = readFileSync(cssPath, "utf8");
+    const generated = buildLayoutGeometryCssText();
+    const normalize = (text: string) => text.replace(/\r\n/g, "\n").trim();
+    expect(normalize(onDisk)).toBe(normalize(generated));
   });
 });

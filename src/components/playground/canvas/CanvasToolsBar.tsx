@@ -33,6 +33,7 @@ import {
   Type,
   Unlock,
   Wand2,
+  Sparkles,
 } from "lucide-react";
 import type { CanvasAlignHorizontal, CanvasAlignVertical } from "../../../lib/canvasAlignTools";
 import type { CanvasNavSectionId } from "../../../lib/canvasStudioTypes";
@@ -83,6 +84,7 @@ export interface CanvasToolsBarProps {
   onAddElement?: (kind: "text" | "photo" | "divider") => void;
   /** One-click engine tidy (phase 9) */
   onAutoTidy?: () => void;
+  onSmartLayout?: () => void;
 }
 
 function ToolBtn({
@@ -166,6 +168,7 @@ export function buildCanvasToolSections(
     onZoom50,
     onAddElement,
     onAutoTidy,
+    onSmartLayout,
   } = props;
 
   return {
@@ -318,6 +321,11 @@ export function buildCanvasToolSections(
         {onAutoTidy ? (
           <ToolBtn title={t("canvas.tools.autoTidy")} label={t("canvas.tools.autoTidy")} onClick={onAutoTidy}>
             <Wand2 className="w-4 h-4" />
+          </ToolBtn>
+        ) : null}
+        {onSmartLayout ? (
+          <ToolBtn title={t("canvas.tools.smartLayout")} label={t("canvas.tools.smartLayout")} onClick={onSmartLayout}>
+            <Sparkles className="w-4 h-4" />
           </ToolBtn>
         ) : null}
         {onAddElement ? (

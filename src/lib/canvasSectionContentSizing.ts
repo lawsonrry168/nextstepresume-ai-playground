@@ -45,7 +45,7 @@ function sectionContentWidth(width: number): number {
   return Math.max(120, width - SECTION_CONTENT_PADDING * 2);
 }
 
-function estimateBlockLines(
+export function estimateBlockLines(
   texts: string[],
   charsPerLine: number,
   extraLines = 0,

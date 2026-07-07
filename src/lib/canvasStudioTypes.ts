@@ -6,7 +6,7 @@ import {
 } from "./layoutDocument/geometry";
 
 /** Studio immersive view modes */
-export type StudioViewMode = "single" | "compare" | "canvas";
+export type StudioViewMode = "single" | "compare" | "canvas" | "print";
 
 export interface CanvasViewportState {
   panX: number;

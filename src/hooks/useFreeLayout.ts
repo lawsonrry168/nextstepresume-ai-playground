@@ -200,6 +200,12 @@ export function useFreeLayout(
     setPositions(createFamilyDefaultPositions(templateFamily, sectionIds, resumeData));
   }, [sectionIds, templateFamily, resumeData]);
 
+  /** Re-read positions from localStorage (used after cloud hydrate). */
+  const reloadFromStorage = useCallback(() => {
+    skipNextPersistFlash.current = true;
+    setPositions(loadPositionsForFamily(templateFamily, sectionIds, resumeData));
+  }, [templateFamily, sectionIds, resumeData]);
+
   return {
     sections,
     positions,
@@ -214,6 +220,7 @@ export function useFreeLayout(
     resetLayout,
     applyPreset,
     applyFamilyLayout,
+    reloadFromStorage,
     templateFamily,
     lastSavedAt,
   };

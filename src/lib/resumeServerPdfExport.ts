@@ -1,17 +1,28 @@
 import type { ResumeData } from "../types";
 import type { TemplateStyle } from "./resumeTemplateCatalog";
 import { withApiAuthHeaders } from "./apiAuthHeaders";
-import { getActiveLocale } from "../i18n/translate";
+import {
+  buildServerPrintPayload,
+  type PrintLayoutPayload,
+  type ServerPrintPayload,
+} from "./printExportPayload";
 
 const MIN_VALID_PDF_BYTES = 2_000;
 
-function readExportPref(key: string, fallback: string): string {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch {
-    return fallback;
-  }
+export type ServerPdfExportFailure = {
+  ok: false;
+  status?: number;
+  code?: string;
+  error: string;
+};
+
+export type ServerPdfExportResult = { ok: true } | ServerPdfExportFailure;
+
+function isServerPdfFailure(result: ServerPdfExportResult): result is ServerPdfExportFailure {
+  return result.ok === false;
 }
+
+export { isServerPdfFailure };
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -24,38 +35,79 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
+async function parseServerError(response: Response): Promise<{ error: string; code?: string }> {
+  try {
+    const data = (await response.json()) as { error?: string; code?: string };
+    return {
+      error: data.error ?? `Server PDF export failed (${response.status})`,
+      code: data.code,
+    };
+  } catch {
+    return { error: `Server PDF export failed (${response.status})` };
+  }
+}
+
 /**
- * Server-side vector PDF (Chromium print of the same React renderer).
- * Returns false on any failure so the caller can fall back to the
- * client-side html2canvas raster path.
+ * Server-side vector PDF (Chromium print of the same React renderer + print plan).
+ * Returns structured failure so callers can surface errors instead of silent fallback.
  */
-export async function tryDownloadServerVisualPdf(
+export async function downloadServerVisualPdf(
   resumeData: ResumeData,
   templateStyle: TemplateStyle | undefined,
   filename: string,
-): Promise<boolean> {
+  options?: {
+    watermark?: string;
+    layout?: PrintLayoutPayload;
+  },
+): Promise<ServerPdfExportResult> {
   try {
+    const payload: ServerPrintPayload = buildServerPrintPayload({
+      resumeData,
+      templateStyle,
+      watermark: options?.watermark,
+      layout: options?.layout,
+    });
+
     const headers = withApiAuthHeaders({ "Content-Type": "application/json" });
     const response = await fetch("/api/export/pdf", {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        resumeData,
-        templateStyle,
-        locale: getActiveLocale(),
-        pageFormat: readExportPref("nsr_export_page_format", "A4"),
-        paperMode: readExportPref("nsr_export_paper_mode", "cream"),
-      }),
+      body: JSON.stringify(payload),
     });
-    if (!response.ok) return false;
+
+    if (!response.ok) {
+      const parsed = await parseServerError(response);
+      return {
+        ok: false,
+        status: response.status,
+        code: parsed.code,
+        error: parsed.error,
+      };
+    }
 
     const blob = await response.blob();
-    if (blob.size < MIN_VALID_PDF_BYTES) return false;
-    if (blob.type && !blob.type.includes("pdf")) return false;
+    if (blob.size < MIN_VALID_PDF_BYTES) {
+      return { ok: false, error: "PDF file too small — render may have failed", code: "EMPTY_PDF" };
+    }
+    if (blob.type && !blob.type.includes("pdf")) {
+      return { ok: false, error: "Server returned non-PDF response", code: "INVALID_MIME" };
+    }
 
     triggerBlobDownload(blob, filename);
-    return true;
-  } catch {
-    return false;
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Network error during PDF export";
+    return { ok: false, error: message, code: "NETWORK_ERROR" };
   }
+}
+
+/** @deprecated Use downloadServerVisualPdf — kept for compatibility */
+export async function tryDownloadServerVisualPdf(
+  resumeData: ResumeData,
+  templateStyle: TemplateStyle | undefined,
+  filename: string,
+  options?: { watermark?: string; layout?: PrintLayoutPayload },
+): Promise<boolean> {
+  const result = await downloadServerVisualPdf(resumeData, templateStyle, filename, options);
+  return result.ok;
 }

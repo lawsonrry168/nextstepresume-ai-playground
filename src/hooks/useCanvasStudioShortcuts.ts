@@ -42,6 +42,9 @@ export interface CanvasShortcutActions {
   onGrowHeight?: () => void;
   onShrinkHeight?: () => void;
   onResetSection?: () => void;
+  onCopy?: () => void;
+  onPaste?: () => void;
+  onDuplicate?: () => void;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -92,6 +95,21 @@ export function useCanvasStudioShortcuts(enabled: boolean, actions: CanvasShortc
       }
 
       if (mod && !alt) {
+        if (key === "c") {
+          e.preventDefault();
+          actions.onCopy?.();
+          return;
+        }
+        if (key === "v") {
+          e.preventDefault();
+          actions.onPaste?.();
+          return;
+        }
+        if (key === "d") {
+          e.preventDefault();
+          actions.onDuplicate?.();
+          return;
+        }
         if (key === "arrowleft") {
           e.preventDefault();
           actions.onAlignLeft?.();

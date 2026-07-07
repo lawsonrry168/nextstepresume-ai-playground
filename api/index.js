@@ -2665,6 +2665,55 @@ var SupabasePostgresSyncStore = class {
       updatedAt: data.updated_at
     };
   }
+  async getCanvasLayout(userId) {
+    const admin = getSupabaseAdmin();
+    if (!admin) return null;
+    const { data, error } = await admin.from("resume_workspaces").select("canvas_layout").eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    if (!data?.canvas_layout || typeof data.canvas_layout !== "object") return null;
+    const layout = data.canvas_layout;
+    const updatedAt = typeof layout.updatedAt === "string" ? layout.updatedAt : "";
+    if (!updatedAt) return null;
+    return {
+      layoutPositions: layout.layoutPositions && typeof layout.layoutPositions === "object" ? layout.layoutPositions : {},
+      canvasDocument: layout.canvasDocument && typeof layout.canvasDocument === "object" ? layout.canvasDocument : {},
+      canvasElements: Array.isArray(layout.canvasElements) ? layout.canvasElements : [],
+      updatedAt
+    };
+  }
+  async upsertCanvasLayout(userId, record) {
+    const admin = getSupabaseAdmin();
+    if (!admin) throw new Error("supabase_not_configured");
+    const updatedAt = record.updatedAt || (/* @__PURE__ */ new Date()).toISOString();
+    const payload = {
+      layoutPositions: record.layoutPositions,
+      canvasDocument: record.canvasDocument,
+      canvasElements: record.canvasElements,
+      updatedAt
+    };
+    const { data: updated, error: updateError } = await admin.from("resume_workspaces").update({ canvas_layout: payload }).eq("user_id", userId).select("canvas_layout").maybeSingle();
+    if (updateError) throw updateError;
+    let layoutRaw = updated?.canvas_layout;
+    if (!updated) {
+      const { data: inserted, error: insertError } = await admin.from("resume_workspaces").insert({
+        user_id: userId,
+        resume_data: {},
+        job_description: "",
+        template_id: "modern-01",
+        canvas_layout: payload,
+        updated_at: updatedAt
+      }).select("canvas_layout").single();
+      if (insertError) throw insertError;
+      layoutRaw = inserted?.canvas_layout;
+    }
+    const layout = layoutRaw && typeof layoutRaw === "object" ? layoutRaw : payload;
+    return {
+      layoutPositions: layout.layoutPositions && typeof layout.layoutPositions === "object" ? layout.layoutPositions : {},
+      canvasDocument: layout.canvasDocument && typeof layout.canvasDocument === "object" ? layout.canvasDocument : {},
+      canvasElements: Array.isArray(layout.canvasElements) ? layout.canvasElements : [],
+      updatedAt: typeof layout.updatedAt === "string" ? layout.updatedAt : updatedAt
+    };
+  }
 };
 var syncStore = new SupabasePostgresSyncStore();
 function getPostgresSyncStore() {
@@ -2700,9 +2749,10 @@ function registerConfigRoutes(app) {
   });
 }
 
-// server/routes/exportPdf.ts
+// server/exportPdfHandler.ts
 var PRINT_READY_SELECTOR = '[data-print-ready="true"]';
-var PRINT_TIMEOUT_MS = 2e4;
+var PRINT_TIMEOUT_MS = 45e3;
+var FONT_READY_TIMEOUT_MS = 12e3;
 var IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 async function launchChromium() {
   if (IS_SERVERLESS) {
@@ -2713,7 +2763,7 @@ async function launchChromium() {
       return await chromium.launch({
         headless: true,
         executablePath,
-        args: sparticuz.args
+        args: [...sparticuz.args, "--disable-dev-shm-usage"]
       });
     } catch (error) {
       console.error("[export/pdf] serverless chromium launch failed:", error);
@@ -2743,30 +2793,31 @@ function resolvePrintOrigin(req) {
   const port = Number(process.env.PORT) || 3e3;
   return `http://127.0.0.1:${port}`;
 }
-function registerExportPdfRoutes(app) {
-  app.post("/api/export/pdf", (req, res) => {
-    void handleExportPdf(req, res);
-  });
-}
 async function handleExportPdf(req, res) {
-  const { resumeData, templateStyle, locale, pageFormat, paperMode } = req.body ?? {};
-  const format = pageFormat === "Letter" ? "Letter" : "A4";
-  if (!resumeData || typeof resumeData !== "object" || !("personalInfo" in resumeData)) {
-    res.status(400).json({ error: "resumeData is required" });
+  const body = req.body ?? {};
+  const format = body.pageFormat === "Letter" ? "Letter" : "A4";
+  if (!body.resumeData || typeof body.resumeData !== "object" || !("personalInfo" in body.resumeData)) {
+    res.status(400).json({ error: "resumeData is required", code: "MISSING_RESUME_DATA" });
     return;
   }
   const browser = await launchChromium();
   if (!browser) {
-    res.status(501).json({ error: "PDF renderer unavailable in this environment" });
+    res.status(501).json({
+      error: "PDF renderer unavailable in this environment",
+      code: "CHROMIUM_UNAVAILABLE"
+    });
     return;
   }
   try {
     const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
     const payload = JSON.stringify({
-      resumeData,
-      templateStyle,
-      locale,
-      paperMode: paperMode === "white" ? "white" : "cream"
+      resumeData: body.resumeData,
+      templateStyle: body.templateStyle,
+      locale: body.locale,
+      pageFormat: format,
+      paperMode: body.paperMode === "white" ? "white" : "cream",
+      watermark: typeof body.watermark === "string" ? body.watermark : void 0,
+      layout: body.layout
     });
     await page.addInitScript((raw) => {
       try {
@@ -2774,28 +2825,47 @@ async function handleExportPdf(req, res) {
       } catch {
       }
     }, payload);
-    await page.goto(`${resolvePrintOrigin(req)}/?print=1`, {
+    const printUrl = `${resolvePrintOrigin(req)}/?print=1`;
+    await page.goto(printUrl, {
       waitUntil: "domcontentloaded",
       timeout: PRINT_TIMEOUT_MS
     });
     await page.waitForSelector(PRINT_READY_SELECTOR, { timeout: PRINT_TIMEOUT_MS });
-    await page.evaluate(() => document.fonts.ready.then(() => void 0));
+    await page.evaluate(async (fontTimeoutMs) => {
+      await Promise.race([
+        document.fonts.ready,
+        new Promise((resolve) => setTimeout(resolve, fontTimeoutMs))
+      ]);
+    }, FONT_READY_TIMEOUT_MS);
     const pdf = await page.pdf({
       format,
       printBackground: true,
-      margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" }
+      margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
+      preferCSSPageSize: true
     });
+    if (!pdf || pdf.byteLength < 2e3) {
+      res.status(500).json({ error: "PDF render produced empty output", code: "EMPTY_PDF" });
+      return;
+    }
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=resume.pdf");
     res.send(Buffer.from(pdf));
   } catch (error) {
     console.error("[export/pdf] render failed:", error);
     if (!res.headersSent) {
-      res.status(500).json({ error: "PDF render failed" });
+      const message = error instanceof Error ? error.message : "PDF render failed";
+      res.status(500).json({ error: message, code: "RENDER_FAILED" });
     }
   } finally {
     await browser.close().catch(() => void 0);
   }
+}
+
+// server/routes/exportPdf.ts
+function registerExportPdfRoutes(app) {
+  app.post("/api/export/pdf", (req, res) => {
+    void handleExportPdf(req, res);
+  });
 }
 
 // server/routes/health.ts
@@ -4090,6 +4160,66 @@ function registerSyncRoutes(app) {
       });
     } catch (err) {
       console.error("[sync/application-packages] put failed", err);
+      res.status(500).json({ error: "sync_write_failed" });
+    }
+  });
+  app.get("/api/sync/canvas-layout", async (req, res) => {
+    if (!isPostgresSyncConfigured()) {
+      res.status(503).json({ error: "sync_not_configured" });
+      return;
+    }
+    const auth = requireAuthedUser(req);
+    if (!auth) {
+      res.status(401).json({ error: "auth_required" });
+      return;
+    }
+    try {
+      const record = await getPostgresSyncStore().getCanvasLayout(auth.user.id);
+      if (!record) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      res.json({
+        layoutPositions: record.layoutPositions,
+        canvasDocument: record.canvasDocument,
+        canvasElements: record.canvasElements,
+        updatedAt: record.updatedAt
+      });
+    } catch (err) {
+      console.error("[sync/canvas-layout] get failed", err);
+      res.status(500).json({ error: "sync_read_failed" });
+    }
+  });
+  app.put("/api/sync/canvas-layout", async (req, res) => {
+    if (!isPostgresSyncConfigured()) {
+      res.status(503).json({ error: "sync_not_configured" });
+      return;
+    }
+    const auth = requireAuthedUser(req);
+    if (!auth) {
+      res.status(401).json({ error: "auth_required" });
+      return;
+    }
+    const layoutPositions = req.body?.layoutPositions && typeof req.body.layoutPositions === "object" ? req.body.layoutPositions : {};
+    const canvasDocument = req.body?.canvasDocument && typeof req.body.canvasDocument === "object" ? req.body.canvasDocument : {};
+    const canvasElements = Array.isArray(req.body?.canvasElements) ? req.body.canvasElements : [];
+    const updatedAt = typeof req.body?.updatedAt === "string" ? req.body.updatedAt : (/* @__PURE__ */ new Date()).toISOString();
+    try {
+      const saved = await getPostgresSyncStore().upsertCanvasLayout(auth.user.id, {
+        layoutPositions,
+        canvasDocument,
+        canvasElements,
+        updatedAt
+      });
+      res.json({
+        ok: true,
+        layoutPositions: saved.layoutPositions,
+        canvasDocument: saved.canvasDocument,
+        canvasElements: saved.canvasElements,
+        updatedAt: saved.updatedAt
+      });
+    } catch (err) {
+      console.error("[sync/canvas-layout] put failed", err);
       res.status(500).json({ error: "sync_write_failed" });
     }
   });

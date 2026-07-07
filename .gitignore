@@ -2,6 +2,7 @@ node_modules/
 build/
 dist/
 api/index.js.map
+api/export-pdf.js.map
 api/handler.cjs
 api/handler.cjs.map
 coverage/

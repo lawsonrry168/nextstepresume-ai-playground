@@ -94,6 +94,23 @@ export function addCanvasElement(kind: CanvasElementKind): CanvasElement | null 
   return element;
 }
 
+export function duplicateCanvasElement(source: CanvasElement): CanvasElement | null {
+  const current = ensureLoaded();
+  if (current.length >= MAX_ELEMENTS) return null;
+  const id = `${CANVAS_ELEMENT_PREFIX}${source.kind}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const element: CanvasElement = {
+    ...source,
+    id,
+    text: source.text,
+    imageDataUrl: source.imageDataUrl,
+    circle: source.circle,
+  };
+  elements = [...current, element];
+  persist();
+  notify();
+  return element;
+}
+
 export function updateCanvasElement(id: string, patch: Partial<Omit<CanvasElement, "id" | "kind">>): void {
   const current = ensureLoaded();
   if (patch.imageDataUrl && patch.imageDataUrl.length > MAX_PHOTO_DATAURL_BYTES) {
@@ -106,6 +123,22 @@ export function updateCanvasElement(id: string, patch: Partial<Omit<CanvasElemen
 
 export function removeCanvasElement(id: string): void {
   elements = ensureLoaded().filter((el) => el.id !== id);
+  persist();
+  notify();
+}
+
+/** Merge snapshot elements into storage (used by layout snapshot restore). */
+export function mergeCanvasElementsForSnapshot(relevant: CanvasElement[]): void {
+  const ids = new Set(relevant.map((el) => el.id));
+  const merged = [...ensureLoaded().filter((el) => !ids.has(el.id)), ...relevant];
+  elements = merged;
+  persist();
+  notify();
+}
+
+/** Replace all elements (cloud hydrate) — updates module cache, persists, notifies subscribers. */
+export function hydrateCanvasElements(next: CanvasElement[]): void {
+  elements = Array.isArray(next) ? next.filter((el) => el && isCanvasElementId(el.id)) : [];
   persist();
   notify();
 }

@@ -16,6 +16,10 @@ import {
   sectionsOnPage,
   type PageLayoutContentContext,
 } from "./canvasLayoutTools";
+import {
+  applyEntryLevelPagination,
+  type SectionContentSlice,
+} from "./layoutEntryPagination";
 
 /** Build print-ready positions: content-fitted heights unless manually locked. */
 export function buildExportLayoutPositions(
@@ -36,6 +40,7 @@ const EXPORT_PAGE_PREFIX = "export-page-";
 export interface PrintExportPlan {
   positions: Record<string, FreeLayoutPosition>;
   pageIds: string[];
+  sectionSlices?: Record<string, SectionContentSlice>;
 }
 
 export interface PrintExportOptions {
@@ -46,6 +51,8 @@ export interface PrintExportOptions {
   studioSectionPageMap?: Record<string, string>;
   /** Keep editor x/y — only fit heights and paginate overflow (free-layout WYSIWYG) */
   preservePlacements?: boolean;
+  /** Split experience/education/projects at entry boundaries when a section overflows */
+  enableEntrySplit?: boolean;
 }
 
 export function sectionPageBottom(pos: FreeLayoutPosition): number {
@@ -290,7 +297,18 @@ export function buildPrintReadyExportLayout(
     }
   }
 
-  return { positions: laid, pageIds: pageIds.length ? pageIds : [createExportPageId(0)] };
+  const entrySplit = applyEntryLevelPagination(sectionIds, laid, pageIds, resumeData, {
+    themeFontScale,
+    enabled: options?.enableEntrySplit !== false,
+  });
+  laid = entrySplit.positions;
+  pageIds = entrySplit.pageIds;
+
+  return {
+    positions: laid,
+    pageIds: pageIds.length ? pageIds : [createExportPageId(0)],
+    sectionSlices: Object.keys(entrySplit.sectionSlices).length ? entrySplit.sectionSlices : undefined,
+  };
 }
 
 /** Clamp every section bottom to the printable A4 band (export safety net). */
