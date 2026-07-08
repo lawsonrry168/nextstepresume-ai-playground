@@ -287,7 +287,6 @@ const zhTW: MessageTree = {
     printPreview: "列印預覽",
     printPreviewTitle: "顯示最終 PDF 分頁（print plan）",
     printPreviewHint: "此為伺服器 PDF 將輸出的最終分頁 — WYSIWYG",
-    compareMode: "對照模式",
   },
 
   canvas: {
@@ -606,7 +605,7 @@ const zhTW: MessageTree = {
   templateThemes,
 
   export: {
-    menuTitle: "匯出 PDF（ATS / 影像型）、Word 或 JSON",
+    menuTitle: "匯出 PDF（ATS / 向量型）、Word 或 JSON",
     json: "下載 JSON",
     jsonHint: "data.json 備份",
     docx: "匯出 Word",
@@ -642,7 +641,7 @@ const zhTW: MessageTree = {
       resumeDocxLegacyDownloaded: "履歷 DOC（相容模式）已下載",
       coverLetterDocxLegacyDownloaded: "求職信 DOC（相容模式）已下載",
       atsPdfDownloaded: "ATS PDF 已下載（可選文字）",
-      visualPdfDownloaded: "影像 PDF 已下載（與預覽一致）",
+      visualPdfDownloaded: "向量 PDF 已下載（與預覽一致）",
       atsPdfExportFailed: "ATS PDF 匯出失敗",
       pdfExportFailedGeneric: "PDF 匯出失敗",
     },
@@ -1538,8 +1537,8 @@ const zhTW: MessageTree = {
     highlightHint: "在預覽中標示已優化的段落與結構",
     exportTitle: "PDF 匯出方式",
     exportHint: "右側工具列「匯出」選單提供兩種 PDF：",
-    exportVisual: "影像型",
-    exportVisualDesc: "（與預覽一致，自動縮放至單頁 A4）",
+    exportVisual: "向量型",
+    exportVisualDesc: "（與預覽一致；伺服器 Chromium 列印，可選文字）",
     exportAts: "ATS",
     exportAtsDesc: "（可選文字、結構化）。",
   },

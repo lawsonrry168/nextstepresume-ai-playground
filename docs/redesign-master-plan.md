@@ -15,7 +15,7 @@
 | 4 個獨立渲染器 | React 預覽 / html2canvas 截圖 PDF / jsPDF ATS / docx | 匯出與預覽版型不匹配（用戶最痛） |
 | 31 款版型只有 4 個真實版面 | `resumeTemplateCatalog.ts` + 3 個 Document 元件 | 選版型只換色，輸出千篇一律 |
 | 顏色鎖死在 Tailwind class 字串 | `"text-[#c0392b]"` | DOCX/PDF 讀不到 → 只有 3 套匯出調色盤 |
-| 視覺 PDF 是點陣截圖 | `resumePdfExport.ts`（html2canvas → JPEG → jsPDF） | 文字不可選、ATS 不可讀、靠像素掃描補丁維生 |
+| 視覺 PDF 是點陣截圖 | ~~`resumePdfExport.ts`~~（已移除；改由 `resumePdfExportRouter` → 伺服器 Chromium 向量列印） | 舊點陣路徑文字不可選、ATS 不可讀 |
 | 高度計算有 3 個版本 | 啟發式估算 / 瀏覽器實排 / clone 重量測 | 溢頁、跑版、留白錯位 |
 | Canvas 狀態碎片化 | 4 個 localStorage store，以版型家族為 key | 只能一份履歷、雲端同步不完整 |
 | Undo 不涵蓋版面 | `useResumeUndoHistory` 只快照 ResumeData | 拖動/縮放/套預設全部不可撤銷，且無 Redo |

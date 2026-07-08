@@ -1328,8 +1328,7 @@ html:not(.dark) .marginalia-theme {
   gap: 0.375rem;
 }
 
-/* section-stack gap already separates blocks ??avoid double 28px */
-/* section-stack gap already separates blocks ??avoid double 28px */
+/* section-stack gap already separates blocks — avoid double 28px */
 .resume-template-marginalia .resume-marginalia-section-stack > .resume-marginalia-subsection {
   padding-top: 0;
   border-top: none;
@@ -1384,11 +1383,6 @@ html:not(.dark) .marginalia-theme {
   margin-top: 0;
 }
 
-/* Offscreen PDF export staging — isolated from playground UI */
-.resume-pdf-export-host {
-  overflow: visible;
-}
-
 /* Hidden print surface — static layout for PDF capture (not the edit canvas) */
 .resume-export-surface-host {
   position: fixed;
@@ -1406,102 +1400,6 @@ html:not(.dark) .marginalia-theme {
 
 .resume-export-surface-host [data-export-static] {
   box-shadow: none !important;
-}
-
-.resume-pdf-export-host .resume-template-marginalia {
-  padding-bottom: var(--m-rule-step) !important;
-  box-shadow: none !important;
-}
-
-.resume-pdf-export-host .resume-marginalia-accent-bar-bleed,
-.resume-pdf-export-host .resume-theme-accent-bar-bleed {
-  margin-top: calc(-1 * var(--m-rule-step)) !important;
-  margin-right: calc(-1 * var(--m-rule-step)) !important;
-  margin-left: -3rem !important;
-}
-
-/* During PDF capture on live preview (legacy) */
-.resume-pdf-capture-active.resume-template-marginalia {
-  padding-bottom: var(--m-rule-step) !important;
-  overflow: visible !important;
-}
-
-/* PDF-only: trim trailing padding so full-width export fits one A4 page */
-.resume-pdf-export-compact.resume-template-marginalia {
-  padding: var(--m-rule-step) 24px var(--m-rule-step) 2.75rem !important;
-  background-origin: content-box !important;
-  background-clip: border-box !important;
-  background-position: 0 0 !important;
-  position: relative !important;
-  isolation: isolate !important;
-  border-radius: 1.125rem !important;
-  overflow: hidden !important;
-}
-
-.resume-pdf-export-compact.resume-template-marginalia::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 2px solid #c0392b;
-  border-radius: inherit;
-  box-sizing: border-box;
-  pointer-events: none;
-  z-index: 4;
-}
-
-.resume-pdf-export-compact .resume-marginalia-accent-bar-bleed,
-.resume-pdf-export-compact .resume-theme-accent-bar-bleed {
-  margin-top: 0 !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  margin-bottom: 0 !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-name {
-  overflow: visible !important;
-  height: auto !important;
-  min-height: var(--m-rule-step) !important;
-  max-height: none !important;
-  display: flex !important;
-  align-items: flex-end !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-header-contact {
-  overflow: visible !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-contact-row {
-  min-width: 0;
-  height: auto !important;
-  min-height: var(--m-rule-step) !important;
-  max-height: none !important;
-  overflow: visible !important;
-  align-items: center !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-contact-row > span {
-  display: inline-block !important;
-  white-space: break-spaces !important;
-  word-spacing: 0.08em !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-h2,
-.resume-pdf-export-compact .resume-marginalia-job-title,
-.resume-pdf-export-compact .resume-marginalia-job-block > .resume-marginalia-ruled-line {
-  height: auto !important;
-  min-height: var(--m-rule-step) !important;
-  max-height: none !important;
-  overflow: visible !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-h2,
-.resume-pdf-export-compact .resume-marginalia-job-title {
-  align-items: center !important;
-}
-
-.resume-pdf-export-compact .resume-marginalia-card-ruled,
-.resume-pdf-export-compact .resume-marginalia-card-ruled > * {
-  overflow: visible !important;
 }
 
 .resume-template-marginalia .resume-marginalia-accent-bar {

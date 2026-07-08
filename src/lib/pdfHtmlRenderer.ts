@@ -5,7 +5,7 @@ const CJK_FONT_STACK =
   '"Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif';
 const VISUAL_PDF_PAGE_INSET_PT = 14;
 
-export function escapeHtml(text: string): string {
+function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -48,34 +48,7 @@ export type PdfCanvasExportOptions = {
   fitSinglePage?: boolean;
   /** With fitSinglePage: fill page width first; shrink only when height still overflows */
   preferFillWidth?: boolean;
-  /** Diagonal + footer watermark text */
-  watermark?: string;
 };
-
-export function applyPdfWatermark(canvas: HTMLCanvasElement, text: string): HTMLCanvasElement {
-  const output = document.createElement("canvas");
-  output.width = canvas.width;
-  output.height = canvas.height;
-  const ctx = output.getContext("2d");
-  if (!ctx) return canvas;
-  ctx.drawImage(canvas, 0, 0);
-  const fontSize = Math.max(28, Math.round(canvas.width * 0.035));
-  ctx.save();
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = "#64748b";
-  ctx.font = `700 ${fontSize}px "Segoe UI", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate(-Math.PI / 6);
-  ctx.fillText(text, 0, 0);
-  ctx.restore();
-  ctx.globalAlpha = 0.5;
-  ctx.font = `${Math.max(12, Math.round(canvas.width * 0.012))}px "Segoe UI", sans-serif`;
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#94a3b8";
-  ctx.fillText(text, canvas.width - 24, canvas.height - 20);
-  return output;
-}
 
 export function computeSinglePageCanvasPlacement(
   pdfWidth: number,

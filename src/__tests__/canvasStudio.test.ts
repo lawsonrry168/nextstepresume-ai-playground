@@ -11,7 +11,6 @@ import { applyMagneticSnap } from "../lib/resumeFreeLayout";
 import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
 import { alignPositionOnPage, nudgePosition, centerOnPage, fillPageWidth, snapPositionToGrid, resizeSection, resetSectionPosition } from "../lib/canvasAlignTools";
 import { detectPageSnapEdge, resolveBoundaryPageCross, clampPositionToA4Page, maxSectionHeightOnPage } from "../lib/canvasPageSnap";
-import { estimatePdfPageCount } from "../lib/canvasPdfPagination";
 import { syncPagesDocumentToPositions } from "../hooks/useCanvasDocument";
 import {
   CANVAS_VIEWPORT_DEFAULTS,
@@ -612,14 +611,5 @@ describe("magneticSnap", () => {
       margin: CANVAS_PAGE_MARGIN,
     });
     expect(snapped.x).not.toBe(102);
-  });
-});
-
-describe("canvasPdfPagination", () => {
-  it("estimates pdf page count", () => {
-    expect(estimatePdfPageCount(1123, 2)).toBe(1);
-    expect(estimatePdfPageCount(2500, 2)).toBe(2);
-    expect(estimatePdfPageCount(2246, 2)).toBe(1);
-    expect(estimatePdfPageCount(2247, 2)).toBe(2);
   });
 });

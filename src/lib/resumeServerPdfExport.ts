@@ -101,13 +101,3 @@ export async function downloadServerVisualPdf(
   }
 }
 
-/** @deprecated Use downloadServerVisualPdf — kept for compatibility */
-export async function tryDownloadServerVisualPdf(
-  resumeData: ResumeData,
-  templateStyle: TemplateStyle | undefined,
-  filename: string,
-  options?: { watermark?: string; layout?: PrintLayoutPayload },
-): Promise<boolean> {
-  const result = await downloadServerVisualPdf(resumeData, templateStyle, filename, options);
-  return result.ok;
-}

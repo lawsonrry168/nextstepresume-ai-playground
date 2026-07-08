@@ -388,7 +388,6 @@ const en: MessageTree = {
     printPreview: "Print preview",
     printPreviewTitle: "Show final PDF pagination (print plan)",
     printPreviewHint: "This is the exact pagination the server PDF will export — WYSIWYG",
-    compareMode: "Compare mode",
   },
 
   canvas: {
@@ -707,7 +706,7 @@ const en: MessageTree = {
   templateThemes,
 
   export: {
-    menuTitle: "Export PDF (ATS / visual), Word, or JSON",
+    menuTitle: "Export PDF (ATS / vector), Word, or JSON",
     json: "Download JSON",
     jsonHint: "data.json backup",
     docx: "Export Word",
@@ -743,7 +742,7 @@ const en: MessageTree = {
       resumeDocxLegacyDownloaded: "Resume DOC (compatibility mode) downloaded",
       coverLetterDocxLegacyDownloaded: "Cover letter DOC (compatibility mode) downloaded",
       atsPdfDownloaded: "ATS PDF downloaded (selectable text)",
-      visualPdfDownloaded: "Visual PDF downloaded (matches preview)",
+      visualPdfDownloaded: "Vector PDF downloaded (matches preview)",
       atsPdfExportFailed: "ATS PDF export failed",
       pdfExportFailedGeneric: "PDF export failed",
     },
@@ -1639,8 +1638,8 @@ const en: MessageTree = {
     highlightHint: "Enable layout thread highlights showing optimized structures",
     exportTitle: "PDF export options",
     exportHint: "The Export menu on the right offers two PDF modes:",
-    exportVisual: "Visual",
-    exportVisualDesc: "(matches preview, auto-scaled to single A4 page)",
+    exportVisual: "Vector",
+    exportVisualDesc: "(matches preview; server Chromium print with selectable text)",
     exportAts: "ATS",
     exportAtsDesc: "(selectable text, structured).",
   },

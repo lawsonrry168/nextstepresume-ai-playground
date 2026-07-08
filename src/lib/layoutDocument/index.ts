@@ -5,12 +5,12 @@
  * L1 document   → buildLayoutDocument (draft + printPlan)
  * L2 engine     → canvasLayoutTools, layoutExportSurface (reflow / pagination)
  * L3 render     → ResumeSectionRenderer | ResumeA4FlowDocument | ResumeA4MinimalistDocument | ResumeMarginaliaDocument | ResumeEmbedded* | ResumeTemplateRenderer (router)
- * L4 export     → resumePdfExportRouter → server Chromium print (vector PDF)
+ * L4 export     → resumePdfExportRouter → server Chromium print (vector PDF via ?print=1)
  *
  * Rules:
  * 1. Geometry constants live ONLY in geometry.ts (re-exported elsewhere).
  * 2. Print/export always uses printPlan from buildLayoutDocument.
- * 3. PDF capture prefers hidden export surface, not live studio transforms.
+ * 3. Vector PDF uses the hidden export / print surface, not live studio transforms.
  * 4. Flow mode (template renderer) skips free-layout positions; print plan still applies when enabled.
  */
 
