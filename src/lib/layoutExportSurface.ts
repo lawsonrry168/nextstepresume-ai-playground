@@ -51,7 +51,9 @@ export interface PrintExportOptions {
   studioSectionPageMap?: Record<string, string>;
   /** Keep editor x/y — only fit heights and paginate overflow (free-layout WYSIWYG) */
   preservePlacements?: boolean;
-  /** Split experience/education/projects at entry boundaries when a section overflows */
+  // Default OFF: entry-split is an aggressive print-time optimization that
+  // synthesizes extra pages for overflowing experience/education/projects.
+  // Callers that need it (dense smart-layout) must opt in explicitly.
   enableEntrySplit?: boolean;
 }
 
@@ -299,7 +301,7 @@ export function buildPrintReadyExportLayout(
 
   const entrySplit = applyEntryLevelPagination(sectionIds, laid, pageIds, resumeData, {
     themeFontScale,
-    enabled: options?.enableEntrySplit !== false,
+    enabled: options?.enableEntrySplit === true,
   });
   laid = entrySplit.positions;
   pageIds = entrySplit.pageIds;

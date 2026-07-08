@@ -103,6 +103,23 @@ describe("canvasStudioTypes", () => {
     expect(synced.activePageId).toBe("export-page-1");
   });
 
+  it("drops empty pages that no section references after layout collapses", () => {
+    const current = {
+      pages: [
+        { id: "page-1", label: "Page 1" },
+        { id: "page-2", label: "Page 2" },
+      ],
+      activePageId: "page-2",
+    };
+    const positions = {
+      header: { x: 48, y: 48, width: 698, height: 120, pageId: "page-1" },
+      experience: { x: 48, y: 200, width: 698, height: 240, pageId: "page-1" },
+    };
+    const synced = syncPagesDocumentToPositions(current, ["header", "experience"], positions);
+    expect(synced.pages.map((page) => page.id)).toEqual(["page-1"]);
+    expect(synced.activePageId).toBe("page-1");
+  });
+
   it("reorders layers in panel drag order", () => {
     const next = reorderLayerInPanel(["a", "b", "c"], "c", "a", "before");
     expect(next.indexOf("c")).toBeGreaterThan(next.indexOf("a"));

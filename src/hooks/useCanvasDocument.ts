@@ -59,18 +59,24 @@ export function syncPagesDocumentToPositions(
     return buildPagesFromReferencedIds(referencedPageIds);
   }
 
-  let changed = false;
-  const nextPages = [...current.pages];
-  for (const pageId of referencedPageIds) {
-    if (nextPages.some((page) => page.id === pageId)) continue;
-    changed = true;
-    nextPages.push({
+  // Keep only pages that sections still reference (plus create any missing
+  // referenced ids). This drops empty extras left behind by smart layout /
+  // entry-split when everything collapses back onto one page.
+  const byId = new Map(current.pages.map((page) => [page.id, page]));
+  const nextPages = referencedPageIds.map((pageId, index) => {
+    const existing = byId.get(pageId);
+    if (existing) return existing;
+    return {
       id: pageId,
-      label: formatCanvasPageLabel(nextPages.length + 1),
-    });
-  }
+      label: formatCanvasPageLabel(index + 1),
+    };
+  });
 
-  if (!changed) return current;
+  const sameLength = nextPages.length === current.pages.length;
+  const sameOrder =
+    sameLength && nextPages.every((page, index) => page.id === current.pages[index]?.id);
+  if (sameOrder) return current;
+
   const activePageId = nextPages.some((page) => page.id === current.activePageId)
     ? current.activePageId
     : nextPages[0]!.id;

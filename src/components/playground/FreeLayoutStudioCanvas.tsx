@@ -32,7 +32,6 @@ import {
   estimateSectionHeightForContent,
   getSectionTextLength,
   measureSectionContentHeight,
-  SECTION_CONTENT_PADDING,
 } from "../../lib/canvasSectionContentSizing";
 import { getTemplateFamily } from "../../lib/resumeTemplateCatalog";
 import { ResolvedResumeTheme, DEFAULT_THEME_CUSTOMIZATION, resolveResumeTheme } from "../../lib/resumeThemeCustomization";
@@ -882,9 +881,12 @@ function useSectionContentSizing(
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const current = positionRef.current;
+        // Prefer DOM height; fall back to estimate. Do not stack estimate +
+        // content padding — that overgrows boxes by 1–2 snap cells.
         const naturalH = measureSectionContentHeight(node, current.width);
         const estimated = estimateSectionHeightForContent(sectionId, resumeData, current.width);
-        const contentNeed = Math.max(estimated, naturalH + SECTION_CONTENT_PADDING);
+        const contentNeed =
+          naturalH > 0 ? Math.max(naturalH, Math.round(estimated * 0.92)) : estimated;
 
         if (manualSizeLocked) {
           setContentOverflows(contentNeed > current.height + 4);
@@ -903,10 +905,22 @@ function useSectionContentSizing(
       });
     };
 
-    measure();
-    const observer = new ResizeObserver(measure);
+    let cancelled = false;
+    const runMeasure = () => {
+      if (!cancelled) measure();
+    };
+
+    runMeasure();
+    // After webfonts settle (common on Vercel), remasure — fallback fonts
+    // otherwise permanently inflate or under-count height.
+    if (typeof document !== "undefined" && document.fonts?.ready) {
+      void document.fonts.ready.then(runMeasure).catch(() => undefined);
+    }
+
+    const observer = new ResizeObserver(runMeasure);
     observer.observe(node);
     return () => {
+      cancelled = true;
       observer.disconnect();
       cancelAnimationFrame(raf);
     };
@@ -1194,7 +1208,7 @@ const DraggableSection = memo(function DraggableSection({
     manualSizeLocked,
   );
 
-  const contentPadClass = compact ? "p-2" : "p-3";
+  const contentPadClass = compact ? "p-2" : "p-2.5";
   const contentOverflowClass = expansionMode ? "overflow-visible" : "min-h-0 overflow-hidden";
   const shellRingClass = pageOverflows
     ? "ring-2 ring-red-500/90 border-2 border-dashed border-red-400/80"

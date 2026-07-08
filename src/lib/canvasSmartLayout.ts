@@ -111,27 +111,38 @@ export function runSmartLayoutPipeline(input: SmartLayoutPipelineInput): SmartLa
     content,
   );
 
+  // Only run structural presets on pages that still hold sections.
+  const occupiedPageIds = input.pageIds.filter((pageId) =>
+    input.sectionIds.some((id) => (positions[id]?.pageId ?? input.getPageId(id)) === pageId),
+  );
+
   positions = applyA4AutoLayoutAllPages(
     analysis.recommendedAction,
     input.sectionIds,
     positions,
-    input.pageIds,
-    input.getPageId,
+    occupiedPageIds.length ? occupiedPageIds : input.pageIds.slice(0, 1),
+    (id) => positions[id]?.pageId ?? input.getPageId(id),
     content,
   );
+
+  // Entry-split only when content actually overflows A4 (or density is high).
+  // Forcing it always causes "one page of text → empty page 2" on short resumes.
+  const needsEntrySplit = analysis.overflowingSections.length > 0 || analysis.density === "high";
 
   const printPlan = buildPrintReadyExportLayout(input.sectionIds, positions, input.resumeData, {
     manualSizedSections: input.manualSizedSections,
     layerOrder: input.layerOrder,
     themeFontScale: input.themeFontScale,
-    studioPages: input.pageIds.map((id) => ({ id })),
+    studioPages: (occupiedPageIds.length ? occupiedPageIds : input.pageIds.slice(0, 1)).map((id) => ({
+      id,
+    })),
     studioSectionPageMap: Object.fromEntries(
       input.sectionIds
         .filter((id) => positions[id])
         .map((id) => [id, positions[id]!.pageId ?? input.pageIds[0]!]),
     ),
     preservePlacements: true,
-    enableEntrySplit: true,
+    enableEntrySplit: needsEntrySplit,
   });
 
   const editorPositions = editorPositionsFromPrintPlan(input.sectionIds, printPlan);

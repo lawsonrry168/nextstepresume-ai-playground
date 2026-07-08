@@ -20,9 +20,10 @@ import {
 } from "./measure/textMeasure";
 
 const LINE_HEIGHT = 22;
-const SECTION_CHROME = 48;
-/** Live canvas overlay chrome + padding */
-export const SECTION_CONTENT_PADDING = 24;
+/** Title row + card chrome. Keep tight — overestimate pushes print plan to page 2. */
+const SECTION_CHROME = 36;
+/** Live canvas content inset (matches Tailwind p-2 ~ 8px × 2 sides visually; box model pad). */
+export const SECTION_CONTENT_PADDING = 16;
 /** Approximate glyph width at resume body size */
 const CHAR_WIDTH = FALLBACK_CHAR_WIDTH;
 

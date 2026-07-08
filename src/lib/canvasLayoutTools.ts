@@ -702,6 +702,7 @@ export function syncSectionSizesToContentAllPages(
 
   for (const pageId of pageIds) {
     const onPage = sectionsOnPage(sectionIds, next, pageId, getPageId, opts.layerOrder);
+    if (!onPage.length) continue;
     const patches: Record<string, FreeLayoutPosition> = {};
     for (const id of onPage) {
       const current = next[id];
@@ -718,7 +719,11 @@ export function syncSectionSizesToContentAllPages(
       }
       patches[id] = clampPositionToA4Page({ ...current, pageId, width, height });
     }
-    next = patchPositions(next, patches);
+    // patchPositions returns only the touched ids — merge back so empty pages
+    // (or empty patch sets) never wipe the rest of the layout.
+    if (Object.keys(patches).length) {
+      next = { ...next, ...patchPositions(next, patches) };
+    }
     if (options?.reflow !== false) {
       next = reflowStackOnPage(sectionIds, next, pageId, getPageId, "fill-page-exact", content);
     }
@@ -1286,11 +1291,11 @@ export function applyA4AutoLayoutAllPages(
   content?: PageLayoutContentContext,
 ): Record<string, FreeLayoutPosition> {
   let current = positions;
-  const merged: Record<string, FreeLayoutPosition> = {};
   for (const pageId of pageIds) {
+    const onPage = sectionsOnPage(sectionIds, current, pageId, getPageId, content?.layerOrder);
+    if (!onPage.length) continue;
     const patches = applyPageLayoutAction(action, sectionIds, current, pageId, getPageId, undefined, content);
-    Object.assign(merged, patches);
     current = { ...current, ...patches };
   }
-  return merged;
+  return current;
 }
