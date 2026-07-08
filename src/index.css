@@ -813,6 +813,17 @@ html:not(.dark) .marginalia-theme {
   color: var(--m-ink);
 }
 
+.marginalia-theme .canvas-layout-reset-btn {
+  background: color-mix(in srgb, var(--m-danger, #fef2f2) 88%, #fff);
+  border-color: color-mix(in srgb, var(--m-danger-ink, #dc2626) 35%, transparent);
+  color: color-mix(in srgb, var(--m-danger-ink, #b91c1c) 92%, #000);
+}
+
+.marginalia-theme .canvas-layout-reset-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--m-danger, #fee2e2) 96%, #fff);
+  border-color: color-mix(in srgb, var(--m-danger-ink, #dc2626) 55%, transparent);
+}
+
 .marginalia-theme #immersive-preview-studio:has(#canvas-studio-viewport) .canvas-studio-right-nav {
   background-color: color-mix(in srgb, var(--m-elevate) 98%, var(--m-paper));
 }

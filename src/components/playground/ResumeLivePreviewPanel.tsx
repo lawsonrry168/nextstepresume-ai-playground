@@ -61,7 +61,9 @@ import {
 import { isCanvasElementId, removeCanvasElement } from "../../lib/canvasElements";
 import { clampSectionHeight, FREE_LAYOUT_MAX_HEIGHT } from "../../lib/resumeFreeLayout";
 import { estimateSectionHeightForContent } from "../../lib/canvasSectionContentSizing";
-import { buildCanvasLayoutSyncSnapshot, scheduleCanvasLayoutCloudPush } from "../../lib/sync/canvasLayoutSync";
+import { buildCanvasLayoutSyncSnapshot, resetCanvasLayoutCloud, scheduleCanvasLayoutCloudPush } from "../../lib/sync/canvasLayoutSync";
+import { useAuth } from "../../context/AuthProvider";
+import { useAppConfig } from "../../hooks/useAppConfig";
 import { runSmartLayoutPipeline } from "../../lib/canvasSmartLayout";
 
 export interface ResumeLivePreviewPanelProps {
@@ -201,6 +203,8 @@ export default function ResumeLivePreviewPanel({
 }: ResumeLivePreviewPanelProps) {
   const { t } = useI18n();
   const { canUseFeature, openUpgrade } = useSubscription();
+  const { sync } = useAppConfig();
+  const { session } = useAuth();
   const templateFamily = getTemplateFamily(activeTemplate);
   const isMarginalia = isMarginaliaNotebookTemplate(activeTemplate);
   const shouldAutoFitPreview = previewAutoFit || !isPreviewMode;
@@ -258,6 +262,7 @@ export default function ResumeLivePreviewPanel({
   }, [exportPrintPlan, freeLayoutSectionIds, freeLayout]);
 
   const [smartLayoutFeedback, setSmartLayoutFeedback] = useState<string | null>(null);
+  const [resetCloudLayoutBusy, setResetCloudLayoutBusy] = useState(false);
 
   const handleSmartLayout = useCallback(() => {
     const result = runSmartLayoutPipeline({
@@ -285,6 +290,32 @@ export default function ResumeLivePreviewPanel({
     themeCustomization,
   ]);
   const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
+  const handleResetCloudLayout = useCallback(async () => {
+    const confirmKey =
+      sync.enabled && session
+        ? "canvas.layout.resetCloudLayoutConfirmCloud"
+        : "canvas.layout.resetCloudLayoutConfirmLocal";
+    if (!window.confirm(t(confirmKey))) return;
+
+    setResetCloudLayoutBusy(true);
+    try {
+      const result = await resetCanvasLayoutCloud();
+      if (!result.ok) {
+        setSmartLayoutFeedback(t("canvas.layout.resetCloudLayoutFailed"));
+        window.setTimeout(() => setSmartLayoutFeedback(null), 5000);
+        return;
+      }
+      setManualSizedSections(new Set());
+      canvasDoc.setSelectedSectionId(null);
+      requestAnimationFrame(() => canvasViewportRef.current?.resetView());
+      setSmartLayoutFeedback(
+        t(result.cloudSynced ? "canvas.layout.resetCloudLayoutDoneCloud" : "canvas.layout.resetCloudLayoutDoneLocal"),
+      );
+      window.setTimeout(() => setSmartLayoutFeedback(null), 5000);
+    } finally {
+      setResetCloudLayoutBusy(false);
+    }
+  }, [canvasDoc, session, sync.enabled, t]);
   const canvasSelectionRef = useRef<{ primary: string | null; multi: ReadonlySet<string> }>({
     primary: null,
     multi: new Set(),
@@ -998,8 +1029,19 @@ export default function ResumeLivePreviewPanel({
       onApplyPageLayout: applyPageLayout,
       activeTemplate,
       onSelectTemplate: setActiveTemplate,
+      onResetCloudLayout: handleResetCloudLayout,
+      resetCloudLayoutBusy,
     }),
-    [activeTemplate, applyLayoutPreset, applyPageLayout, canvasDoc.selectedSectionId, sectionCountOnPage, setActiveTemplate],
+    [
+      activeTemplate,
+      applyLayoutPreset,
+      applyPageLayout,
+      canvasDoc.selectedSectionId,
+      handleResetCloudLayout,
+      resetCloudLayoutBusy,
+      sectionCountOnPage,
+      setActiveTemplate,
+    ],
   );
 
   const canvasAutoSaveLabel = useMemo(

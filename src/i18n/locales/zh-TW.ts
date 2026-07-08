@@ -370,6 +370,16 @@ const zhTW: MessageTree = {
       mirror: "鏡像",
       snapGrid: "貼格",
       safeZone: "安全區",
+      resetCloudLayout: "重置雲端版面",
+      resetCloudLayoutBusy: "重置中…",
+      resetCloudLayoutTitle: "清除 Canvas 區塊位置、頁數、圖層與雲端快照（履歷文字不受影響）",
+      resetCloudLayoutConfirmLocal:
+        "要重置本機 Canvas 版面嗎？區塊位置、頁數與自訂元素將被清除，履歷文字內容不會受影響。",
+      resetCloudLayoutConfirmCloud:
+        "要重置本機與雲端 Canvas 版面嗎？區塊位置、頁數與自訂元素將被清除，履歷文字內容不會受影響。",
+      resetCloudLayoutDoneLocal: "已重置本機 Canvas 版面",
+      resetCloudLayoutDoneCloud: "已重置本機與雲端 Canvas 版面",
+      resetCloudLayoutFailed: "無法重置雲端版面，請確認已登入後再試",
       titles: {
         singleColumn: "單欄堆疊 — 依字數匹配寬高，對齊 A4 安全區",
         centered: "置中單欄 — 經典履歷置中排版",

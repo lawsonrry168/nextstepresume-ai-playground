@@ -14,7 +14,8 @@ export interface CanvasLayoutSyncSnapshot {
 }
 
 const CANVAS_DOCUMENT_KEY = "nsr_canvas_document_v1";
-const CANVAS_LAYOUT_CLOUD_KEY = "nsr_canvas_layout_cloud_updated_at";
+const CANVAS_ELEMENTS_KEY = "nsr_canvas_elements_v1";
+export const CANVAS_LAYOUT_CLOUD_KEY = "nsr_canvas_layout_cloud_updated_at";
 
 function readCanvasDocumentStore(): CanvasDocumentStore {
   try {
@@ -52,6 +53,31 @@ function writeLayoutPositions(
   }
 }
 
+export function buildEmptyCanvasLayoutSnapshot(): CanvasLayoutSyncSnapshot {
+  return {
+    layoutPositions: {},
+    canvasDocument: {},
+    canvasElements: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Wipe canvas layout localStorage (positions, pages, layers, viewport, custom elements). */
+export function clearCanvasLayoutLocalStorage(): void {
+  try {
+    localStorage.removeItem(NSR_STORAGE_KEYS.freeLayoutByFamily);
+    localStorage.removeItem(CANVAS_DOCUMENT_KEY);
+    localStorage.removeItem(CANVAS_ELEMENTS_KEY);
+    localStorage.removeItem(CANVAS_LAYOUT_CLOUD_KEY);
+    localStorage.removeItem(NSR_STORAGE_KEYS.canvasPages);
+    localStorage.removeItem(NSR_STORAGE_KEYS.canvasLayers);
+    localStorage.removeItem(NSR_STORAGE_KEYS.canvasViewport);
+  } catch {
+    // ignore quota / privacy mode
+  }
+  writeCanvasElements([]);
+}
+
 export function buildCanvasLayoutSyncSnapshot(): CanvasLayoutSyncSnapshot {
   return {
     layoutPositions: readFamilyLayoutStorage(),
@@ -77,5 +103,3 @@ export function applyCanvasLayoutSyncSnapshot(snapshot: CanvasLayoutSyncSnapshot
     // ignore
   }
 }
-
-export { CANVAS_LAYOUT_CLOUD_KEY };

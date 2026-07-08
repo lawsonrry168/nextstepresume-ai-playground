@@ -471,6 +471,16 @@ const en: MessageTree = {
       mirror: "Mirror",
       snapGrid: "Snap grid",
       safeZone: "Safe zone",
+      resetCloudLayout: "Reset cloud layout",
+      resetCloudLayoutBusy: "Resetting…",
+      resetCloudLayoutTitle: "Clear canvas positions, pages, layers, and cloud snapshot (resume text is kept)",
+      resetCloudLayoutConfirmLocal:
+        "Reset canvas layout on this device? Section positions, pages, and custom elements will be cleared. Resume text will not be affected.",
+      resetCloudLayoutConfirmCloud:
+        "Reset canvas layout locally and in the cloud? Section positions, pages, and custom elements will be cleared. Resume text will not be affected.",
+      resetCloudLayoutDoneLocal: "Canvas layout reset on this device",
+      resetCloudLayoutDoneCloud: "Canvas layout reset locally and in the cloud",
+      resetCloudLayoutFailed: "Could not reset cloud layout — try again after signing in",
       titles: {
         singleColumn: "Single column — content-aware sizing, A4 safe zone",
         centered: "Centered column — classic centered resume layout",

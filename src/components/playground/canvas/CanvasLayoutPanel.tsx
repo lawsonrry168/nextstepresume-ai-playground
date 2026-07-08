@@ -15,7 +15,7 @@ import {
   Grid3x3,
   AlignVerticalSpaceAround,
   StretchVertical,
-  ArrowDownToLine,
+  RotateCcw,
 } from "lucide-react";
 import { FREE_LAYOUT_PRESETS, type FreeLayoutPresetId } from "../../../lib/resumeFreeLayout";
 import type { CanvasPageLayoutAction } from "../../../lib/canvasLayoutTools";
@@ -37,6 +37,9 @@ export interface CanvasLayoutPanelProps {
   /** All 31 resume templates — selectable directly inside the studio */
   activeTemplate?: TemplateStyle;
   onSelectTemplate?: (style: TemplateStyle) => void;
+  /** Clear local canvas layout and push an empty snapshot when cloud sync is active */
+  onResetCloudLayout?: () => void | Promise<void>;
+  resetCloudLayoutBusy?: boolean;
 }
 
 function LayoutBtn({
@@ -75,6 +78,8 @@ export default function CanvasLayoutPanel({
   onApplyPageLayout,
   activeTemplate,
   onSelectTemplate,
+  onResetCloudLayout,
+  resetCloudLayoutBusy = false,
 }: CanvasLayoutPanelProps) {
   const { t } = useI18n();
   const pageDisabled = sectionCountOnPage === 0;
@@ -263,6 +268,23 @@ export default function CanvasLayoutPanel({
           <LayoutTemplate className="w-4 h-4" />
         </LayoutBtn>
       </div>
+
+      {onResetCloudLayout ? (
+        <button
+          type="button"
+          className="canvas-layout-reset-btn mt-2 w-full text-[10px] font-semibold rounded-md border px-2 py-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={resetCloudLayoutBusy}
+          onClick={() => void onResetCloudLayout()}
+          onPointerDown={(e) => e.stopPropagation()}
+          title={t("canvas.layout.resetCloudLayoutTitle")}
+          aria-label={t("canvas.layout.resetCloudLayout")}
+        >
+          <span className="inline-flex items-center justify-center gap-1.5">
+            <RotateCcw className="w-3.5 h-3.5" aria-hidden />
+            {resetCloudLayoutBusy ? t("canvas.layout.resetCloudLayoutBusy") : t("canvas.layout.resetCloudLayout")}
+          </span>
+        </button>
+      ) : null}
     </div>
   );
 }

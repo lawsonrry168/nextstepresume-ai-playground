@@ -1,5 +1,9 @@
 import type { CanvasLayoutSyncSnapshot } from "./canvasLayoutSyncLocal";
-import { applyCanvasLayoutSyncSnapshot } from "./canvasLayoutSyncLocal";
+import {
+  applyCanvasLayoutSyncSnapshot,
+  buildEmptyCanvasLayoutSnapshot,
+  clearCanvasLayoutLocalStorage,
+} from "./canvasLayoutSyncLocal";
 import { CANVAS_LAYOUT_CLOUD_KEY } from "./canvasLayoutSyncLocal";
 import { fetchRemoteCanvasLayout, pushRemoteCanvasLayout } from "./canvasLayoutSyncApi";
 import { isCloudSyncActive } from "./cloudSyncCoordinator";
@@ -74,6 +78,37 @@ export function scheduleCanvasLayoutCloudPush(
         // Network/server error — keep local state; next reconcile will retry.
       });
   }, 1800);
+}
+
+export async function resetCanvasLayoutCloud(): Promise<{
+  ok: boolean;
+  cloudSynced: boolean;
+  error?: string;
+}> {
+  if (pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = null;
+  }
+
+  clearCanvasLayoutLocalStorage();
+  triggerCanvasLayoutHydrate();
+
+  if (!isCloudSyncActive()) {
+    return { ok: true, cloudSynced: false };
+  }
+
+  const snapshot = buildEmptyCanvasLayoutSnapshot();
+  try {
+    const savedAt = await pushRemoteCanvasLayout(snapshot);
+    if (savedAt) writeLocalIso(CANVAS_LAYOUT_CLOUD_KEY, savedAt);
+    return { ok: true, cloudSynced: true };
+  } catch {
+    return { ok: false, cloudSynced: false, error: "cloud_push_failed" };
+  }
+}
+
+export function triggerCanvasLayoutHydrate(): void {
+  hydrateHandler?.(buildEmptyCanvasLayoutSnapshot());
 }
 
 export async function reconcileCanvasLayoutCloud(localSnapshot: CanvasLayoutSyncSnapshot): Promise<void> {
