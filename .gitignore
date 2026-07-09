@@ -23,3 +23,5 @@ dump.rdb
 .tmp-pdf-review*/
 tmp-pdf-*.png
 tmp-*.png
+tmp-*.pdf
+scripts/debug-*.mjs
