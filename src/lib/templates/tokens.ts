@@ -133,7 +133,7 @@ function buildFamily(
     family,
     designId: def.designId,
     layout: def.layout,
-    density: def.density ?? "regular",
+    density: def.density ?? "compact",
     colors: baseColors(def.colors),
     typography: { ...typographyDefaults, ...def.typography },
     decorations: def.decorations,

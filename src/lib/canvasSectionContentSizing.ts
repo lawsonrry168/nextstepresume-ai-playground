@@ -60,7 +60,16 @@ export function getSectionTextLength(sectionId: string, data: ResumeData): numbe
   switch (sectionId) {
     case "header": {
       const p = data.personalInfo;
-      return [p.name, p.title, p.email, p.phone, p.location, p.linkedin, p.website].join(" ").length;
+      return [
+        p.name,
+        p.title,
+        p.email,
+        p.phone,
+        p.location,
+        p.linkedin,
+        p.website,
+        ...getHkPersonalMetaLines(p),
+      ].join(" ").length;
     }
     case "summary":
       return data.summary?.trim().length ?? 0;
@@ -97,6 +106,14 @@ export function estimateCharsPerLine(width: number): number {
   return Math.max(18, Math.floor(width / CHAR_WIDTH));
 }
 
+/** Extra card chrome for marginalia (modern-01) sections beyond base SECTION_CHROME */
+export function marginaliaSectionChrome(sectionId: string): number {
+  if (sectionId === "experience" || sectionId === "projects") return 56;
+  if (sectionId === "header") return 28;
+  if (sectionId === "skills") return 32;
+  return 20;
+}
+
 export function estimateSectionHeightForContent(
   sectionId: string,
   data: ResumeData,
@@ -116,13 +133,16 @@ export function estimateSectionHeightForContent(
       // auto-expanding content overlaps the section below.
       const p = data.personalInfo;
       contentLines = estimateBlockLines([p.name, p.title], charsPerLine, 0, contentWidth);
-      // Contact/meta rows render at ~16px (0.75 of a body line); on narrow
-      // cards the icon wraps above the text, doubling each row's height.
-      const contactRowFactor = contentWidth < 340 ? 1.5 : 0.75;
-      const contactRows =
-        [p.email, p.phone, p.location, p.website, p.linkedin].filter(Boolean).length +
-        getHkPersonalMetaLines(p).length;
-      contentLines += contactRows * contactRowFactor;
+      // Contact rows ~18–20px; HK meta (Notice/Expected) is a separate block of
+      // text-[10px] rows. The old 0.75× factor for all rows left meta painting
+      // into the summary (~49px short on the demo PDF).
+      const contactFields = [p.email, p.phone, p.location, p.website, p.linkedin].filter(Boolean).length;
+      const hkMetaRows = getHkPersonalMetaLines(p).length;
+      const contactRowFactor = contentWidth < 340 ? 1.5 : 0.85;
+      // HK meta sits below contact rows; print pitch is closer to a full body line.
+      // 1.75 snaps base height to 288 (+28 chrome → 312) so Notice/Expected clear summary.
+      const hkMetaFactor = contentWidth < 340 ? 1.85 : 1.75;
+      contentLines += contactFields * contactRowFactor + hkMetaRows * hkMetaFactor;
       break;
     }
     case "summary":

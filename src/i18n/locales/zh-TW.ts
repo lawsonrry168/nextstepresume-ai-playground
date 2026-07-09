@@ -1551,6 +1551,9 @@ const zhTW: MessageTree = {
     exportVisualDesc: "（與預覽一致；伺服器 Chromium 列印，可選文字）",
     exportAts: "ATS",
     exportAtsDesc: "（可選文字、結構化）。",
+    loadTemplateDemo: "載入版型示範（2 頁）",
+    loadTemplateDemoConfirm: "是否以目前版型的兩頁示範內容與 Canvas 版面取代現有履歷？未儲存的編輯將會遺失。",
+    loadTemplateDemoSuccess: "已載入兩頁版型示範內容。",
   },
 
   coverLetterEditor: {

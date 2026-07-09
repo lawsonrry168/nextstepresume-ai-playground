@@ -15,14 +15,17 @@ import { resolveResumeTheme } from "../lib/resumeThemeCustomization";
 import { formatCanvasPageLabel } from "../lib/sectionLabels";
 import { layerZIndex } from "../lib/canvasStudioTypes";
 import { baseSectionIdFromFragment } from "../lib/layoutEntryPagination";
+import { normalizePrintLayoutPayload } from "../lib/printExportBridge";
 
 const FreeLayoutStudioCanvas = lazy(() => import("./playground/FreeLayoutStudioCanvas"));
 
 /** A4 at 96dpi — must match CANVAS_PAGE_WIDTH so Chromium maps 794px → 210mm */
 const PRINT_SHEET_WIDTH = 794;
 
-const FONT_CSS =
-  "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Source+Serif+4:wght@400;600;700&family=Public+Sans:wght@400;600;700&family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap";
+import {
+  GOOGLE_PRINT_FONTS_URL,
+  waitForPrintFontsReady,
+} from "../lib/printFonts";
 
 function WatermarkStyles({ text }: { text: string }) {
   const safe = text.replace(/"/g, "'");
@@ -57,22 +60,20 @@ function WatermarkStyles({ text }: { text: string }) {
 }
 
 function buildCanvasLayout(layout: PrintLayoutPayload) {
-  const pages =
-    layout.pages && layout.pages.length > 0
-      ? layout.pages
-      : [{ id: "print-page-1", label: formatCanvasPageLabel(1) }];
+  const normalized = normalizePrintLayoutPayload(layout);
+  const pages = normalized.pages?.length
+    ? normalized.pages
+    : [{ id: "print-page-1", label: formatCanvasPageLabel(1) }];
   const primaryPageId = pages[0]!.id;
   return {
     pages,
     activePageId: primaryPageId,
-    sectionPageMap: layout.sectionPageMap ?? {},
-    hiddenSections: layout.hiddenSections ?? {},
+    sectionPageMap: normalized.sectionPageMap ?? {},
+    hiddenSections: normalized.hiddenSections ?? {},
     lockedSections: {},
     selectedSectionId: null,
     onSelectSection: () => {},
-    // Match the studio/hidden-export-surface stacking (10 + layer index, default 10)
-    // and resolve entry-split fragments via their base section.
-    getZIndex: (id: string) => layerZIndex(baseSectionIdFromFragment(id), layout.layerOrder ?? []),
+    getZIndex: (id: string) => layerZIndex(baseSectionIdFromFragment(id), normalized.layerOrder ?? []),
   };
 }
 
@@ -85,7 +86,11 @@ export default function PrintExportPage() {
   const payload: Partial<ServerPrintPayload> = readStoredPrintPayload();
   const data: ResumeData = payload.resumeData ?? initialResumeData;
   const style: TemplateStyle = normalizeTemplateStyle(payload.templateStyle);
-  const layout = payload.layout;
+  const layout = payload.layout
+    ? payload.layout.enabled
+      ? normalizePrintLayoutPayload(payload.layout as PrintLayoutPayload)
+      : payload.layout
+    : undefined;
   const useFreeLayout = layout?.enabled === true && (layout.sections?.length ?? 0) > 0;
 
   const resolvedTheme = useMemo(
@@ -116,7 +121,7 @@ export default function PrintExportPage() {
     if (!document.querySelector('link[data-print-fonts="true"]')) {
       const link = document.createElement("link");
       link.rel = "stylesheet";
-      link.href = FONT_CSS;
+      link.href = GOOGLE_PRINT_FONTS_URL;
       link.setAttribute("data-print-fonts", "true");
       fontsLoaded = new Promise<void>((resolve) => {
         link.onload = () => resolve();
@@ -151,10 +156,13 @@ export default function PrintExportPage() {
       settleWithin(fontsLoaded, 8000),
       settleWithin(canvasReady, 12000),
     ])
+      .then(() => settleWithin(waitForPrintFontsReady(12000), 12000))
       .then(() => settleWithin(document.fonts.ready, 8000))
       .then(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
       .then(() => {
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          setReady(true);
+        }
       })
       .finally(() => clearTimeout(hardFallback));
 
@@ -181,7 +189,11 @@ export default function PrintExportPage() {
       <style>{`
         @page { margin: 0; size: ${pageSize}; }
         ${paperWhiteCss}
-        html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+        html, body { margin: 0 !important; padding: 0 !important; background: white !important; height: auto !important; overflow: hidden !important; }
+        [data-print-export-root] {
+          height: auto !important;
+          overflow: hidden !important;
+        }
         [data-print-export-root] .resume-a4-surface,
         [data-print-export-root] #resume-printable-sheet,
         [data-print-export-root] #resume-export-surface {
@@ -193,13 +205,56 @@ export default function PrintExportPage() {
         [data-print-export-root] .canvas-multi-page-desk {
           gap: 0 !important;
         }
+        [data-print-export-root] .canvas-multi-page-desk {
+          gap: 0 !important;
+          height: auto !important;
+          overflow: hidden !important;
+        }
         [data-print-export-root] .canvas-page-sheet {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
           page-break-after: always;
           break-after: page;
         }
         [data-print-export-root] .canvas-page-sheet:last-child {
           page-break-after: auto;
           break-after: auto;
+        }
+        [data-print-export-root] .resume-a4-surface {
+          overflow: hidden !important;
+          max-height: var(--layout-page-height, 1123px) !important;
+          height: var(--layout-page-height, 1123px) !important;
+        }
+        /* Free-layout export: section x/y already include margins. */
+        [data-print-export-root] .resume-a4-surface.resume-free-layout-sheet {
+          padding: 0 !important;
+        }
+        [data-print-export-root] .resume-a4-surface:not(.resume-template-marginalia) {
+          --a4-section-gap: 12px;
+          --a4-block-gap: 6px;
+          --a4-item-gap: 3px;
+          font-size: 10px;
+        }
+        /* Chromium print + Inter/Noto mix can insert visible gaps between CJK
+           glyphs when letter-spacing / tracking utilities inherit. Reset body
+           copy; keep intentional tracking only on Latin uppercase labels. */
+        [data-print-export-root] .resume-a4-surface,
+        [data-print-export-root] .resume-a4-surface p,
+        [data-print-export-root] .resume-a4-surface li,
+        [data-print-export-root] .resume-a4-surface span,
+        [data-print-export-root] .resume-a4-surface h1,
+        [data-print-export-root] .resume-a4-surface h2,
+        [data-print-export-root] .resume-a4-surface h3 {
+          letter-spacing: normal !important;
+          word-spacing: normal !important;
+          font-kerning: normal;
+          font-feature-settings: "kern" 1;
+        }
+        [data-print-export-root] .resume-a4-surface .uppercase.tracking-wider,
+        [data-print-export-root] .resume-a4-surface .uppercase.tracking-wide,
+        [data-print-export-root] .resume-a4-surface .uppercase.tracking-widest {
+          letter-spacing: 0.05em !important;
         }
       `}</style>
       {payload.watermark ? <WatermarkStyles text={payload.watermark} /> : null}

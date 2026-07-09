@@ -60,12 +60,18 @@ export function clampSectionPosition(
   canvasWidth: number = FREE_LAYOUT_CANVAS.width,
 ): FreeLayoutPosition {
   const width = clampSectionWidth(pos.width, pos.x, canvasWidth);
-  return {
+  const next: FreeLayoutPosition = {
     x: Math.max(0, Math.min(pos.x, canvasWidth - width)),
     y: Math.max(0, pos.y),
     width,
     height: clampSectionHeight(pos.height),
   };
+  // Preserve multi-page assignment — dropping pageId collapses every section
+  // onto the primary sheet and causes smart-layout / sync overlaps.
+  if (typeof pos.pageId === "string" && pos.pageId.trim()) {
+    next.pageId = pos.pageId;
+  }
+  return next;
 }
 
 export function defaultSectionHeight(sectionId: string): number {

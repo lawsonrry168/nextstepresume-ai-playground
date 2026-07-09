@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyPageLayoutAction, assignAllSectionsToPage, reflowPageColumnsNatural, resolveLayoutTargetPageId, sortSectionsByPanelOrder, syncSectionHeightsToContentAllPages, syncSectionSizesToContentAllPages } from "../lib/canvasLayoutTools";
-import { initialResumeData } from "../data";
+import { compactResumeFixture } from "../data";
 import {
   estimateSectionHeightForContent,
   estimateSectionWidthForContent,
@@ -250,7 +250,7 @@ describe("canvasLayoutTools", () => {
   });
 
   it("stack-compact uses tighter gaps than fill-page stack when resume data is present", async () => {
-    const { initialResumeData } = await import("../data");
+    const { compactResumeFixture } = await import("../data");
     // Content set chosen to genuinely fit one A4 page with accurate heights —
     // the compact-vs-natural gap invariant is only physical when slack exists.
     const ids = ["header", "summary", "education", "skills", "languages"];
@@ -261,7 +261,7 @@ describe("canvasLayoutTools", () => {
       skills: { x: 48, y: 760, width: 698, height: 120, pageId },
       languages: { x: 48, y: 920, width: 698, height: 80, pageId },
     };
-    const content = { resumeData: initialResumeData };
+    const content = { resumeData: compactResumeFixture };
     const stacked = applyPageLayoutAction("stack", ids, loose, pageId, getPageId, undefined, content);
     const compact = applyPageLayoutAction("stack-compact", ids, loose, pageId, getPageId, undefined, content);
 
@@ -320,12 +320,12 @@ describe("canvasLayoutTools", () => {
       pageId,
       getPageId,
       undefined,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
     );
     for (const id of sectionIds) {
       const expectedW = estimateSectionWidthForContent(
         id,
-        initialResumeData,
+        compactResumeFixture,
         698,
         positions[id as keyof typeof positions].x,
       );
@@ -341,10 +341,10 @@ describe("canvasLayoutTools", () => {
       pageId,
       getPageId,
       undefined,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
     );
     for (const id of sectionIds) {
-      const expected = estimateSectionHeightForContent(id, initialResumeData, positions[id as keyof typeof positions].width);
+      const expected = estimateSectionHeightForContent(id, compactResumeFixture, positions[id as keyof typeof positions].width);
       expect(result[id as keyof typeof result].height).toBe(expected);
     }
   });
@@ -368,13 +368,13 @@ describe("canvasLayoutTools", () => {
       pageId,
       getPageId,
       undefined,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
     );
     const stackWidth = result.header.width;
     for (const id of sectionIds) {
       expect(result[id as keyof typeof result].width).toBe(stackWidth);
       expect(result[id as keyof typeof result].height).toBe(
-        estimateSectionHeightForContent(id, initialResumeData, stackWidth),
+        estimateSectionHeightForContent(id, compactResumeFixture, stackWidth),
       );
     }
     expect(result.experience.height).toBeGreaterThan(result.header.height);
@@ -389,12 +389,12 @@ describe("canvasLayoutTools", () => {
       pageId,
       getPageId,
       undefined,
-      { resumeData: initialResumeData, layerOrder },
+      { resumeData: compactResumeFixture, layerOrder },
     );
     const xs = new Set([result.header.x, result.summary.x, result.experience.x]);
     expect(xs.size).toBe(2);
     expect(result.experience.height).toBe(
-      estimateSectionHeightForContent("experience", initialResumeData, result.experience.width),
+      estimateSectionHeightForContent("experience", compactResumeFixture, result.experience.width),
     );
   });
 
@@ -442,7 +442,7 @@ describe("canvasLayoutTools", () => {
       pageId,
       getPageId,
       undefined,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
     );
     expect(result.experience.y + result.experience.height).toBe(CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN);
     expect(result.experience.height).toBeGreaterThan(result.header.height);
@@ -461,18 +461,18 @@ describe("canvasLayoutTools", () => {
       pageId,
       getPageId,
       undefined,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
     );
     expect(result.experience.height).toBeGreaterThan(result.header.height);
-    expect(getSectionTextLength("experience", initialResumeData)).toBeGreaterThan(
-      getSectionTextLength("header", initialResumeData),
+    expect(getSectionTextLength("experience", compactResumeFixture)).toBeGreaterThan(
+      getSectionTextLength("header", compactResumeFixture),
     );
   });
 
   it("syncSectionHeightsToContentAllPages preserves column widths and x positions", () => {
     const layerOrder = ["experience", "summary", "header"];
     const twoCol = applyPageLayoutAction("two-column", sectionIds, positions, pageId, getPageId, undefined, {
-      resumeData: initialResumeData,
+      resumeData: compactResumeFixture,
       layerOrder,
     });
     const synced = syncSectionHeightsToContentAllPages(
@@ -480,13 +480,13 @@ describe("canvasLayoutTools", () => {
       twoCol,
       [pageId],
       getPageId,
-      { resumeData: initialResumeData, layerOrder },
+      { resumeData: compactResumeFixture, layerOrder },
     );
     for (const id of sectionIds) {
       expect(synced[id as keyof typeof synced].width).toBe(twoCol[id as keyof typeof twoCol].width);
       expect(synced[id as keyof typeof synced].x).toBe(twoCol[id as keyof typeof twoCol].x);
       expect(synced[id as keyof typeof synced].height).toBe(
-        estimateSectionHeightForContent(id, initialResumeData, twoCol[id as keyof typeof twoCol].width),
+        estimateSectionHeightForContent(id, compactResumeFixture, twoCol[id as keyof typeof twoCol].width),
       );
     }
   });
@@ -502,7 +502,7 @@ describe("canvasLayoutTools", () => {
       narrow,
       [pageId],
       getPageId,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
       { reflow: false, resizeWidth: true },
     );
     const heightOnly = syncSectionSizesToContentAllPages(
@@ -510,7 +510,7 @@ describe("canvasLayoutTools", () => {
       narrow,
       [pageId],
       getPageId,
-      { resumeData: initialResumeData },
+      { resumeData: compactResumeFixture },
       { reflow: false, resizeWidth: false },
     );
     expect(fullWidth.experience.width).toBeGreaterThan(narrow.experience.width);
@@ -522,7 +522,7 @@ describe("canvasLayoutTools", () => {
     const layerOrder = ["experience", "summary", "header", "education", "skills", "projects"];
     const ids = ["header", "summary", "experience", "education", "skills", "projects"];
     const twoCol = applyPageLayoutAction("two-column", ids, positions, pageId, getPageId, undefined, {
-      resumeData: initialResumeData,
+      resumeData: compactResumeFixture,
       layerOrder,
     });
     const inflated = {
@@ -531,7 +531,7 @@ describe("canvasLayoutTools", () => {
       experience: { ...twoCol.experience, height: twoCol.experience.height + 200 },
     };
     const reflowed = reflowPageColumnsNatural(ids, inflated, pageId, getPageId, {
-      resumeData: initialResumeData,
+      resumeData: compactResumeFixture,
       layerOrder,
     });
 

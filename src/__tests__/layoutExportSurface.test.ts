@@ -62,10 +62,12 @@ describe("layoutExportSurface", () => {
     }
   });
 
-  it("single-page export stays on one page for default resume", () => {
-    const seeded = createFamilyDefaultPositions("modern", SECTION_IDS);
+  it("default resume export fits printable pages without overflow", () => {
+    const seeded = createFamilyDefaultPositions("modern", SECTION_IDS, initialResumeData);
     const plan = buildPrintReadyExportLayout(SECTION_IDS, seeded, initialResumeData);
-    expect(plan.pageIds).toHaveLength(1);
+    // Full HK meta (Notice/Expected) can push a dense modern layout to 2 pages.
+    expect(plan.pageIds.length).toBeGreaterThanOrEqual(1);
+    expect(plan.pageIds.length).toBeLessThanOrEqual(2);
     for (const id of SECTION_IDS) {
       expect(sectionOverflowsPrintPage(plan.positions[id]!)).toBe(false);
     }
@@ -85,5 +87,30 @@ describe("layoutExportSurface", () => {
         expect(sectionOverflowsPrintPage(plan.positions[id]!)).toBe(false);
       }
     }
+  });
+
+  it("preservePlacements paginates overflow on multi-page studio assignments", () => {
+    const overflowIds = ["header", "summary", "experience", "education"];
+    const seeded = {
+      header: { x: 48, y: 48, width: 698, height: 180, pageId: "demo-page-1" },
+      summary: { x: 48, y: 240, width: 698, height: 120, pageId: "demo-page-1" },
+      experience: { x: 48, y: 380, width: 698, height: 720, pageId: "demo-page-1" },
+      education: { x: 48, y: 48, width: 698, height: 160, pageId: "demo-page-2" },
+    };
+    const plan = buildPrintReadyExportLayout(overflowIds, seeded, initialResumeData, {
+      preservePlacements: true,
+      studioPages: [
+        { id: "demo-page-1", label: "Page 1" },
+        { id: "demo-page-2", label: "Page 2" },
+      ],
+      studioSectionPageMap: {
+        header: "demo-page-1",
+        summary: "demo-page-1",
+        experience: "demo-page-1",
+        education: "demo-page-2",
+      },
+    });
+    expect(sectionOverflowsPrintPage(plan.positions.experience!)).toBe(false);
+    expect(plan.pageIds.length).toBeGreaterThanOrEqual(2);
   });
 });

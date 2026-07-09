@@ -1,5 +1,6 @@
 import type { ResumeData } from "../types";
 import type { TemplateFamily } from "./resumeTemplateCatalog";
+import type { TemplateLayoutArchetype } from "./templates/tokens";
 import { CANVAS_PAGE_MARGIN } from "./canvasAlignTools";
 import { clampPositionToA4Page } from "./canvasPageSnap";
 import { estimateSectionHeightForContent } from "./canvasSectionContentSizing";
@@ -305,6 +306,35 @@ export function createFamilyDefaultPositions(
   return finalizeLayout(sectionIds, fn(sectionIds, resumeData), resumeData);
 }
 
+export function createArchetypeLayoutPositions(
+  archetype: TemplateLayoutArchetype,
+  family: TemplateFamily,
+  sectionIds: string[],
+  resumeData?: ResumeData,
+): Record<string, FreeLayoutPosition> {
+  let fn: PresetLayoutFn = FAMILY_FN[family] ?? layoutStack;
+  switch (archetype) {
+    case "sidebar-left":
+    case "header-band":
+      fn = family === "minimalist" ? layoutSidebar : layoutEditorial;
+      break;
+    case "sidebar-right":
+      fn = layoutSidebar;
+      break;
+    case "two-column":
+      fn = layoutTwoColumn;
+      break;
+    case "timeline":
+      fn = family === "classic" ? layoutStackCenter : layoutStack;
+      break;
+    case "single":
+    default:
+      fn = family === "classic" ? layoutStackCenter : family === "minimalist" ? layoutSidebar : layoutStack;
+      break;
+  }
+  return finalizeLayout(sectionIds, fn(sectionIds, resumeData), resumeData);
+}
+
 /** @deprecated Use createFamilyDefaultPositions */
 export function createDefaultFreeLayoutPositions(
   sectionIds: string[],
@@ -319,6 +349,31 @@ export function createDefaultFreeLayoutPositions(
  * alone on page 1. A resume header belongs at the top of the first page —
  * anything else came from the inverted reflow and should self-heal.
  */
+function sectionsOverlap(a: FreeLayoutPosition, b: FreeLayoutPosition, gap = 2): boolean {
+  return !(
+    a.x + a.width <= b.x + gap ||
+    b.x + b.width <= a.x + gap ||
+    a.y + a.height <= b.y + gap ||
+    b.y + b.height <= a.y + gap
+  );
+}
+
+/** True when two sections on the same page occupy overlapping bounding boxes. */
+export function freeLayoutHasSamePageOverlaps(
+  positions: Record<string, FreeLayoutPosition>,
+): boolean {
+  const ids = Object.keys(positions);
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const a = positions[ids[i]!]!;
+      const b = positions[ids[j]!]!;
+      if ((a.pageId ?? "") !== (b.pageId ?? "")) continue;
+      if (sectionsOverlap(a, b)) return true;
+    }
+  }
+  return false;
+}
+
 function hasCorruptHeaderPlacement(merged: Record<string, FreeLayoutPosition>): boolean {
   const header = merged.header;
   if (!header) return false;
@@ -354,6 +409,10 @@ export function mergeFreeLayoutPositions(
   }
 
   if (hasCorruptHeaderPlacement(merged)) {
+    shouldResetToDefaults = true;
+  }
+
+  if (stored && freeLayoutHasSamePageOverlaps(stored as Record<string, FreeLayoutPosition>)) {
     shouldResetToDefaults = true;
   }
 

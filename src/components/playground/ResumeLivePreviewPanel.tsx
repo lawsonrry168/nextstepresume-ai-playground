@@ -13,6 +13,7 @@ const CanvasPageStrip = lazy(() => import("./canvas/CanvasPageStrip"));
 const CanvasRightNavSections = lazy(() => import("./canvas/CanvasRightNavSections"));
 import type { CanvasToolsBarProps } from "./canvas/CanvasToolsBar";
 import { useLayoutDocument } from "../../hooks/useLayoutDocument";
+import { syncPagesDocumentToPositions } from "../../hooks/useCanvasDocument";
 import {
   addCanvasElement,
   getCanvasElements,
@@ -30,8 +31,9 @@ import { formatAutoSaveTime, formatCanvasPageLabel } from "../../lib/sectionLabe
 import { clampPositionToA4Page } from "../../lib/canvasPageSnap";
 import { alignPositionOnPage, nudgePosition, centerOnPage, fillPageWidth, snapPositionToGrid, resizeSection, resetSectionPosition } from "../../lib/canvasAlignTools";
 import {
+  applyA4AutoLayoutAllPages,
   applyPageLayoutAction,
-  assignAllSectionsToPage,
+  isMultiPageStructuralLayoutAction,
   reflowPageColumnsNatural,
   resolveLayoutTargetPageId,
   sectionsOnPage,
@@ -42,14 +44,20 @@ import {
   type CanvasPageLayoutAction,
 } from "../../lib/canvasLayoutTools";
 import { buildContentFitSignature, buildThemeFitSignature, themeContentScale } from "../../lib/canvasSectionContentSizing";
-import { EXPORT_SURFACE_HOST_ID } from "../../lib/layoutExportSurface";
+import { EXPORT_SURFACE_HOST_ID, sectionOverflowsPrintPage } from "../../lib/layoutExportSurface";
 import { editorPositionsFromDraftThroughPrintPlan, editorPositionsFromPrintPlan } from "../../lib/layoutDocument";
 import type { FreeLayoutPresetId, FreeLayoutPosition } from "../../lib/resumeFreeLayout";
 import { estimateFreeLayoutCanvasHeight, FREE_LAYOUT_CANVAS } from "../../lib/resumeFreeLayout";
 import { LAYOUT_PAGE_HEIGHT, LAYOUT_PAGE_WIDTH } from "../../lib/layoutDocument/geometry";
 import { createFamilyDefaultPositions, createFreeLayoutPresetPositions } from "../../lib/layoutPresets";
 import { useResponsiveScale } from "../../hooks/useResponsiveScale";
-import { setPrintExportSnapshot } from "../../lib/printExportBridge";
+import { exportSectionPageMapFromPositions, setPrintExportSnapshot } from "../../lib/printExportBridge";
+import { isTemplateDemoResume } from "../../lib/templates/templateDemoMatch";
+import {
+  demoLayoutHasPageOverflow,
+  demoLayoutPageAssignmentDrift,
+} from "../../lib/templates/templateDemoLayout";
+import { resolveTemplateDemoEditorPositions } from "../../lib/templates/applyTemplateDemo";
 import ExportDock from "./ExportDock";
 import CanvasContextMenu, { type CanvasContextMenuState } from "./CanvasContextMenu";
 import {
@@ -104,6 +112,8 @@ export interface ResumeLivePreviewPanelProps {
   onThemeCustomizationChange: (patch: Partial<ResumeThemeCustomization>) => void;
   onThemeCustomizationReset: () => void;
   resolvedTheme: ResolvedResumeTheme;
+  /** Increment to reload free-layout + canvas pages after template demo is persisted. */
+  templateDemoReloadToken?: number;
 }
 
 function CanvasLoadingFallback() {
@@ -200,6 +210,7 @@ export default function ResumeLivePreviewPanel({
   onThemeCustomizationChange,
   onThemeCustomizationReset,
   resolvedTheme,
+  templateDemoReloadToken = 0,
 }: ResumeLivePreviewPanelProps) {
   const { t } = useI18n();
   const { canUseFeature, openUpgrade } = useSubscription();
@@ -226,13 +237,24 @@ export default function ResumeLivePreviewPanel({
     exportSections,
     exportSectionSlices,
     exportCanvasLayout,
+    reloadLayoutFromStorage,
   } = useLayoutDocument({
     resumeData,
     templateFamily,
+    activeTemplate,
     themeCustomization,
     manualSizedSections,
     extraSections,
   });
+
+  const templateDemoReloadRef = useRef(templateDemoReloadToken);
+  useEffect(() => {
+    if (templateDemoReloadToken <= 0 || templateDemoReloadRef.current === templateDemoReloadToken) {
+      return;
+    }
+    templateDemoReloadRef.current = templateDemoReloadToken;
+    reloadLayoutFromStorage();
+  }, [templateDemoReloadToken, reloadLayoutFromStorage]);
 
   const handleAddElement = useCallback(
     (kind: CanvasElementKind) => {
@@ -264,6 +286,8 @@ export default function ResumeLivePreviewPanel({
   const [smartLayoutFeedback, setSmartLayoutFeedback] = useState<string | null>(null);
   const [resetCloudLayoutBusy, setResetCloudLayoutBusy] = useState(false);
 
+  const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
+
   const handleSmartLayout = useCallback(() => {
     const result = runSmartLayoutPipeline({
       sectionIds: freeLayoutSectionIds,
@@ -280,6 +304,10 @@ export default function ResumeLivePreviewPanel({
     freeLayout.applyPositionsBatch(result.editorPositions, { constrainA4: true });
     setSmartLayoutFeedback(t(result.analysis.rationaleKey));
     window.setTimeout(() => setSmartLayoutFeedback(null), 5000);
+    // Fit the full multi-page desk — don't focusPage after, or the camera
+    // jumps to a single page and looks "stuck" in a corner.
+    requestAnimationFrame(() => canvasViewportRef.current?.fitToScreen());
+    window.setTimeout(() => canvasViewportRef.current?.fitToScreen(), 120);
   }, [
     canvasDoc,
     freeLayout,
@@ -289,7 +317,6 @@ export default function ResumeLivePreviewPanel({
     t,
     themeCustomization,
   ]);
-  const canvasViewportRef = useRef<CanvasStudioViewportHandle>(null);
   const handleResetCloudLayout = useCallback(async () => {
     const confirmKey =
       sync.enabled && session
@@ -329,9 +356,23 @@ export default function ResumeLivePreviewPanel({
     return [];
   }, []);
 
-  const handleCanvasSelectionChange = useCallback((primary: string | null, multi: ReadonlySet<string>) => {
-    canvasSelectionRef.current = { primary, multi };
-  }, []);
+  const handleCanvasSelectionChange = useCallback(
+    (primary: string | null, multi: ReadonlySet<string>) => {
+      canvasSelectionRef.current = { primary, multi };
+      if (!primary || !canvasViewportRef.current) return;
+      const pageId =
+        freeLayout.positions[primary]?.pageId ?? canvasDoc.getSectionPageId(primary);
+      if (pageId && pageId !== canvasDoc.activePageId) {
+        canvasDoc.setActivePageId(pageId);
+      }
+      const pageIndex = Math.max(
+        0,
+        canvasDoc.pages.findIndex((page) => page.id === pageId),
+      );
+      requestAnimationFrame(() => canvasViewportRef.current?.focusPage(pageIndex));
+    },
+    [canvasDoc, freeLayout.positions],
+  );
 
   const handleCanvasCopy = useCallback(() => {
     const ids = getActiveSelectionIds();
@@ -389,16 +430,154 @@ export default function ResumeLivePreviewPanel({
   const showFreeLayoutEditor = showFreeLayoutCanvas || showCanvasViewport;
   const freeLayoutVariant = "edit" as const;
 
+  const previewPagesDoc = useMemo(
+    () =>
+      syncPagesDocumentToPositions(
+        { pages: canvasDoc.pages, activePageId: canvasDoc.activePageId },
+        freeLayoutSectionIds,
+        freeLayout.positions,
+      ),
+    [canvasDoc.activePageId, canvasDoc.pages, freeLayoutSectionIds, freeLayout.positions],
+  );
+
+  const workspaceCanvasLayout = useMemo(() => {
+    const pagesFromPlan =
+      exportPrintPlan.pageIds.length > 1
+        ? exportPrintPlan.pageIds.map((id, index) => {
+            const fromDoc = previewPagesDoc.pages.find((page) => page.id === id);
+            return fromDoc ?? { id, label: formatCanvasPageLabel(index + 1) };
+          })
+        : previewPagesDoc.pages.length > 1
+          ? previewPagesDoc.pages
+          : null;
+    if (!pagesFromPlan || pagesFromPlan.length <= 1) return undefined;
+
+    const sectionPageMap = exportSectionPageMapFromPositions(
+      exportSections.length ? exportSections : freeLayout.sections,
+      exportSurfacePositions,
+      pagesFromPlan[0]!.id,
+    );
+
+
+    return {
+      pages: pagesFromPlan,
+      activePageId: pagesFromPlan[0]!.id,
+      sectionPageMap,
+      hiddenSections: canvasDoc.layers.hidden,
+      lockedSections: canvasDoc.layers.locked,
+      selectedSectionId: null as string | null,
+      onSelectSection: () => {},
+      getZIndex: canvasDoc.getZIndex,
+    };
+  }, [
+    canvasDoc.getZIndex,
+    canvasDoc.layers.hidden,
+    canvasDoc.layers.locked,
+    canvasDoc.sectionPageMap,
+    exportPrintPlan.pageIds,
+    exportSections,
+    exportSurfacePositions,
+    freeLayout.positions,
+    freeLayout.sections,
+    previewPagesDoc.pages,
+  ]);
+
+  const sidebarPreviewLayout = exportCanvasLayout ?? workspaceCanvasLayout;
+  const isDemoMultiPageExport =
+    Boolean(activeTemplate) &&
+    isTemplateDemoResume(resumeData, activeTemplate) &&
+    exportPrintPlan.pageIds.length > 1;
+  const sidebarUsesPrintPlan =
+    isDemoMultiPageExport ||
+    (Boolean(sidebarPreviewLayout) && exportPrintPlan.pageIds.length > 1);
+  const sidebarPreviewSections = sidebarUsesPrintPlan ? exportSections : freeLayout.sections;
+  const sidebarPreviewPositions = sidebarUsesPrintPlan
+    ? exportSurfacePositions
+    : freeLayout.positions;
+  const isActiveTemplateDemo = isTemplateDemoResume(resumeData, activeTemplate);
+  /** Demo uses pre-paginated A4 positions — DOM auto-fit breaks two-page layout. */
+  const demoLocksLayoutHeights = isActiveTemplateDemo;
+
+  useEffect(() => {
+    if (!isTemplateDemoResume(resumeData, activeTemplate)) return;
+    if (!freeLayout.enabled) {
+      freeLayout.setEnabled(true);
+    }
+  }, [activeTemplate, freeLayout.enabled, freeLayout.setEnabled, resumeData]);
+
+  useEffect(() => {
+    if (!isTemplateDemoResume(resumeData, activeTemplate)) return;
+    if (!freeLayout.enabled) return;
+    if (
+      !demoLayoutPageAssignmentDrift(
+        freeLayout.positions,
+        activeTemplate,
+        freeLayoutSectionIds,
+        resumeData,
+      ) &&
+      !demoLayoutHasPageOverflow(freeLayout.positions)
+    ) {
+      return;
+    }
+    const expected = resolveTemplateDemoEditorPositions(
+      activeTemplate,
+      freeLayoutSectionIds,
+      resumeData,
+    );
+    freeLayout.applyPositionsBatch(expected, { constrainA4: true });
+  }, [
+    activeTemplate,
+    freeLayout.applyPositionsBatch,
+    freeLayout.enabled,
+    freeLayoutSectionIds,
+    resumeData,
+    templateDemoReloadToken,
+  ]);
+
+  useEffect(() => {
+  }, [
+    canvasDoc.pages.length,
+    exportPrintPlan.pageIds,
+    freeLayout.enabled,
+    previewPagesDoc.pages.length,
+    showFreeLayoutCanvas,
+    isDemoMultiPageExport,
+    sidebarPreviewLayout,
+    sidebarUsesPrintPlan,
+  ]);
+
   const canvasContentHeight = useMemo(() => {
     if (showCanvasViewport) {
       return computeMultiPageDeskHeight(canvasDoc.pages.length);
     }
+    if (showFreeLayoutCanvas && previewPagesDoc.pages.length > 1) {
+      return computeMultiPageDeskHeight(previewPagesDoc.pages.length);
+    }
+    if (showFreeLayoutCanvas && exportPrintPlan.pageIds.length > 1) {
+      return computeMultiPageDeskHeight(exportPrintPlan.pageIds.length);
+    }
     return estimateFreeLayoutCanvasHeight(freeLayoutSectionIds, freeLayout.positions);
-  }, [showCanvasViewport, canvasDoc.pages.length, freeLayoutSectionIds, freeLayout.positions]);
+  }, [
+    showCanvasViewport,
+    showFreeLayoutCanvas,
+    canvasDoc.pages.length,
+    previewPagesDoc.pages.length,
+    freeLayoutSectionIds,
+    freeLayout.positions,
+  ]);
 
   const canvasClampDoneRef = useRef(false);
 
   useEffect(() => {
+    const exportPages = exportPrintPlan.pageIds.map((id, index) => ({
+      id,
+      label: formatCanvasPageLabel(index + 1),
+    }));
+    const exportSectionPageMap = exportSectionPageMapFromPositions(
+      exportSections,
+      exportSurfacePositions,
+      exportPrintPlan.pageIds[0],
+    );
     setPrintExportSnapshot({
       resumeData,
       activeTemplate,
@@ -409,17 +588,8 @@ export default function ResumeLivePreviewPanel({
       freeLayoutEnabled: freeLayout.enabled,
       sections: exportSections,
       exportSurfacePositions,
-      exportPages: exportPrintPlan.pageIds.map((id, index) => ({
-        id,
-        label: formatCanvasPageLabel(index + 1),
-      })),
-      sectionPageMap:
-        exportCanvasLayout?.sectionPageMap ??
-        Object.fromEntries(
-          exportSections
-            .filter((s) => exportSurfacePositions[s.id])
-            .map((s) => [s.id, exportSurfacePositions[s.id]!.pageId ?? exportPrintPlan.pageIds[0]!]),
-        ),
+      exportPages,
+      sectionPageMap: exportSectionPageMap,
       layerOrder: canvasDoc.layers.order,
       hiddenSections: canvasDoc.layers.hidden,
       sectionSlices: exportSectionSlices,
@@ -431,10 +601,9 @@ export default function ResumeLivePreviewPanel({
     canvasDoc.layers.hidden,
     canvasDoc.layers.order,
     exportPrintPlan.pageIds,
-    exportCanvasLayout?.sectionPageMap,
-    exportSectionSlices,
     exportSections,
     exportSurfacePositions,
+    canvasDoc.sectionPageMap,
     freeLayout.enabled,
     freeLayout.sections,
     grayscaleMode,
@@ -465,18 +634,41 @@ export default function ResumeLivePreviewPanel({
     }
   }, [showCanvasViewport, freeLayoutSectionIds, freeLayout.positions, freeLayout.updatePosition]);
 
-  useEffect(() => {
-    if (!showCanvasViewport) return;
-    const frame = requestAnimationFrame(() => {
-      canvasViewportRef.current?.fitToScreen();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [showCanvasViewport, canvasDoc.pages.length, canvasContentHeight]);
-
   const activePageIndex = useMemo(
     () => Math.max(0, canvasDoc.pages.findIndex((p) => p.id === canvasDoc.activePageId)),
     [canvasDoc.pages, canvasDoc.activePageId],
   );
+
+  // Entering canvas / page-count change: fit the full desk into view (centered).
+  useEffect(() => {
+    if (!showCanvasViewport) return;
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) canvasViewportRef.current?.fitToScreen();
+    };
+    const frame = requestAnimationFrame(run);
+    // Stage often measures 0×0 on the first frame — retry once layout settles.
+    const retry = window.setTimeout(run, 80);
+    const retry2 = window.setTimeout(run, 240);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(retry);
+      window.clearTimeout(retry2);
+    };
+  }, [showCanvasViewport, canvasDoc.pages.length, canvasContentHeight]);
+
+  // Page-strip / keyboard page changes: track the active page without fighting fit.
+  const prevActivePageRef = useRef(canvasDoc.activePageId);
+  useEffect(() => {
+    if (!showCanvasViewport) return;
+    if (prevActivePageRef.current === canvasDoc.activePageId) return;
+    prevActivePageRef.current = canvasDoc.activePageId;
+    const frame = requestAnimationFrame(() => {
+      canvasViewportRef.current?.focusPage(activePageIndex);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showCanvasViewport, activePageIndex, canvasDoc.activePageId]);
 
   const layoutTargetPageId = useMemo(
     () =>
@@ -584,6 +776,9 @@ export default function ResumeLivePreviewPanel({
 
   const runColumnReflow = useCallback(() => {
     if (!showFreeLayoutEditor) return;
+    // Demo layouts are already A4-paginated; column reflow shifts y (e.g. 408→571)
+    // and desyncs Canvas draft from the print/PDF plan.
+    if (isActiveTemplateDemo) return;
     const targetPageId = resolveLayoutTargetPageId(
       freeLayoutSectionIds,
       layoutPositionsRef.current,
@@ -617,6 +812,7 @@ export default function ResumeLivePreviewPanel({
     canvasDoc.pages,
     freeLayout.applyPositionsBatch,
     freeLayoutSectionIds,
+    isActiveTemplateDemo,
     layoutContent,
     showFreeLayoutEditor,
   ]);
@@ -696,22 +892,44 @@ export default function ResumeLivePreviewPanel({
         canvasDoc.setActivePageId(targetPageId);
       }
 
-      let workingPositions = freeLayout.positions;
-      const assignPatches = assignAllSectionsToPage(freeLayoutSectionIds, workingPositions, targetPageId);
-      if (Object.keys(assignPatches).length > 0) {
-        freeLayout.applyPositionsBatch(assignPatches, { constrainA4: true });
-        workingPositions = { ...workingPositions, ...assignPatches };
-      }
-
-      const patches = applyPageLayoutAction(
-        action,
-        freeLayoutSectionIds,
-        workingPositions,
-        targetPageId,
-        canvasDoc.getSectionPageId,
-        canvasDoc.selectedSectionId ?? undefined,
-        layoutContent,
-      );
+      const workingPositions = freeLayout.positions;
+      // Never collapse multi-page layouts into the active page — reflow each
+      // occupied page (structural) or only the target page (align/snap tools).
+      const occupiedPageIds = canvasDoc.pages
+        .map((page) => page.id)
+        .filter((pageId) =>
+          sectionsOnPage(
+            freeLayoutSectionIds,
+            workingPositions,
+            pageId,
+            canvasDoc.getSectionPageId,
+            layoutContent.layerOrder,
+          ).length > 0,
+        );
+      const layoutPageIds =
+        isMultiPageStructuralLayoutAction(action) && occupiedPageIds.length > 1
+          ? occupiedPageIds
+          : [targetPageId];
+      const patches =
+        layoutPageIds.length > 1
+          ? applyA4AutoLayoutAllPages(
+              action,
+              freeLayoutSectionIds,
+              workingPositions,
+              layoutPageIds,
+              canvasDoc.getSectionPageId,
+              layoutContent,
+              canvasDoc.selectedSectionId ?? undefined,
+            )
+          : applyPageLayoutAction(
+              action,
+              freeLayoutSectionIds,
+              workingPositions,
+              targetPageId,
+              canvasDoc.getSectionPageId,
+              canvasDoc.selectedSectionId ?? undefined,
+              layoutContent,
+            );
       if (Object.keys(patches).length > 0) {
         freeLayout.applyPositionsBatch(patches, { constrainA4: true });
       }
@@ -765,9 +983,8 @@ export default function ResumeLivePreviewPanel({
   const handleResetLayout = useCallback(() => {
     layoutManualOverrideRef.current = false;
     clearAllManualSized();
-    applyDraftThroughPrintPlan(
-      createFamilyDefaultPositions(templateFamily, freeLayoutSectionIds, resumeData),
-    );
+    const draft = createFamilyDefaultPositions(templateFamily, freeLayoutSectionIds, resumeData);
+    applyDraftThroughPrintPlan(draft);
   }, [
     applyDraftThroughPrintPlan,
     clearAllManualSized,
@@ -1182,30 +1399,45 @@ export default function ResumeLivePreviewPanel({
       if (showCanvasViewport) {
         const isFirstFit = lastContentFitSigRef.current === null;
         if (isFirstFit && !layoutManualOverrideRef.current) {
-          const synced = syncSectionHeightsToContentAllPages(
-            freeLayoutSectionIds,
-            currentPositions,
-            pageIds,
-            canvasDoc.getSectionPageId,
-            layoutContent,
-          );
-          const next = preserveManualSizedDimensions(currentPositions, synced);
-          const changed = freeLayoutSectionIds.some((id) => {
-            const before = currentPositions[id];
-            const after = next[id];
-            if (!before || !after) return false;
-            return before.height !== after.height;
-          });
-          if (changed) {
-            freeLayout.applyPositionsBatch(next, { constrainA4: true });
+          if (isTemplateDemoResume(resumeData, activeTemplate)) {
+            const canonical = resolveTemplateDemoEditorPositions(
+              activeTemplate,
+              freeLayoutSectionIds,
+              resumeData,
+            );
+            freeLayout.applyPositionsBatch(canonical, { constrainA4: true });
+            // Do NOT scheduleColumnReflow — it mutates demo y and breaks PDF WYSIWYG.
+          } else {
+            const synced = syncSectionHeightsToContentAllPages(
+              freeLayoutSectionIds,
+              currentPositions,
+              pageIds,
+              canvasDoc.getSectionPageId,
+              layoutContent,
+            );
+            const next = preserveManualSizedDimensions(currentPositions, synced);
+            const changed = freeLayoutSectionIds.some((id) => {
+              const before = currentPositions[id];
+              const after = next[id];
+              if (!before || !after) return false;
+              return before.height !== after.height;
+            });
+            if (changed) {
+              freeLayout.applyPositionsBatch(next, { constrainA4: true });
+            }
+            scheduleColumnReflow(80);
           }
-          scheduleColumnReflow(80);
         }
         lastContentFitSigRef.current = contentFitSignature;
         return;
       }
 
       if (layoutManualOverrideRef.current && !themeChanged) {
+        lastContentFitSigRef.current = contentFitSignature;
+        return;
+      }
+
+      if (!showCanvasViewport && (previewPagesDoc.pages.length > 1 || canvasDoc.pages.length > 1)) {
         lastContentFitSigRef.current = contentFitSignature;
         return;
       }
@@ -1225,7 +1457,7 @@ export default function ResumeLivePreviewPanel({
         return before.height !== after.height;
       });
       if (changed) {
-        freeLayout.applyPositionsBatch(next, { constrainA4: true });
+        freeLayout.applyPositionsBatch(next);
       }
       scheduleColumnReflow(100);
       lastContentFitSigRef.current = contentFitSignature;
@@ -1244,6 +1476,7 @@ export default function ResumeLivePreviewPanel({
     freeLayoutSectionIds,
     layoutContent,
     preserveManualSizedDimensions,
+    previewPagesDoc.pages.length,
     scheduleColumnReflow,
   ]);
 
@@ -1255,6 +1488,20 @@ export default function ResumeLivePreviewPanel({
     }
     if (workspaceReflowDoneRef.current) return;
     workspaceReflowDoneRef.current = true;
+
+    if (isActiveTemplateDemo) {
+      const canonical = resolveTemplateDemoEditorPositions(
+        activeTemplate,
+        freeLayoutSectionIds,
+        resumeData,
+      );
+      freeLayout.applyPositionsBatch(canonical, { constrainA4: true });
+      return;
+    }
+
+    // Multi-page demo layouts assign each page local Y from the top — reflowing
+    // on a single sheet stacks page-2 sections onto page-1 coordinates.
+    if (previewPagesDoc.pages.length > 1 || canvasDoc.pages.length > 1) return;
 
     const pageIds = canvasDoc.pages.map((p) => p.id);
     const currentPositions = layoutPositionsRef.current;
@@ -1273,21 +1520,25 @@ export default function ResumeLivePreviewPanel({
       return before.height !== after.height;
     });
     if (heightChanged) {
-      freeLayout.applyPositionsBatch(next, { constrainA4: true });
+      freeLayout.applyPositionsBatch(next);
     }
 
     scheduleColumnReflow(120);
     scheduleColumnReflow(480);
   }, [
+    activeTemplate,
     canvasDoc.getSectionPageId,
     canvasDoc.pages,
     freeLayout.applyPositionsBatch,
     freeLayoutSectionIds,
+    isActiveTemplateDemo,
     layoutContent,
     preserveManualSizedDimensions,
+    resumeData,
     scheduleColumnReflow,
     showCanvasViewport,
     showFreeLayoutCanvas,
+    previewPagesDoc.pages.length,
   ]);
 
   useEffect(() => {
@@ -1588,7 +1839,7 @@ export default function ResumeLivePreviewPanel({
                 onPositionChange={handleFreeLayoutPositionChange}
                 variant={freeLayoutVariant}
                 chromeMode={freeLayout.livePreview ? "live" : "full"}
-                autoFitContentHeight
+                autoFitContentHeight={!demoLocksLayoutHeights}
                 manualSizedSections={manualSizedSections}
                 onSectionManualSize={markSectionManualSized}
                 onSectionClearManualSize={clearSectionManualSized}
@@ -1613,18 +1864,19 @@ export default function ResumeLivePreviewPanel({
               analysisResult={analysisResult}
               previewZoom={previewZoom}
               grayscaleMode={grayscaleMode}
-              sections={freeLayout.sections}
-              positions={freeLayout.positions}
+              sections={sidebarPreviewSections}
+              positions={sidebarPreviewPositions}
               onPositionChange={handleFreeLayoutPositionChange}
               variant={freeLayoutVariant}
               chromeMode={freeLayout.livePreview ? "live" : "full"}
-              autoFitContentHeight
+              autoFitContentHeight={!demoLocksLayoutHeights}
               manualSizedSections={manualSizedSections}
               onSectionManualSize={markSectionManualSized}
               onSectionClearManualSize={clearSectionManualSized}
               templateStyle={activeTemplate}
               resolvedTheme={resolvedTheme}
               autoFitToWidth={shouldAutoFitPreview}
+              canvasLayout={sidebarPreviewLayout}
             />
             </Suspense>
           ) : (
@@ -1666,12 +1918,12 @@ export default function ResumeLivePreviewPanel({
                 analysisResult={analysisResult}
                 previewZoom={previewZoom}
                 grayscaleMode={grayscaleMode}
-                sections={freeLayout.sections}
-                positions={freeLayout.positions}
+                sections={sidebarPreviewSections}
+                positions={sidebarPreviewPositions}
                 onPositionChange={handleFreeLayoutPositionChange}
                 variant={freeLayoutVariant}
                 chromeMode={freeLayout.livePreview ? "live" : "full"}
-                autoFitContentHeight
+                autoFitContentHeight={!demoLocksLayoutHeights}
                 manualSizedSections={manualSizedSections}
                 onSectionManualSize={markSectionManualSized}
                 onSectionClearManualSize={clearSectionManualSized}
@@ -1679,6 +1931,7 @@ export default function ResumeLivePreviewPanel({
                 containerId="resume-container-box"
                 resolvedTheme={resolvedTheme}
                 autoFitToWidth
+                canvasLayout={sidebarPreviewLayout}
               />
               </Suspense>
             ) : (

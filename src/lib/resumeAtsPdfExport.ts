@@ -46,6 +46,7 @@ function hexToRgb(hex: string): [number, number, number] {
 class AtsPdfWriter {
   private pdf: jsPDF;
   private y = MARGIN_Y;
+  private lastPageWithContent = 1;
 
   constructor() {
     this.pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
@@ -81,6 +82,7 @@ class AtsPdfWriter {
       this.ensureSpace(size + lineGap);
       this.pdf.text(line, MARGIN_X + indent, this.y);
       this.y += size + lineGap;
+      this.lastPageWithContent = this.pdf.getCurrentPageInfo().pageNumber;
     }
   }
 
@@ -118,6 +120,9 @@ class AtsPdfWriter {
   }
 
   save(filename: string): void {
+    while (this.pdf.getNumberOfPages() > this.lastPageWithContent) {
+      this.pdf.deletePage(this.pdf.getNumberOfPages());
+    }
     this.pdf.save(filename);
   }
 

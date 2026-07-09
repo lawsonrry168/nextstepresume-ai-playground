@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ResumeData } from "../types";
-import { initialResumeData, initialJobDescription } from "../data";
+import { initialJobDescription } from "../data";
 import {
   DEFAULT_A4_TEMPLATE,
   normalizeTemplateStyle,
   type TemplateStyle,
 } from "../lib/resumeTemplateCatalog";
+import { buildTemplateDemoBundle, persistTemplateDemoLayout } from "../lib/templates/applyTemplateDemo";
+import { getDefaultTemplateDemoResume, getTemplateDemoResume } from "../lib/templates/templateDemoContent";
+import { readStoredUiLocale } from "../lib/templates/templateDemoLocale";
 
 import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
 import {
@@ -33,7 +36,7 @@ export function useResumeWorkspace(options?: {
     } catch {
       /* ignore */
     }
-    return initialResumeData;
+    return getDefaultTemplateDemoResume(readStoredUiLocale());
   });
 
   const [jobDescription, setJobDescription] = useState<string>(() => {
@@ -119,12 +122,25 @@ export function useResumeWorkspace(options?: {
     localStorage.removeItem(STORAGE_KEYS.resume);
     localStorage.removeItem(STORAGE_KEYS.jd);
     localStorage.removeItem(STORAGE_KEYS.template);
-    setResumeData(initialResumeData);
+    const style = DEFAULT_A4_TEMPLATE;
+    const locale = readStoredUiLocale();
+    persistTemplateDemoLayout(style, locale);
+    setResumeData(getTemplateDemoResume(style, locale));
     setJobDescription(initialJobDescription);
-    setActiveTemplate(DEFAULT_A4_TEMPLATE);
+    setActiveTemplate(style);
     setSaveStatus("saved");
     setLastSavedTime("");
   }, []);
+
+  const loadTemplateDemo = useCallback((style?: TemplateStyle) => {
+    const target = style ?? activeTemplate;
+    const locale = readStoredUiLocale();
+    persistTemplateDemoLayout(target, locale);
+    setResumeData(getTemplateDemoResume(target, locale));
+    setActiveTemplate(target);
+    setSaveStatus("saved");
+    return buildTemplateDemoBundle(target, locale);
+  }, [activeTemplate]);
 
   useEffect(() => {
     if (saveStatus === "idle") {
@@ -171,6 +187,7 @@ export function useResumeWorkspace(options?: {
     setAutoSaveShouldFail,
     handleManualSave,
     handleResetToDefault,
+    loadTemplateDemo,
     persistWorkspace,
   };
 }

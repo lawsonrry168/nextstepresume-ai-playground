@@ -19,6 +19,13 @@ import {
   createFamilyDefaultPositions,
   createFreeLayoutPresetPositions,
 } from "../lib/layoutPresets";
+import {
+  demoLayoutHasPageOverflow,
+  demoLayoutPageAssignmentDriftForFamily,
+  healDemoStoredLayoutPositions,
+  isDemoPageLayout,
+  layoutUsesTwoDemoPages,
+} from "../lib/templates/templateDemoLayout";
 import { CANVAS_PAGE_HEIGHT } from "../lib/canvasStudioTypes";
 import { clampPositionToA4Page } from "../lib/canvasPageSnap";
 import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
@@ -40,7 +47,13 @@ function loadPositionsForFamily(
   resumeData: ResumeData,
 ): Record<string, FreeLayoutPosition> {
   const storage = readFamilyLayoutStorage();
-  return mergeFreeLayoutPositions(storage[family] ?? null, sectionIds, family, resumeData);
+  const raw = storage[family] as Record<string, FreeLayoutPosition> | undefined;
+  const healed = healDemoStoredLayoutPositions(raw, family, sectionIds, resumeData);
+  if (healed && raw !== healed) {
+    storage[family] = healed;
+    writeFamilyLayoutStorage(storage);
+  }
+  return mergeFreeLayoutPositions(healed, sectionIds, family, resumeData);
 }
 
 export function useFreeLayout(
@@ -80,6 +93,17 @@ export function useFreeLayout(
   useEffect(() => {
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     persistTimerRef.current = setTimeout(() => {
+      if (isDemoPageLayout(positions)) {
+        if (!layoutUsesTwoDemoPages(positions)) {
+          return;
+        }
+        if (demoLayoutPageAssignmentDriftForFamily(positions, templateFamily, sectionIds, resumeData)) {
+          return;
+        }
+        if (demoLayoutHasPageOverflow(positions)) {
+          return;
+        }
+      }
       const storage = readFamilyLayoutStorage();
       storage[templateFamily] = positions;
       writeFamilyLayoutStorage(storage);
@@ -93,7 +117,7 @@ export function useFreeLayout(
     return () => {
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
     };
-  }, [positions, templateFamily, markSaved]);
+  }, [positions, templateFamily, sectionIds, resumeData, markSaved]);
 
   useEffect(() => {
     return registerLayoutUndoBridge({
@@ -111,10 +135,33 @@ export function useFreeLayout(
   }, [templateFamily]);
 
   useEffect(() => {
-    setPositions((prev) => mergeFreeLayoutPositions(prev, sectionIds, templateFamily, resumeData));
+    setPositions((prev) => {
+      const storage = readFamilyLayoutStorage();
+      const raw = storage[templateFamily] as Record<string, FreeLayoutPosition> | undefined;
+      const storedFamily = healDemoStoredLayoutPositions(
+        raw,
+        templateFamily,
+        sectionIds,
+        resumeData,
+      );
+      if (storedFamily && raw !== storedFamily) {
+        storage[templateFamily] = storedFamily;
+        writeFamilyLayoutStorage(storage);
+      }
+      const mergeBase =
+        storedFamily && isDemoPageLayout(storedFamily)
+          ? storedFamily
+          : prev;
+      return mergeFreeLayoutPositions(mergeBase, sectionIds, templateFamily, resumeData);
+    });
   }, [sectionIds, templateFamily, resumeData]);
 
+  const skipEnabledPersistRef = useRef(true);
   useEffect(() => {
+    if (skipEnabledPersistRef.current) {
+      skipEnabledPersistRef.current = false;
+      return;
+    }
     try {
       localStorage.setItem(FREE_LAYOUT_ENABLED_KEY, String(enabled));
     } catch {
@@ -204,6 +251,7 @@ export function useFreeLayout(
   const reloadFromStorage = useCallback(() => {
     skipNextPersistFlash.current = true;
     setPositions(loadPositionsForFamily(templateFamily, sectionIds, resumeData));
+    setEnabledState(readBool(FREE_LAYOUT_ENABLED_KEY, false));
   }, [templateFamily, sectionIds, resumeData]);
 
   return {

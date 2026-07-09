@@ -15,6 +15,14 @@ export function getMarketLocales(): AppLocale[] {
   return fromMarket.length ? fromMarket : ["en", "zh-HK"];
 }
 
+/** Map legacy / out-of-market stored values onto an active market locale. */
+export function normalizeStoredUiLocale(raw: string | null | undefined): AppLocale {
+  const allowed = getMarketLocales();
+  if (raw === "zh-TW" && allowed.includes("zh-HK")) return "zh-HK";
+  if (raw && allowed.includes(raw as AppLocale)) return raw as AppLocale;
+  return DEFAULT_LOCALE;
+}
+
 export type MessageTree = {
   [key: string]: string | MessageTree;
 };

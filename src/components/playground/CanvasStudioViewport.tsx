@@ -113,15 +113,23 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
     const handleFocusPage = useCallback(
       (pageIndex: number) => {
         const stage = stageRef.current;
-        if (!stage) return;
-        setAutoFitEnabled(false);
+        if (!stage || stage.clientWidth <= 0 || stage.clientHeight <= 0) return;
+        // Keep autofit on — only pan/zoom to the page. Disabling autofit here
+        // left the camera stuck at stored pan (0,0) after a failed first fit.
+        setAutoFitEnabled(true);
         const top = getPageTopOffset(pageIndex);
-        const zoom = viewport.zoom;
+        const pad = 48;
+        const availW = stage.clientWidth - pad * 2;
+        const availH = stage.clientHeight - pad * 2;
+        if (availW <= 0 || availH <= 0) return;
+        // Fit one A4 page in view, then center that page.
+        const zoom = clampCanvasZoom(Math.min(availW / contentWidth, availH / CANVAS_PAGE_HEIGHT));
         const panX = (stage.clientWidth - contentWidth * zoom) / 2;
         const panY = (stage.clientHeight - CANVAS_PAGE_HEIGHT * zoom) / 2 - top * zoom;
+        setZoom(zoom);
         setPan(panX, panY);
       },
-      [contentWidth, setPan, viewport.zoom],
+      [contentWidth, setPan, setZoom],
     );
 
     useImperativeHandle(
@@ -186,6 +194,11 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
       const refit = () => {
         cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => {
+          // Skip until the stage has a real size — first paint often reports 0×0
+          // and would leave the stored pan (0,0) stuck in the top-left corner.
+          if (!stageRef.current || stageRef.current.clientWidth <= 0 || stageRef.current.clientHeight <= 0) {
+            return;
+          }
           handleFit();
         });
       };
@@ -198,7 +211,7 @@ const CanvasStudioViewport = forwardRef<CanvasStudioViewportHandle, CanvasStudio
         observer.disconnect();
         cancelAnimationFrame(raf);
       };
-    }, [autoFitEnabled, handleFit]);
+    }, [autoFitEnabled, handleFit, contentWidth, contentHeight]);
 
     const startPan = useCallback(
       (clientX: number, clientY: number) => {

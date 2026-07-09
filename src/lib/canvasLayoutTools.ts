@@ -986,8 +986,9 @@ export function alignAllHorizontalOnPage(
   getPageId: (id: string) => string,
   horizontal: CanvasAlignHorizontal,
   pageWidth = CANVAS_PAGE_WIDTH,
+  content?: PageLayoutContentContext,
 ): Record<string, FreeLayoutPosition> {
-  const onPage = sectionsOnPage(sectionIds, positions, pageId, getPageId);
+  const onPage = sectionsOnPage(sectionIds, positions, pageId, getPageId, content?.layerOrder);
   const patches: Record<string, FreeLayoutPosition> = {};
   for (const id of onPage) {
     const current = positions[id];
@@ -998,7 +999,9 @@ export function alignAllHorizontalOnPage(
     else if (horizontal === "right") x = pageWidth - CANVAS_PAGE_MARGIN - current.width;
     patches[id] = { ...current, pageId, x };
   }
-  return patchPositions(positions, patches);
+  const aligned = patchPositions(positions, patches);
+  // Collapsing multi-column x into one edge would otherwise leave y overlaps.
+  return reflowPageColumnsNatural(sectionIds, aligned, pageId, getPageId, content);
 }
 
 /** Fit each section height to its content (字數) at current width */
@@ -1228,11 +1231,11 @@ export function applyPageLayoutAction(
     case "equalize-height":
       return equalizeHeightsOnPage(sectionIds, positions, pageId, getPageId, referenceId, content);
     case "page-align-left":
-      return alignAllHorizontalOnPage(sectionIds, positions, pageId, getPageId, "left");
+      return alignAllHorizontalOnPage(sectionIds, positions, pageId, getPageId, "left", undefined, content);
     case "page-align-center":
-      return alignAllHorizontalOnPage(sectionIds, positions, pageId, getPageId, "center");
+      return alignAllHorizontalOnPage(sectionIds, positions, pageId, getPageId, "center", undefined, content);
     case "page-align-right":
-      return alignAllHorizontalOnPage(sectionIds, positions, pageId, getPageId, "right");
+      return alignAllHorizontalOnPage(sectionIds, positions, pageId, getPageId, "right", undefined, content);
     case "mirror-columns":
       return mirrorColumnsOnPage(sectionIds, positions, pageId, getPageId);
     case "snap-grid":
@@ -1281,20 +1284,44 @@ export function shouldSkipColumnReflowAfterLayout(action: CanvasPageLayoutAction
   );
 }
 
-/** Apply a structural layout to every page and merge patches (A4-aware) */
+/** Structural presets that should reflow every occupied page (never collapse pages). */
+export function isMultiPageStructuralLayoutAction(action: CanvasPageLayoutAction): boolean {
+  return (
+    action === "stack" ||
+    action === "stack-center" ||
+    action === "stack-compact" ||
+    action === "two-column" ||
+    action === "three-column" ||
+    action === "sidebar" ||
+    action === "distribute" ||
+    action === "fill-page-height" ||
+    action === "align-page-bottom"
+  );
+}
+
+/** Apply a page layout action to every occupied page and merge patches (A4-aware). */
 export function applyA4AutoLayoutAllPages(
-  action: Extract<CanvasPageLayoutAction, "stack" | "stack-center" | "stack-compact" | "two-column" | "three-column" | "sidebar">,
+  action: CanvasPageLayoutAction,
   sectionIds: string[],
   positions: Record<string, FreeLayoutPosition>,
   pageIds: string[],
   getPageId: (id: string) => string,
   content?: PageLayoutContentContext,
+  referenceId?: string,
 ): Record<string, FreeLayoutPosition> {
   let current = positions;
   for (const pageId of pageIds) {
     const onPage = sectionsOnPage(sectionIds, current, pageId, getPageId, content?.layerOrder);
     if (!onPage.length) continue;
-    const patches = applyPageLayoutAction(action, sectionIds, current, pageId, getPageId, undefined, content);
+    const patches = applyPageLayoutAction(
+      action,
+      sectionIds,
+      current,
+      pageId,
+      getPageId,
+      referenceId,
+      content,
+    );
     current = { ...current, ...patches };
   }
   return current;

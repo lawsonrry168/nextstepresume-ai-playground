@@ -1,9 +1,13 @@
 import type { Request, Response } from "express";
 import type { Browser } from "playwright-core";
+import { healDemoPrintLayoutPayload, normalizePrintLayoutPayload } from "../src/lib/printExportBridge.ts";
+import type { PrintLayoutPayload } from "../src/lib/printExportPayload.ts";
+import { normalizeTemplateStyle, type TemplateStyle } from "../src/lib/resumeTemplateCatalog.ts";
+import type { ResumeData } from "../src/types.ts";
 
 const PRINT_READY_SELECTOR = '[data-print-ready="true"]';
 const PRINT_TIMEOUT_MS = 45_000;
-const FONT_READY_TIMEOUT_MS = 12_000;
+const FONT_READY_TIMEOUT_MS = 18_000;
 
 const IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
@@ -78,6 +82,26 @@ export async function handleExportPdf(req: Request, res: Response): Promise<void
   try {
     const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
 
+    let normalizedLayout =
+      body.layout &&
+      typeof body.layout === "object" &&
+      (body.layout as PrintLayoutPayload).enabled === true
+        ? (body.layout as PrintLayoutPayload)
+        : body.layout;
+
+    if (
+      normalizedLayout &&
+      typeof normalizedLayout === "object" &&
+      (normalizedLayout as PrintLayoutPayload).enabled === true
+    ) {
+      const healed = healDemoPrintLayoutPayload(
+        body.resumeData as ResumeData,
+        normalizeTemplateStyle(body.templateStyle) as TemplateStyle,
+        normalizedLayout as PrintLayoutPayload,
+      );
+      normalizedLayout = normalizePrintLayoutPayload(healed);
+    }
+
     const payload = JSON.stringify({
       resumeData: body.resumeData,
       templateStyle: body.templateStyle,
@@ -85,7 +109,7 @@ export async function handleExportPdf(req: Request, res: Response): Promise<void
       pageFormat: format,
       paperMode: body.paperMode === "white" ? "white" : "cream",
       watermark: typeof body.watermark === "string" ? body.watermark : undefined,
-      layout: body.layout,
+      layout: normalizedLayout,
     });
 
     await page.addInitScript((raw: string) => {

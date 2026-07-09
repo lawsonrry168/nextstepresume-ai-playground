@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "motion/react";
-import { Download } from "lucide-react";
+import { Download, Sparkles } from "lucide-react";
 import { AnalysisResult, TemplateStyle } from "../../types";
 import TemplatePicker from "./TemplatePicker";
 import { useI18n } from "../../i18n";
@@ -11,6 +11,7 @@ export interface PreviewConfigPanelProps {
   analysisResult: AnalysisResult | null;
   highlightChanges: boolean;
   setHighlightChanges: (value: boolean | ((prev: boolean) => boolean)) => void;
+  onLoadTemplateDemo?: (style: TemplateStyle) => void;
 }
 
 export default function PreviewConfigPanel({
@@ -19,6 +20,7 @@ export default function PreviewConfigPanel({
   analysisResult,
   highlightChanges,
   setHighlightChanges,
+  onLoadTemplateDemo,
 }: PreviewConfigPanelProps) {
   const { t } = useI18n();
 
@@ -35,6 +37,18 @@ export default function PreviewConfigPanel({
           onSelect={setActiveTemplate}
           id="preview-tab-template-picker"
         />
+
+        {onLoadTemplateDemo ? (
+          <button
+            type="button"
+            id="btn-load-template-demo"
+            onClick={() => onLoadTemplateDemo(activeTemplate)}
+            className="w-full flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wide px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {t("previewConfig.loadTemplateDemo")}
+          </button>
+        ) : null}
 
         {analysisResult && (
           <div className="flex items-center justify-between pt-3 border-t border-slate-100 font-sans" id="highlight-toggle-box">

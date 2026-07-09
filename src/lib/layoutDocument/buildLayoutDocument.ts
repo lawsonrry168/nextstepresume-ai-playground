@@ -16,6 +16,7 @@ export function buildLayoutDocument(input: BuildLayoutDocumentInput): LayoutDocu
     manualSizedSections,
     layerOrder,
     themeFontScale,
+    templateStyle,
     studioPages,
     studioSectionPageMap,
   } = input;
@@ -24,6 +25,7 @@ export function buildLayoutDocument(input: BuildLayoutDocumentInput): LayoutDocu
     manualSizedSections,
     layerOrder,
     themeFontScale,
+    templateStyle,
     studioPages,
     studioSectionPageMap,
     preservePlacements: freeLayoutEnabled,

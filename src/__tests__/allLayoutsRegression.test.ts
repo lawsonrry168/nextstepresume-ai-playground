@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialResumeData } from "../data";
+import { compactResumeFixture } from "../data";
 import { CANVAS_PAGE_MARGIN } from "../lib/canvasAlignTools";
 import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "../lib/canvasStudioTypes";
 import { A4_PAGE_HEIGHT, A4_PAGE_WIDTH } from "../lib/a4Page";
@@ -41,7 +41,7 @@ const ALL_PRESETS: FreeLayoutPresetId[] = [
 /** Presets that fit sample resume on one A4 page without export reflow */
 const SINGLE_PAGE_PRESETS: FreeLayoutPresetId[] = ["modern", "two-column"];
 
-const SECTION_IDS = buildFreeLayoutSections(initialResumeData).map((s) => s.id);
+const SECTION_IDS = buildFreeLayoutSections(compactResumeFixture).map((s) => s.id);
 
 function sectionsOverlap(a: FreeLayoutPosition, b: FreeLayoutPosition, gap = 2): boolean {
   return !(
@@ -96,19 +96,19 @@ function assertExportPlan(
 
 describe("all layout presets — export-ready regression", () => {
   it.each(ALL_PRESETS)("preset %s export plan fits A4 per page", (presetId) => {
-    const positions = createFreeLayoutPresetPositions(presetId, SECTION_IDS, initialResumeData);
-    const plan = buildPrintReadyExportLayout(SECTION_IDS, positions, initialResumeData);
+    const positions = createFreeLayoutPresetPositions(presetId, SECTION_IDS, compactResumeFixture);
+    const plan = buildPrintReadyExportLayout(SECTION_IDS, positions, compactResumeFixture);
     assertExportPlan(`preset:${presetId}`, plan, SECTION_IDS);
   });
 
   it.each(TEMPLATE_FAMILIES)("family %s export plan fits A4 per page", (family: TemplateFamily) => {
-    const positions = createFamilyDefaultPositions(family, SECTION_IDS, initialResumeData);
-    const plan = buildPrintReadyExportLayout(SECTION_IDS, positions, initialResumeData);
+    const positions = createFamilyDefaultPositions(family, SECTION_IDS, compactResumeFixture);
+    const plan = buildPrintReadyExportLayout(SECTION_IDS, positions, compactResumeFixture);
     assertExportPlan(`family:${family}`, plan, SECTION_IDS);
   });
 
   it.each(SINGLE_PAGE_PRESETS)("preset %s raw layout fits single A4 without overlap", (presetId) => {
-    const positions = createFreeLayoutPresetPositions(presetId, SECTION_IDS, initialResumeData);
+    const positions = createFreeLayoutPresetPositions(presetId, SECTION_IDS, compactResumeFixture);
     for (const id of SECTION_IDS) {
       const pos = positions[id];
       if (!pos) continue;
@@ -123,7 +123,7 @@ describe("all layout presets — export-ready regression", () => {
       header: { x: 48, y: 48, width: 698, height: 150 },
       summary: { x: 48, y: 1180, width: 698, height: 240, pageId: "page-overflow" },
     };
-    const merged = mergeFreeLayoutPositions(brokenStored, SECTION_IDS, "modern", initialResumeData);
+    const merged = mergeFreeLayoutPositions(brokenStored, SECTION_IDS, "modern", compactResumeFixture);
 
     for (const id of SECTION_IDS) {
       const pos = merged[id];
@@ -140,7 +140,7 @@ describe("all layout presets — export-ready regression", () => {
       header: { x: 48, y: 48, width: 698, height: 216, pageId: "export-page-2" },
       summary: { x: 48, y: 280, width: 698, height: 120, pageId: "export-page-2" },
     };
-    const repaired = mergeFreeLayoutPositions(corruptPaged, SECTION_IDS, "classic", initialResumeData);
+    const repaired = mergeFreeLayoutPositions(corruptPaged, SECTION_IDS, "classic", compactResumeFixture);
     expect(repaired.header!.y).toBeLessThan(200);
     const pages = new Set(Object.values(repaired).map((pos) => pos.pageId ?? ""));
     expect(pages.size).toBe(1);
@@ -150,14 +150,14 @@ describe("all layout presets — export-ready regression", () => {
       header: { x: 48, y: 907, width: 600, height: 216 },
       summary: { x: 48, y: 1003, width: 600, height: 120 },
     };
-    const repairedBottom = mergeFreeLayoutPositions(corruptBottom, SECTION_IDS, "classic", initialResumeData);
+    const repairedBottom = mergeFreeLayoutPositions(corruptBottom, SECTION_IDS, "classic", compactResumeFixture);
     expect(repairedBottom.header!.y).toBeLessThan(200);
 
     // A legitimate custom layout (header near the top) is preserved
     const legit = {
       header: { x: 48, y: 64, width: 500, height: 220 },
     };
-    const kept = mergeFreeLayoutPositions(legit, SECTION_IDS, "classic", initialResumeData);
+    const kept = mergeFreeLayoutPositions(legit, SECTION_IDS, "classic", compactResumeFixture);
     expect(kept.header!.y).toBe(64);
     expect(kept.header!.width).toBe(500);
   });

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useCallback, lazy, Suspense } from "react";
+import React, { useState, useMemo, useCallback, lazy, Suspense, useEffect } from "react";
 import { TemplateStyle, TailorIntensity } from "../types";
 import ResumeImportModal from "./ResumeImportModal";
 import StatusToastStack from "./StatusToastStack";
@@ -45,6 +45,22 @@ import { usePlaygroundPremiumMetrics } from "../hooks/usePlaygroundPremiumMetric
 import { usePlaygroundKeyboardShortcuts } from "../hooks/usePlaygroundKeyboardShortcuts";
 import { collectLivePreviewProps } from "../lib/playgroundLivePreviewProps";
 import { usePlaygroundPdfExport } from "../hooks/usePlaygroundPdfExport";
+import { DEFAULT_A4_TEMPLATE } from "../lib/resumeTemplateCatalog";
+import { persistRecalculatedLayout, persistTemplateDemoLayout } from "../lib/templates/applyTemplateDemo";
+import {
+  demoLayoutHasPageOverflow,
+  demoLayoutMissingSecondPage,
+  demoLayoutPageAssignmentDrift,
+} from "../lib/templates/templateDemoLayout";
+import { buildFreeLayoutSections, readFamilyLayoutStorage, type FreeLayoutPosition } from "../lib/resumeFreeLayout";
+import { freeLayoutHasSamePageOverlaps } from "../lib/layoutPresets";
+import {
+  isStaleTemplateDemoResume,
+  isTemplateDemoResume,
+  shouldSyncTemplateDemoToLocale,
+} from "../lib/templates/templateDemoMatch";
+import { getTemplateFamily } from "../lib/resumeTemplateCatalog";
+import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
 
 interface ResumeSimulatorPlaygroundProps {
   onNotifyServerStatus: (reachable: boolean) => void;
@@ -73,7 +89,7 @@ export default function ResumeSimulatorPlayground({
   onTourOpen,
 }: ResumeSimulatorPlaygroundProps) {
 
-  const { t } = useI18n();
+  const { t, locale, localeReady } = useI18n();
   const { canUseFeature } = useSubscription();
   const { toasts, pushToast, dismissToast } = useStatusToast();
   const { addSystemLog, measuredFetch, apiLatency, apiLogs, systemLogs, exportSystemLogs } = useMeasuredApi();
@@ -92,6 +108,7 @@ export default function ResumeSimulatorPlayground({
     setAutoSaveShouldFail,
     handleManualSave: persistManualSave,
     handleResetToDefault,
+    loadTemplateDemo,
   } = useResumeWorkspace({
     onAutoSaved: () => addSystemLog("info", t("playgroundUi.autoSaveSuccess")),
     onAutoSaveFailed: (message) => addSystemLog("error", t("playgroundUi.autoSaveFailed", { message })),
@@ -336,6 +353,78 @@ export default function ResumeSimulatorPlayground({
     activeTemplate,
   });
 
+  const [templateDemoReloadToken, setTemplateDemoReloadToken] = useState(0);
+
+  useEffect(() => {
+    if (!localeReady) return;
+    try {
+      if (!localStorage.getItem(NSR_STORAGE_KEYS.workspaceResume)) {
+        persistTemplateDemoLayout(DEFAULT_A4_TEMPLATE, locale);
+        setTemplateDemoReloadToken(1);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [localeReady, locale]);
+
+  useEffect(() => {
+    if (!localeReady) return;
+    try {
+      const family = getTemplateFamily(activeTemplate);
+      const stored = readFamilyLayoutStorage()[family] as Record<string, FreeLayoutPosition> | undefined;
+      const needsDemoTwoPageHeal =
+        stored &&
+        isTemplateDemoResume(resumeData, activeTemplate) &&
+        demoLayoutMissingSecondPage(stored);
+
+      const sectionIds = buildFreeLayoutSections(resumeData).map((section) => section.id);
+      const needsDemoPageDriftHeal =
+        stored &&
+        isTemplateDemoResume(resumeData, activeTemplate) &&
+        demoLayoutPageAssignmentDrift(stored, activeTemplate, sectionIds, resumeData);
+
+      const layoutCorrupt =
+        stored &&
+        (freeLayoutHasSamePageOverlaps(stored) ||
+          demoLayoutHasPageOverflow(stored) ||
+          needsDemoTwoPageHeal ||
+          needsDemoPageDriftHeal);
+
+      if (!layoutCorrupt) return;
+
+      const useFullDemoReload =
+        needsDemoTwoPageHeal ||
+        shouldSyncTemplateDemoToLocale(resumeData, activeTemplate, locale) ||
+        isStaleTemplateDemoResume(resumeData);
+
+      if (useFullDemoReload) {
+        loadTemplateDemo(activeTemplate);
+      } else {
+        persistRecalculatedLayout(activeTemplate, resumeData);
+      }
+      setTemplateDemoReloadToken((value) => value + 1);
+    } catch {
+      /* ignore */
+    }
+  }, [localeReady, activeTemplate, locale, resumeData, loadTemplateDemo]);
+
+  useEffect(() => {
+    if (!localeReady) return;
+    if (!shouldSyncTemplateDemoToLocale(resumeData, activeTemplate, locale)) return;
+    loadTemplateDemo(activeTemplate);
+    setTemplateDemoReloadToken((value) => value + 1);
+  }, [locale, localeReady, resumeData, activeTemplate, loadTemplateDemo]);
+
+  const handleLoadTemplateDemo = useCallback(
+    (style: TemplateStyle) => {
+      if (!window.confirm(t("previewConfig.loadTemplateDemoConfirm"))) return;
+      loadTemplateDemo(style);
+      setTemplateDemoReloadToken((value) => value + 1);
+      addSystemLog("info", t("previewConfig.loadTemplateDemoSuccess"));
+    },
+    [addSystemLog, loadTemplateDemo, t],
+  );
+
   const resumeStrength = useMemo(
     () => calculateResumeStrength(resumeData, t),
     [resumeData, t],
@@ -344,6 +433,7 @@ export default function ResumeSimulatorPlayground({
   const onResetWorkspace = () => {
     if (window.confirm(t("playgroundUi.confirmReset"))) {
       handleResetToDefault();
+      setTemplateDemoReloadToken((value) => value + 1);
       clearThemeCustomizationStorage();
       resetThemeCustomization();
       addSystemLog("info", t("playgroundUi.workspaceReset"));
@@ -393,6 +483,7 @@ export default function ResumeSimulatorPlayground({
     onThemeCustomizationChange: updateThemeCustomization,
     onThemeCustomizationReset: resetThemeCustomization,
     resolvedTheme,
+    templateDemoReloadToken,
   });
 
   return (
@@ -658,6 +749,7 @@ export default function ResumeSimulatorPlayground({
               analysisResult={analysisResult}
               highlightChanges={highlightChanges}
               setHighlightChanges={setHighlightChanges}
+              onLoadTemplateDemo={handleLoadTemplateDemo}
             />
 
             <CollapsiblePanel

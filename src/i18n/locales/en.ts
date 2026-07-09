@@ -1652,6 +1652,10 @@ const en: MessageTree = {
     exportVisualDesc: "(matches preview; server Chromium print with selectable text)",
     exportAts: "ATS",
     exportAtsDesc: "(selectable text, structured).",
+    loadTemplateDemo: "Load template demo (2 pages)",
+    loadTemplateDemoConfirm:
+      "Replace your resume content and canvas layout with this template's two-page demo? Unsaved edits will be lost.",
+    loadTemplateDemoSuccess: "Loaded two-page template demo content.",
   },
 
   coverLetterEditor: {

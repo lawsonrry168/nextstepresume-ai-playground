@@ -1,4 +1,5 @@
 import type { ResumeData } from "../../types";
+import type { TemplateStyle } from "../resumeTemplateCatalog";
 import type { FreeLayoutPosition } from "../resumeFreeLayout";
 import type { PrintExportPlan } from "../layoutExportSurface";
 
@@ -27,6 +28,7 @@ export interface BuildLayoutDocumentInput {
   manualSizedSections?: ReadonlySet<string>;
   layerOrder?: string[];
   themeFontScale?: number;
+  templateStyle?: TemplateStyle;
   studioPages?: Array<{ id: string }>;
   studioSectionPageMap?: Record<string, string>;
 }

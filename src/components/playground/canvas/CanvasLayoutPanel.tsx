@@ -16,6 +16,7 @@ import {
   AlignVerticalSpaceAround,
   StretchVertical,
   RotateCcw,
+  ArrowDownToLine,
 } from "lucide-react";
 import { FREE_LAYOUT_PRESETS, type FreeLayoutPresetId } from "../../../lib/resumeFreeLayout";
 import type { CanvasPageLayoutAction } from "../../../lib/canvasLayoutTools";

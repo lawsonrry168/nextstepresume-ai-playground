@@ -5,6 +5,8 @@
 
 import { ResumeData } from "./types";
 import { isHongKongMarket } from "./lib/market/config";
+import { getDefaultTemplateDemoResume } from "./lib/templates/templateDemoContent";
+import { readStoredUiLocale } from "./lib/templates/templateDemoLocale";
 
 const HK_RESUME: ResumeData = {
   personalInfo: {
@@ -20,7 +22,7 @@ const HK_RESUME: ResumeData = {
     expectedSalary: "HK$42,000 / month",
   },
   summary:
-    "Frontend product engineer with 4 years of experience shipping React and TypeScript workflows for Hong Kong and APAC teams.",
+    "Frontend engineer with 4 years shipping React and TypeScript products for Hong Kong and APAC teams. Focused on accessible UI, design systems, and measurable delivery impact.",
   experience: [
     {
       id: "exp-1",
@@ -28,10 +30,10 @@ const HK_RESUME: ResumeData = {
       role: "Frontend Product Engineer",
       startDate: "2022-08",
       endDate: "Present",
-      location: "Quarry Bay, Hong Kong (Hybrid)",
+      location: "Quarry Bay, Hong Kong",
       bullets: [
-        "Led the rebuild of a merchant operations workspace in React and TypeScript, reducing daily task completion time for support teams by 22%.",
-        "Created a shared component library and token system used across admin, onboarding, and analytics surfaces.",
+        "Rebuilt a merchant operations workspace in React and TypeScript, cutting support task time by 22%.",
+        "Built a shared component library and token system adopted across admin and analytics surfaces.",
       ],
     },
     {
@@ -40,10 +42,10 @@ const HK_RESUME: ResumeData = {
       role: "Software Engineer",
       startDate: "2020-07",
       endDate: "2022-07",
-      location: "Kowloon Bay, Hong Kong (Hybrid)",
+      location: "Kowloon Bay, Hong Kong",
       bullets: [
-        "Built internal order and catalog tooling with React, Node.js, and REST APIs for operations and merchandising teams across three markets.",
-        "Delivered dashboard reporting modules that replaced manual spreadsheet workflows and saved analyst time each week.",
+        "Delivered internal order and catalog tooling with React, Node.js, and REST APIs for three markets.",
+        "Replaced manual spreadsheet reporting with dashboard modules used weekly by operations teams.",
       ],
     },
   ],
@@ -67,7 +69,6 @@ const HK_RESUME: ResumeData = {
     },
   ],
   skills: [
-    "JavaScript",
     "TypeScript",
     "React",
     "Next.js",
@@ -155,7 +156,13 @@ const DEFAULT_RESUME: ResumeData = {
   languages: ["English (Native)", "Spanish (Professional Working Proficiency)"],
 };
 
-export const initialResumeData: ResumeData = isHongKongMarket() ? HK_RESUME : DEFAULT_RESUME;
+/** Pre–two-page-demo placeholders; still treated as syncable default content. */
+export const LEGACY_DEFAULT_RESUMES: ResumeData[] = [HK_RESUME, DEFAULT_RESUME];
+
+export const initialResumeData: ResumeData = getDefaultTemplateDemoResume(readStoredUiLocale());
+
+/** Compact sample resume for unit tests that expect single-page layout fit. */
+export const compactResumeFixture: ResumeData = isHongKongMarket() ? HK_RESUME : DEFAULT_RESUME;
 
 const HK_JOB_DESCRIPTION = `
 Software Engineer (React / TypeScript) — Hong Kong

@@ -12,7 +12,7 @@ import { getActiveMarket } from "../lib/market/config";
 import { ensureLocaleLoaded, setActiveLocale, translate } from "./translate";
 import { htmlLangForLocale } from "./htmlLang";
 import type { AppLocale } from "./types";
-import { DEFAULT_LOCALE, getMarketLocales } from "./types";
+import { DEFAULT_LOCALE, getMarketLocales, normalizeStoredUiLocale } from "./types";
 
 interface LocaleContextValue {
   locale: AppLocale;
@@ -25,10 +25,8 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 function readStoredLocale(): AppLocale {
-  const allowed = getMarketLocales();
   try {
-    const raw = localStorage.getItem(NSR_STORAGE_KEYS.uiLocale);
-    if (raw && allowed.includes(raw as AppLocale)) return raw as AppLocale;
+    return normalizeStoredUiLocale(localStorage.getItem(NSR_STORAGE_KEYS.uiLocale));
   } catch {
     /* ignore */
   }

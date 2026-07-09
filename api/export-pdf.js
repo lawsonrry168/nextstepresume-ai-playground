@@ -36,7 +36,7 @@ module.exports = __toCommonJS(exportPdfStandalone_exports);
 // server/exportPdfHandler.ts
 var PRINT_READY_SELECTOR = '[data-print-ready="true"]';
 var PRINT_TIMEOUT_MS = 45e3;
-var FONT_READY_TIMEOUT_MS = 12e3;
+var FONT_READY_TIMEOUT_MS = 18e3;
 var IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 async function launchChromium() {
   if (IS_SERVERLESS) {

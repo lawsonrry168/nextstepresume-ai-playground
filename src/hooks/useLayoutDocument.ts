@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { ResumeData } from "../types";
-import { TemplateFamily } from "../lib/resumeTemplateCatalog";
+import { TemplateFamily, type TemplateStyle } from "../lib/resumeTemplateCatalog";
 import { ResumeThemeCustomization } from "../lib/resumeThemeCustomization";
 import type { FreeLayoutSectionMeta } from "../lib/resumeFreeLayout";
 import { useFreeLayout } from "./useFreeLayout";
@@ -11,6 +11,9 @@ import { registerCanvasLayoutHydrateHandler } from "../lib/sync/canvasLayoutSync
 import { themeContentScale } from "../lib/canvasSectionContentSizing";
 import { formatCanvasPageLabel } from "../lib/sectionLabels";
 import type { CanvasPage } from "../lib/canvasStudioTypes";
+import { demoLayoutHasPageOverflow, demoLayoutPageAssignmentDrift } from "../lib/templates/templateDemoLayout";
+import { resolveTemplateDemoEditorPositions } from "../lib/templates/applyTemplateDemo";
+import { isTemplateDemoResume } from "../lib/templates/templateDemoMatch";
 
 export type ExportCanvasLayoutContext = {
   pages: CanvasPage[];
@@ -26,6 +29,7 @@ export type ExportCanvasLayoutContext = {
 export interface UseLayoutDocumentOptions {
   resumeData: ResumeData;
   templateFamily: TemplateFamily;
+  activeTemplate?: TemplateStyle;
   themeCustomization: ResumeThemeCustomization;
   manualSizedSections?: ReadonlySet<string>;
   /** Custom canvas elements (text/photo/divider) joining the layout */
@@ -39,6 +43,7 @@ export interface UseLayoutDocumentOptions {
 export function useLayoutDocument({
   resumeData,
   templateFamily,
+  activeTemplate,
   themeCustomization,
   manualSizedSections,
   extraSections,
@@ -56,14 +61,53 @@ export function useLayoutDocument({
     [freeLayout.sections],
   );
 
+  const draftPositionsForPlan = useMemo(() => {
+    const draft = freeLayout.positions;
+    if (!activeTemplate || !isTemplateDemoResume(resumeData, activeTemplate)) {
+      return draft;
+    }
+    if (
+      !demoLayoutPageAssignmentDrift(draft, activeTemplate, sectionIds, resumeData) &&
+      !demoLayoutHasPageOverflow(draft)
+    ) {
+      return draft;
+    }
+    return resolveTemplateDemoEditorPositions(activeTemplate, sectionIds, resumeData);
+  }, [activeTemplate, freeLayout.positions, resumeData, sectionIds]);
+
+  useEffect(() => {
+    if (!activeTemplate || !freeLayout.enabled) return;
+    if (!isTemplateDemoResume(resumeData, activeTemplate)) return;
+    if (
+      !demoLayoutPageAssignmentDrift(freeLayout.positions, activeTemplate, sectionIds, resumeData) &&
+      !demoLayoutHasPageOverflow(freeLayout.positions)
+    ) {
+      return;
+    }
+    freeLayout.applyPositionsBatch(
+      resolveTemplateDemoEditorPositions(activeTemplate, sectionIds, resumeData),
+      { constrainA4: true },
+    );
+  }, [
+    activeTemplate,
+    freeLayout.applyPositionsBatch,
+    freeLayout.enabled,
+    freeLayout.positions,
+    resumeData,
+    sectionIds,
+  ]);
+
   // Cloud hydrate: after remote canvas layout is written to localStorage,
   // reload positions/pages/layers so the studio reflects the pulled state.
   const reloadFreeLayout = freeLayout.reloadFromStorage;
   const reloadCanvasDoc = canvasDoc.reloadFromStorage;
+  const reloadLayoutFromStorage = () => {
+    reloadFreeLayout();
+    reloadCanvasDoc();
+  };
   useEffect(() => {
     return registerCanvasLayoutHydrateHandler(() => {
-      reloadFreeLayout();
-      reloadCanvasDoc();
+      reloadLayoutFromStorage();
     });
   }, [reloadFreeLayout, reloadCanvasDoc]);
 
@@ -71,24 +115,26 @@ export function useLayoutDocument({
     () =>
       buildLayoutDocument({
         sectionIds,
-        draftPositions: freeLayout.positions,
+        draftPositions: draftPositionsForPlan,
         resumeData,
         freeLayoutEnabled: freeLayout.enabled,
         manualSizedSections,
         layerOrder: canvasDoc.layers.order,
         themeFontScale: themeContentScale(themeCustomization),
+        templateStyle: activeTemplate,
         studioPages: canvasDoc.pages,
         studioSectionPageMap: canvasDoc.sectionPageMap,
       }),
     [
       freeLayout.enabled,
-      freeLayout.positions,
+      draftPositionsForPlan,
       sectionIds,
       resumeData,
       manualSizedSections,
       canvasDoc.layers.order,
       canvasDoc.pages,
       canvasDoc.sectionPageMap,
+      activeTemplate,
       themeCustomization,
     ],
   );
@@ -153,5 +199,6 @@ export function useLayoutDocument({
     exportSections,
     exportSectionSlices,
     exportCanvasLayout,
+    reloadLayoutFromStorage,
   };
 }

@@ -35,6 +35,7 @@ import {
 } from "../../lib/canvasSectionContentSizing";
 import { getTemplateFamily } from "../../lib/resumeTemplateCatalog";
 import { ResolvedResumeTheme, DEFAULT_THEME_CUSTOMIZATION, resolveResumeTheme } from "../../lib/resumeThemeCustomization";
+import { buildSheetShellClass } from "../resume/resumeTemplateShell";
 import ResumeThemeRoot from "./ResumeThemeRoot";
 import ResumeSectionRenderer from "../resume/ResumeSectionRenderer";
 import CanvasPageMarginGuides from "./canvas/CanvasPageMarginGuides";
@@ -135,6 +136,26 @@ export default function FreeLayoutStudioCanvas({
   const family = getTemplateFamily(templateStyle);
   const resolved = resolvedTheme ?? resolveResumeTheme(templateStyle, DEFAULT_THEME_CUSTOMIZATION);
   const tc = resolved.classes;
+  const sheetShellClass = useMemo(() => {
+    // Free-layout section x/y already encode the A4 safe margin. Flow-template
+    // padding (including asymmetric marginalia compact padding) must not also
+    // apply on the sheet — that shifts content right and clips the right edge.
+    const base = buildSheetShellClass({
+      style: templateStyle,
+      family,
+      resolved,
+      layout: "page",
+    })
+      .replace(/\bresume-marginalia-a4-compact\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return `${base} resume-free-layout-sheet`;
+  }, [family, resolved, templateStyle]);
+  const sheetChromeClass = isEdit
+    ? "shadow-2xl rounded-xl border border-slate-200/80 overflow-visible"
+    : isExport
+      ? "overflow-hidden shadow-none border-0 rounded-none"
+      : "shadow-sm border border-slate-100 rounded-lg overflow-hidden";
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
   const [multiSelectedIds, setMultiSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [marqueeRect, setMarqueeRect] = useState<{
@@ -303,8 +324,13 @@ export default function FreeLayoutStudioCanvas({
   const isSingleA4Page = !isMultiPage;
   const singleSheetHeight = isEdit && !isExport ? editSheetExtent : CANVAS_PAGE_HEIGHT;
   const canvasHeight = useMemo(
-    () => (isMultiPage ? computeMultiPageDeskHeight(pageCount) : singleSheetHeight),
-    [isMultiPage, pageCount, singleSheetHeight],
+    () =>
+      isMultiPage
+        ? isExport
+          ? pageCount * CANVAS_PAGE_HEIGHT
+          : computeMultiPageDeskHeight(pageCount)
+        : singleSheetHeight,
+    [isExport, isMultiPage, pageCount, singleSheetHeight],
   );
 
   const emitPositionChange = useCallback(
@@ -581,7 +607,12 @@ export default function FreeLayoutStudioCanvas({
   );
 
   const renderPageSections = (pageId: string, pageIndex: number) => {
-    const pageSections = renderSections.filter((s) => (canvasLayout?.sectionPageMap[s.id] ?? pageId) === pageId);
+    const pageSections = renderSections.filter((s) => {
+      const fromPos = positions[s.id]?.pageId;
+      const fromMap = canvasLayout?.sectionPageMap[s.id];
+      const assigned = fromPos ?? fromMap ?? pageId;
+      return assigned === pageId;
+    });
     const pageMaxY = isMultiPage ? CANVAS_PAGE_HEIGHT : undefined;
     return pageSections.map((section) => renderSection(section, pageMaxY, pageId, pageIndex));
   };
@@ -595,13 +626,9 @@ export default function FreeLayoutStudioCanvas({
       exportPage
       exportStatic={isExport}
       a4Surface
-      className={`relative ${resolved.active ? "" : "bg-white"} ${
-        isEdit
-          ? "shadow-2xl rounded-xl border border-slate-200/80 overflow-visible"
-          : isExport
-            ? "overflow-hidden shadow-none border-0 rounded-none"
-            : "shadow-sm border border-slate-100 rounded-lg overflow-hidden"
-      } ${tc.sheetFont}`}
+      className={`${sheetShellClass} relative ${sheetChromeClass}${
+        isExport ? " canvas-page-sheet-paper canvas-page-sheet-paper--a4" : ""
+      }`}
       style={{
         width: FREE_LAYOUT_CANVAS.width,
         minHeight: CANVAS_PAGE_HEIGHT,
@@ -645,12 +672,15 @@ export default function FreeLayoutStudioCanvas({
   );
 
   const renderMultiPageDesk = () => {
-    const deskHeight = computeMultiPageDeskHeight(canvasLayout!.pages.length);
+    const pageCount = canvasLayout!.pages.length;
+    const deskHeight = isExport
+      ? pageCount * CANVAS_PAGE_HEIGHT
+      : computeMultiPageDeskHeight(pageCount);
     return (
       <div
         ref={deskRef}
-        className="canvas-multi-page-desk relative overflow-visible"
-        style={{ width: FREE_LAYOUT_CANVAS.width, height: deskHeight }}
+        className={`canvas-multi-page-desk relative ${isExport ? "overflow-hidden" : "overflow-visible"}`}
+        style={{ width: FREE_LAYOUT_CANVAS.width, height: isExport ? undefined : deskHeight }}
       >
         {isEdit && showGrid ? (
           <div
@@ -669,9 +699,9 @@ export default function FreeLayoutStudioCanvas({
             <div
               key={page.id}
               data-page-id={page.id}
-              className={`canvas-page-sheet absolute left-0${!isExport && isActive ? " canvas-page-sheet--active" : ""}${isEdit ? " canvas-page-sheet--editing" : ""}`}
+              className={`canvas-page-sheet ${isExport ? "relative" : "absolute left-0"}${!isExport && isActive ? " canvas-page-sheet--active" : ""}${isEdit ? " canvas-page-sheet--editing" : ""}`}
               style={{
-                top: getPageTopOffset(pageIndex),
+                top: isExport ? undefined : getPageTopOffset(pageIndex),
                 width: FREE_LAYOUT_CANVAS.width,
                 height: CANVAS_PAGE_HEIGHT,
               }}
@@ -694,13 +724,8 @@ export default function FreeLayoutStudioCanvas({
                 }
                 exportPage
                 exportStatic={isExport}
-                className={`canvas-page-sheet-paper canvas-page-sheet-paper--a4 relative ${
-                  resolved.active ? "" : "bg-white"
-                } ${
-                  isEdit
-                    ? "shadow-2xl rounded-xl border border-slate-200/80 canvas-page-sheet-paper--editing"
-                    : "overflow-hidden"
-                } ${tc.sheetFont}`}
+                a4Surface
+                className={`${sheetShellClass} canvas-page-sheet-paper canvas-page-sheet-paper--a4 relative ${sheetChromeClass}`}
                 style={{ width: FREE_LAYOUT_CANVAS.width, height: CANVAS_PAGE_HEIGHT }}
               >
                 <div
@@ -790,14 +815,18 @@ export default function FreeLayoutStudioCanvas({
       ) : null}
       <div
         className={isNarrowPanel ? "w-full flex justify-center" : "shrink-0 flex justify-center"}
-        style={{ minHeight: scaledHeight }}
+        style={isExport ? undefined : { minHeight: scaledHeight }}
       >
         <div
-          style={{
-            transform: `scale(${effectiveScale})`,
-            transformOrigin: "top center",
-            width: FREE_LAYOUT_CANVAS.width,
-          }}
+          style={
+            isExport
+              ? { width: FREE_LAYOUT_CANVAS.width }
+              : {
+                  transform: `scale(${effectiveScale})`,
+                  transformOrigin: "top center",
+                  width: FREE_LAYOUT_CANVAS.width,
+                }
+          }
           className="shrink-0"
         >
           {isMultiPage ? renderMultiPageDesk() : renderSingleSheet()}

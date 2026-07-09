@@ -24,6 +24,20 @@
   box-sizing: border-box;
 }
 
+/* Free-layout studio / export: section boxes own the margins — never pad the sheet.
+   Specificity must beat `.resume-marginalia-a4-compact:not(.resume-theme-has-padding)`. */
+.resume-a4-surface.resume-free-layout-sheet,
+.resume-a4-surface.resume-free-layout-sheet.resume-template-classic,
+.resume-a4-surface.resume-free-layout-sheet.resume-template-modern,
+.resume-a4-surface.resume-free-layout-sheet.resume-template-minimalist,
+.resume-a4-surface.resume-free-layout-sheet.resume-template-marginalia,
+.resume-a4-surface.resume-free-layout-sheet.resume-marginalia-a4-compact,
+.resume-a4-surface.resume-free-layout-sheet.resume-template-marginalia.resume-marginalia-a4-compact:not(
+    .resume-theme-has-padding
+  ) {
+  padding: 0 !important;
+}
+
 /* ── Vertical content flow ── */
 .resume-a4-flow {
   display: flex;

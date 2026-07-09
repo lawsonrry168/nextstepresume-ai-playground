@@ -1,4 +1,5 @@
 import type { ResumeData } from "../types";
+import type { TemplateStyle } from "./resumeTemplateCatalog";
 import type { FreeLayoutPosition } from "./resumeFreeLayout";
 import {
   clampSectionHeight,
@@ -7,7 +8,8 @@ import {
   snapToGrid,
   SNAP_GRID_SIZE,
 } from "./resumeFreeLayout";
-import { estimateSectionHeightForContent } from "./canvasSectionContentSizing";
+import { estimateSectionHeightForContent, marginaliaSectionChrome } from "./canvasSectionContentSizing";
+import { isMarginaliaNotebookTemplate } from "./resumeTemplateCatalog";
 import { CANVAS_PAGE_HEIGHT, CANVAS_PAGE_WIDTH } from "./canvasStudioTypes";
 import { clampPositionToA4Page } from "./canvasPageSnap";
 import { CANVAS_PAGE_MARGIN } from "./canvasAlignTools";
@@ -47,6 +49,7 @@ export interface PrintExportOptions {
   manualSizedSections?: ReadonlySet<string>;
   layerOrder?: string[];
   themeFontScale?: number;
+  templateStyle?: TemplateStyle;
   studioPages?: Array<{ id: string }>;
   studioSectionPageMap?: Record<string, string>;
   /** Keep editor x/y — only fit heights and paginate overflow (free-layout WYSIWYG) */
@@ -69,6 +72,36 @@ export function sectionOverflowsPrintPage(
   return sectionPageBottom(pos) > pageHeight - margin;
 }
 
+/** True when a print page has at least one base section or entry-split fragment. */
+export function printPlanPageHasContent(
+  plan: PrintExportPlan,
+  sectionIds: string[],
+  pageId: string,
+  layerOrder?: string[],
+): boolean {
+  const getPageId = (id: string) => plan.positions[id]?.pageId ?? plan.pageIds[0] ?? pageId;
+  if (sectionsOnPage(sectionIds, plan.positions, pageId, getPageId, layerOrder).length > 0) {
+    return true;
+  }
+  return Object.entries(plan.positions).some(
+    ([id, pos]) => !sectionIds.includes(id) && pos?.pageId === pageId,
+  );
+}
+
+export function filterPrintPlanToNonemptyPages(
+  plan: PrintExportPlan,
+  sectionIds: string[],
+  layerOrder?: string[],
+): PrintExportPlan {
+  const pageIds = plan.pageIds.filter((pageId) =>
+    printPlanPageHasContent(plan, sectionIds, pageId, layerOrder),
+  );
+  return {
+    ...plan,
+    pageIds: pageIds.length ? pageIds : plan.pageIds.slice(0, 1),
+  };
+}
+
 function createExportPageId(index: number): string {
   return `${EXPORT_PAGE_PREFIX}${index + 1}`;
 }
@@ -78,8 +111,12 @@ function fitSectionHeightForExport(
   pos: FreeLayoutPosition,
   resumeData: ResumeData,
   themeFontScale: number,
+  templateStyle?: TemplateStyle,
 ): number {
   let height = estimateSectionHeightForContent(sectionId, resumeData, pos.width);
+  if (templateStyle && isMarginaliaNotebookTemplate(templateStyle)) {
+    height = snapToGrid(height + marginaliaSectionChrome(sectionId), SNAP_GRID_SIZE);
+  }
   if (themeFontScale !== 1) {
     height = Math.round(height * themeFontScale);
   }
@@ -108,6 +145,7 @@ function paginatePreservePlacements(
   positions: Record<string, FreeLayoutPosition>,
   pageIds: string[],
   content: PageLayoutContentContext,
+  maxStudioPageIds?: string[],
 ): { positions: Record<string, FreeLayoutPosition>; pageIds: string[] } {
   let current = { ...positions };
   let pages = [...pageIds];
@@ -133,8 +171,18 @@ function paginatePreservePlacements(
         const pageIndex = pages.indexOf(pageId);
         let targetPageId = pages[pageIndex + 1];
         if (!targetPageId) {
-          targetPageId = createExportPageId(pages.length);
-          pages.push(targetPageId);
+          if (maxStudioPageIds?.length) {
+            targetPageId =
+              pageIndex + 1 < maxStudioPageIds.length
+                ? maxStudioPageIds[pageIndex + 1]!
+                : maxStudioPageIds[maxStudioPageIds.length - 1]!;
+            if (!pages.includes(targetPageId)) {
+              pages.push(targetPageId);
+            }
+          } else {
+            targetPageId = createExportPageId(pages.length);
+            pages.push(targetPageId);
+          }
         }
 
         const onTarget = sectionsOnPage(sectionIds, current, targetPageId, getPageId, content.layerOrder).filter(
@@ -176,6 +224,7 @@ function paginateExportOverflow(
   positions: Record<string, FreeLayoutPosition>,
   pageIds: string[],
   content: PageLayoutContentContext,
+  maxStudioPageIds?: string[],
 ): { positions: Record<string, FreeLayoutPosition>; pageIds: string[] } {
   let current = { ...positions };
   let pages = [...pageIds];
@@ -201,8 +250,18 @@ function paginateExportOverflow(
         const pageIndex = pages.indexOf(pageId);
         let targetPageId = pages[pageIndex + 1];
         if (!targetPageId) {
-          targetPageId = createExportPageId(pages.length);
-          pages.push(targetPageId);
+          if (maxStudioPageIds?.length) {
+            targetPageId =
+              pageIndex + 1 < maxStudioPageIds.length
+                ? maxStudioPageIds[pageIndex + 1]!
+                : maxStudioPageIds[maxStudioPageIds.length - 1]!;
+            if (!pages.includes(targetPageId)) {
+              pages.push(targetPageId);
+            }
+          } else {
+            targetPageId = createExportPageId(pages.length);
+            pages.push(targetPageId);
+          }
         }
 
         current[id] = clampPositionToA4Page({
@@ -230,6 +289,42 @@ function paginateExportOverflow(
   return { positions: current, pageIds: usedPages.length ? usedPages : [pages[0]!] };
 }
 
+function studioLayoutHasOverflow(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+): boolean {
+  return sectionIds.some((id) => {
+    const pos = positions[id];
+    return pos ? sectionOverflowsPrintPage(pos) : false;
+  });
+}
+
+function finalizeStudioPageLayout(
+  sectionIds: string[],
+  positions: Record<string, FreeLayoutPosition>,
+  pageIds: string[],
+  content: PageLayoutContentContext,
+  maxStudioPageIds?: string[],
+): { positions: Record<string, FreeLayoutPosition>; pageIds: string[] } {
+  let laid = { ...positions };
+  let pages = [...pageIds];
+  if (studioLayoutHasOverflow(sectionIds, laid)) {
+    const paginated = paginateExportOverflow(sectionIds, laid, pages, content, maxStudioPageIds);
+    laid = paginated.positions;
+    pages = paginated.pageIds;
+    const getPageId = (id: string) => laid[id]?.pageId ?? pages[0]!;
+    for (const pageId of pages) {
+      laid = { ...laid, ...reflowPageColumnsNatural(sectionIds, laid, pageId, getPageId, content) };
+    }
+  }
+  const getPageId = (id: string) => laid[id]?.pageId ?? pages[0]!;
+  const scopedPages = maxStudioPageIds?.length ? maxStudioPageIds : pages;
+  const usedPages = scopedPages.filter(
+    (pid) => sectionsOnPage(sectionIds, laid, pid, getPageId, content.layerOrder).length > 0,
+  );
+  return { positions: laid, pageIds: usedPages.length ? usedPages : pages.slice(0, 1) };
+}
+
 /**
  * Print-ready layout: content heights, A4 reflow, auto-pagination when a page overflows.
  * Respects explicit multi-page studio assignments when sections span multiple studio pages.
@@ -246,9 +341,11 @@ export function buildPrintReadyExportLayout(
     themeFontScale: options?.themeFontScale ?? 1,
   };
   const themeFontScale = options?.themeFontScale ?? 1;
+  const templateStyle = options?.templateStyle;
   const studioPages = options?.studioPages ?? [];
   const studioMap = options?.studioSectionPageMap ?? {};
   const useStudioPages = studioUsesMultiplePages(sectionIds, studioPages, studioMap, positions);
+  const maxStudioPageIds = useStudioPages ? studioPages.map((p) => p.id) : undefined;
 
   let pageIds: string[] = useStudioPages ? studioPages.map((p) => p.id) : [createExportPageId(0)];
   const current: Record<string, FreeLayoutPosition> = {};
@@ -268,7 +365,7 @@ export function buildPrintReadyExportLayout(
     if (!pos) continue;
     current[id] = clampPositionToA4Page({
       ...pos,
-      height: fitSectionHeightForExport(id, pos, resumeData, themeFontScale),
+      height: fitSectionHeightForExport(id, pos, resumeData, themeFontScale, templateStyle),
     });
   }
 
@@ -276,15 +373,16 @@ export function buildPrintReadyExportLayout(
   const getPageId = (id: string) => laid[id]?.pageId ?? pageIds[0]!;
   const preservePlacements = options?.preservePlacements === true;
 
-  if (!preservePlacements) {
-    for (const pageId of pageIds) {
-      laid = { ...laid, ...reflowPageColumnsNatural(sectionIds, laid, pageId, getPageId, content) };
-    }
+  // Reflow after content-height fit so taller sections (e.g. header with HK
+  // Notice/Expected) push neighbors down. preservePlacements still keeps
+  // column x via reflowPageColumnsNatural — it must not freeze stale y.
+  for (const pageId of pageIds) {
+    laid = { ...laid, ...reflowPageColumnsNatural(sectionIds, laid, pageId, getPageId, content) };
   }
 
   if (!useStudioPages) {
     const paginated = preservePlacements
-      ? paginatePreservePlacements(sectionIds, laid, pageIds, content)
+      ? paginatePreservePlacements(sectionIds, laid, pageIds, content, maxStudioPageIds)
       : paginateExportOverflow(sectionIds, laid, pageIds, content);
     laid = paginated.positions;
     pageIds = paginated.pageIds;
@@ -292,25 +390,47 @@ export function buildPrintReadyExportLayout(
     pageIds = pageIds.filter(
       (pid) => sectionsOnPage(sectionIds, laid, pid, (id) => laid[id]?.pageId ?? pid, content.layerOrder).length > 0,
     );
-    if (!preservePlacements) {
-      for (const pageId of pageIds) {
-        laid = { ...laid, ...reflowPageColumnsNatural(sectionIds, laid, pageId, (id) => laid[id]?.pageId ?? pageId, content) };
-      }
+    if (preservePlacements) {
+      const paginated = paginatePreservePlacements(sectionIds, laid, pageIds, content, maxStudioPageIds);
+      laid = paginated.positions;
+      pageIds = paginated.pageIds;
+      const finalized = finalizeStudioPageLayout(sectionIds, laid, pageIds, content, maxStudioPageIds);
+      laid = finalized.positions;
+      pageIds = finalized.pageIds;
+    } else {
+      const finalized = finalizeStudioPageLayout(sectionIds, laid, pageIds, content, maxStudioPageIds);
+      laid = finalized.positions;
+      pageIds = finalized.pageIds;
     }
   }
 
-  const entrySplit = applyEntryLevelPagination(sectionIds, laid, pageIds, resumeData, {
+  const filtered = filterPrintPlanToNonemptyPages(
+    {
+      positions: laid,
+      pageIds: pageIds.length ? pageIds : [createExportPageId(0)],
+      sectionSlices: undefined as Record<string, SectionContentSlice> | undefined,
+    },
+    sectionIds,
+    content.layerOrder,
+  );
+
+
+  const entrySplit = applyEntryLevelPagination(sectionIds, filtered.positions, filtered.pageIds, resumeData, {
     themeFontScale,
     enabled: options?.enableEntrySplit === true,
   });
   laid = entrySplit.positions;
   pageIds = entrySplit.pageIds;
 
-  return {
-    positions: laid,
-    pageIds: pageIds.length ? pageIds : [createExportPageId(0)],
-    sectionSlices: Object.keys(entrySplit.sectionSlices).length ? entrySplit.sectionSlices : undefined,
-  };
+  return filterPrintPlanToNonemptyPages(
+    {
+      positions: laid,
+      pageIds: pageIds.length ? pageIds : [createExportPageId(0)],
+      sectionSlices: Object.keys(entrySplit.sectionSlices).length ? entrySplit.sectionSlices : undefined,
+    },
+    sectionIds,
+    content.layerOrder,
+  );
 }
 
 /** Clamp every section bottom to the printable A4 band (export safety net). */

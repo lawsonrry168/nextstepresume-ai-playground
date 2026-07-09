@@ -2752,7 +2752,7 @@ function registerConfigRoutes(app) {
 // server/exportPdfHandler.ts
 var PRINT_READY_SELECTOR = '[data-print-ready="true"]';
 var PRINT_TIMEOUT_MS = 45e3;
-var FONT_READY_TIMEOUT_MS = 12e3;
+var FONT_READY_TIMEOUT_MS = 18e3;
 var IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 async function launchChromium() {
   if (IS_SERVERLESS) {
@@ -3010,6 +3010,16 @@ function extractJobMeta(jobDescription) {
 
 // src/i18n/types.ts
 var DEFAULT_LOCALE = getActiveMarket().defaultLocale;
+function getMarketLocales() {
+  const fromMarket = getActiveMarket().locales;
+  return fromMarket.length ? fromMarket : ["en", "zh-HK"];
+}
+
+// src/i18n/translate.ts
+var activeLocale = DEFAULT_LOCALE;
+function getActiveLocale() {
+  return activeLocale;
+}
 
 // src/lib/createDraftApplicationPackage.ts
 function mergeImportedJobMeta(headline, extracted) {
@@ -3437,6 +3447,885 @@ function registerJobsdbRoutes(app) {
 // server/routes/resume.ts
 var import_multer = __toESM(require("multer"), 1);
 
+// src/lib/templates/tokens.ts
+var STATIONERY = {
+  paper: "#FAF6EB",
+  paperTint: "#FBF3DC",
+  ink: "#1A2438",
+  graphite: "#535C68",
+  red: "#C0392B",
+  redDeep: "#A93226",
+  marker: "#F5D76E",
+  mint: "#D4EDDA",
+  teal: "#2E7D74",
+  rule: "#C5D9E8",
+  ruleDeep: "#5B8FB9",
+  eraser: "#F2C1C1"
+};
+var S = STATIONERY;
+function baseColors(overrides) {
+  return {
+    paper: S.paper,
+    ink: S.ink,
+    muted: S.graphite,
+    accent: S.red,
+    accentSoft: S.mint,
+    highlight: S.marker,
+    rule: S.rule,
+    datesColor: S.graphite,
+    ...overrides
+  };
+}
+function buildFamily(family, typographyDefaults, defs) {
+  return defs.map((def, index) => ({
+    id: `${family}-${String(index + 1).padStart(2, "0")}`,
+    family,
+    designId: def.designId,
+    layout: def.layout,
+    density: def.density ?? "compact",
+    colors: baseColors(def.colors),
+    typography: { ...typographyDefaults, ...def.typography },
+    decorations: def.decorations
+  }));
+}
+var NOTEBOOK = buildFamily(
+  "modern",
+  { display: "display-serif", body: "serif", label: "sans", titleCase: "upper" },
+  [
+    {
+      designId: "notebook-01",
+      layout: "sidebar-left",
+      decorations: { ruledLines: true, marginLine: {}, highlightMarker: true, stickers: true }
+    },
+    {
+      designId: "notebook-02",
+      layout: "single",
+      colors: { paper: S.paperTint, datesColor: S.red },
+      decorations: { marginLine: { double: true } }
+    },
+    {
+      designId: "notebook-03",
+      layout: "single",
+      colors: { accent: S.teal, nameColor: S.red },
+      decorations: { gridPaper: true }
+    },
+    {
+      designId: "notebook-04",
+      layout: "single",
+      decorations: { sectionCards: true }
+    },
+    {
+      designId: "notebook-05",
+      layout: "single",
+      typography: { titleCase: "none" },
+      decorations: { centeredHeader: true, nameUnderline: "double", ruledLines: true }
+    },
+    {
+      designId: "notebook-06",
+      layout: "sidebar-right",
+      decorations: { stickers: true }
+    },
+    {
+      designId: "notebook-07",
+      layout: "single",
+      decorations: { highlightMarker: true }
+    },
+    {
+      designId: "notebook-08",
+      layout: "timeline",
+      decorations: { timelineThread: true, stitchedBorder: true }
+    },
+    {
+      designId: "notebook-09",
+      layout: "single",
+      colors: { accent: S.ruleDeep, nameColor: S.red },
+      decorations: { ruledLines: true }
+    },
+    {
+      designId: "notebook-10",
+      layout: "single",
+      colors: { accent: S.teal, datesColor: S.red },
+      decorations: { rowShading: true }
+    },
+    {
+      designId: "notebook-11",
+      layout: "single",
+      colors: { accent: S.graphite, nameColor: S.ink },
+      decorations: { stampContact: true, highlightMarker: true }
+    }
+  ]
+);
+var BUREAU = buildFamily(
+  "classic",
+  { display: "display-serif", body: "serif", label: "serif", titleCase: "smallcaps" },
+  [
+    {
+      designId: "bureau-01",
+      layout: "single",
+      decorations: { centeredHeader: true }
+    },
+    {
+      designId: "bureau-02",
+      layout: "timeline",
+      decorations: {}
+    },
+    {
+      designId: "bureau-03",
+      layout: "single",
+      typography: { titleCase: "upper" },
+      decorations: {}
+    },
+    {
+      designId: "bureau-04",
+      layout: "single",
+      colors: { accent: S.ink },
+      decorations: { nameUnderline: "double" }
+    },
+    {
+      designId: "bureau-05",
+      layout: "single",
+      decorations: { numberedSections: true }
+    },
+    {
+      designId: "bureau-06",
+      layout: "single",
+      colors: { accent: S.teal, nameColor: S.ink },
+      decorations: { monogram: true }
+    },
+    {
+      designId: "bureau-07",
+      layout: "single",
+      decorations: { contactBand: true }
+    },
+    {
+      designId: "bureau-08",
+      layout: "single",
+      density: "compact",
+      decorations: { dottedLeaders: true }
+    },
+    {
+      designId: "bureau-09",
+      layout: "header-band",
+      decorations: { metaBox: true }
+    },
+    {
+      designId: "bureau-10",
+      layout: "single",
+      decorations: { centeredHeader: true, dividerGlyph: "\u2756" }
+    }
+  ]
+);
+var STUDIO = buildFamily(
+  "minimalist",
+  { display: "sans", body: "sans", label: "sans", titleCase: "upper" },
+  [
+    {
+      designId: "studio-01",
+      layout: "sidebar-left",
+      colors: { accent: S.teal },
+      decorations: {}
+    },
+    {
+      designId: "studio-02",
+      layout: "single",
+      colors: { accent: S.teal },
+      decorations: {}
+    },
+    {
+      designId: "studio-03",
+      layout: "single",
+      density: "airy",
+      colors: { accent: S.ink },
+      decorations: { highlightMarker: true }
+    },
+    {
+      designId: "studio-04",
+      layout: "sidebar-right",
+      colors: { accent: S.teal },
+      decorations: {}
+    },
+    {
+      designId: "studio-05",
+      layout: "single",
+      density: "airy",
+      decorations: {}
+    },
+    {
+      designId: "studio-06",
+      layout: "single",
+      colors: { accent: S.graphite },
+      decorations: {}
+    },
+    {
+      designId: "studio-07",
+      layout: "two-column",
+      colors: { accent: S.graphite },
+      decorations: { cornerTick: true }
+    },
+    {
+      designId: "studio-08",
+      layout: "sidebar-left",
+      colors: { accent: S.teal },
+      decorations: { stickers: true }
+    },
+    {
+      designId: "studio-09",
+      layout: "single",
+      colors: { accent: S.teal },
+      typography: { display: "mono", label: "mono" },
+      decorations: { cursorBlock: true }
+    },
+    {
+      designId: "studio-10",
+      layout: "single",
+      density: "airy",
+      decorations: {}
+    }
+  ]
+);
+var TEMPLATE_DEFINITION_LIST = [...NOTEBOOK, ...BUREAU, ...STUDIO];
+var DEFINITION_MAP = /* @__PURE__ */ new Map();
+for (const def of TEMPLATE_DEFINITION_LIST) {
+  DEFINITION_MAP.set(def.id, def);
+  DEFINITION_MAP.set(def.designId, def);
+}
+
+// src/lib/templates/templateDemoBaseContent.ts
+var EN_BASE = {
+  personalInfo: {
+    name: "Alex Chan",
+    title: "Frontend Product Engineer",
+    email: "alex.chan@email.com",
+    phone: "+852 9123 4567",
+    website: "https://alexchan.dev",
+    location: "Hong Kong SAR",
+    linkedin: "linkedin.com/in/alexchan",
+    rightToWork: "Permanent Hong Kong Resident",
+    noticePeriod: "1 month",
+    expectedSalary: "HK$42,000 / month"
+  },
+  summary: "",
+  experience: [
+    {
+      id: "exp-1",
+      company: "Harbour Digital Solutions",
+      role: "Frontend Product Engineer",
+      startDate: "2022-08",
+      endDate: "Present",
+      location: "Quarry Bay, Hong Kong",
+      bullets: [
+        "Rebuilt a merchant operations workspace in React and TypeScript, cutting support task time by 22%.",
+        "Built a shared component library and token system adopted across admin, analytics, and marketing surfaces.",
+        "Partnered with design to ship accessible table, filter, and form patterns with WCAG 2.1 AA coverage."
+      ]
+    },
+    {
+      id: "exp-2",
+      company: "Kowloon Commerce Cloud",
+      role: "Software Engineer",
+      startDate: "2020-07",
+      endDate: "2022-07",
+      location: "Kowloon Bay, Hong Kong",
+      bullets: [
+        "Delivered internal order and catalog tooling with React, Node.js, and REST APIs for three APAC markets.",
+        "Replaced manual spreadsheet reporting with dashboard modules used weekly by operations and finance teams.",
+        "Migrated legacy jQuery modules to TypeScript with shared Tailwind utilities and Storybook documentation."
+      ]
+    },
+    {
+      id: "exp-3",
+      company: "Pearl River FinTech",
+      role: "Junior Frontend Developer",
+      startDate: "2019-01",
+      endDate: "2020-06",
+      location: "Central, Hong Kong",
+      bullets: [
+        "Implemented responsive account settings, KYC flows, and notification centers for a regulated fintech product.",
+        "Collaborated with backend engineers on OpenAPI contracts and optimistic UI for payment status updates.",
+        "Authored internal wiki guides on React testing patterns adopted by two feature squads."
+      ]
+    }
+  ],
+  education: [
+    {
+      id: "edu-1",
+      institution: "The Hong Kong Polytechnic University",
+      degree: "BSc",
+      field: "Computing",
+      gradDate: "2021-06",
+      location: "Hung Hom, Hong Kong"
+    },
+    {
+      id: "edu-2",
+      institution: "HKU SPACE",
+      degree: "Professional Certificate",
+      field: "UX Design & Front-end Development",
+      gradDate: "2019-08",
+      location: "Admiralty, Hong Kong"
+    }
+  ],
+  projects: [
+    {
+      id: "proj-1",
+      name: "Sprintboard HK",
+      description: "Kanban planning tool with drag-and-drop boards, command palette actions, and keyboard-first workflows for distributed teams.",
+      techStack: "React, TypeScript, Tailwind CSS, Zustand",
+      url: "https://github.com/alexchan/sprintboard-hk"
+    },
+    {
+      id: "proj-2",
+      name: "Token Studio",
+      description: "Design-token explorer that syncs Figma variables to CSS custom properties and documents contrast ratios for each theme.",
+      techStack: "Next.js, TypeScript, Figma API",
+      url: "https://github.com/alexchan/token-studio"
+    }
+  ],
+  skills: [
+    "TypeScript",
+    "React",
+    "Next.js",
+    "Node.js",
+    "Tailwind CSS",
+    "Design Systems",
+    "Accessibility (WCAG 2.1)",
+    "REST APIs",
+    "GraphQL",
+    "Playwright",
+    "Storybook",
+    "Vite",
+    "Performance Profiling",
+    "Git & CI/CD",
+    "Cantonese",
+    "English"
+  ],
+  certifications: [
+    "AWS Certified Cloud Practitioner (2023)",
+    "Meta Front-End Developer Professional Certificate (2022)"
+  ],
+  volunteerWork: [
+    "Code for Hong Kong \u2014 mentor for weekend React workshops (2021\u2013Present)"
+  ],
+  languages: ["English (Fluent)", "Cantonese (Native)", "Mandarin (Conversational)"]
+};
+var ZH_BASE = {
+  personalInfo: {
+    name: "\u9673\u4FCA\u6A02",
+    title: "\u524D\u7AEF\u7522\u54C1\u5DE5\u7A0B\u5E2B",
+    email: "alex.chan@email.com",
+    phone: "+852 9123 4567",
+    website: "https://alexchan.dev",
+    location: "\u9999\u6E2F\u7279\u5225\u884C\u653F\u5340",
+    linkedin: "linkedin.com/in/alexchan",
+    rightToWork: "\u9999\u6E2F\u6C38\u4E45\u6027\u5C45\u6C11",
+    noticePeriod: "1 \u500B\u6708",
+    expectedSalary: "HK$42,000 / \u6708"
+  },
+  summary: "",
+  experience: [
+    {
+      id: "exp-1",
+      company: "\u6D77\u6E2F\u6578\u78BC\u65B9\u6848",
+      role: "\u524D\u7AEF\u7522\u54C1\u5DE5\u7A0B\u5E2B",
+      startDate: "2022-08",
+      endDate: "Present",
+      location: "\u9999\u6E2F\u9C02\u9B5A\u6D8C",
+      bullets: [
+        "\u4EE5 React \u8207 TypeScript \u91CD\u69CB\u5546\u6236\u71DF\u904B\u5DE5\u4F5C\u53F0\uFF0C\u652F\u63F4\u5DE5\u55AE\u8655\u7406\u6642\u9593\u7E2E\u77ED 22%\u3002",
+        "\u5EFA\u7ACB\u5171\u7528\u5143\u4EF6\u5EAB\u8207 Design Token \u7CFB\u7D71\uFF0C\u61C9\u7528\u65BC\u5F8C\u53F0\u3001\u5206\u6790\u8207\u884C\u92B7\u4ECB\u9762\u3002",
+        "\u8207\u8A2D\u8A08\u5718\u968A\u5408\u4F5C\u4EA4\u4ED8\u7B26\u5408 WCAG 2.1 AA \u7684\u8868\u683C\u3001\u7BE9\u9078\u8207\u8868\u55AE\u5143\u4EF6\u3002"
+      ]
+    },
+    {
+      id: "exp-2",
+      company: "\u4E5D\u9F8D\u5546\u96F2\u79D1\u6280",
+      role: "\u8EDF\u9AD4\u5DE5\u7A0B\u5E2B",
+      startDate: "2020-07",
+      endDate: "2022-07",
+      location: "\u9999\u6E2F\u4E5D\u9F8D\u7063",
+      bullets: [
+        "\u4EE5 React\u3001Node.js \u8207 REST API \u4EA4\u4ED8\u5167\u90E8\u8A02\u55AE\u8207\u578B\u9304\u5DE5\u5177\uFF0C\u652F\u63F4\u4E09\u500B\u4E9E\u592A\u5E02\u5834\u3002",
+        "\u4EE5\u5100\u8868\u677F\u6A21\u7D44\u53D6\u4EE3\u8A66\u7B97\u8868\u5831\u8868\uFF0C\u71DF\u904B\u8207\u8CA1\u52D9\u5718\u968A\u6BCF\u9031\u56FA\u5B9A\u4F7F\u7528\u3002",
+        "\u5C07\u820A\u7248 jQuery \u6A21\u7D44\u9077\u79FB\u81F3 TypeScript\uFF0C\u4E26\u4EE5 Tailwind \u8207 Storybook \u5EFA\u7ACB\u5171\u7528\u898F\u7BC4\u3002"
+      ]
+    },
+    {
+      id: "exp-3",
+      company: "\u73E0\u6C5F\u91D1\u878D\u79D1\u6280",
+      role: "\u521D\u7D1A\u524D\u7AEF\u958B\u767C\u5DE5\u7A0B\u5E2B",
+      startDate: "2019-01",
+      endDate: "2020-06",
+      location: "\u9999\u6E2F\u4E2D\u74B0",
+      bullets: [
+        "\u70BA\u53D7\u76E3\u7BA1\u91D1\u878D\u79D1\u6280\u7522\u54C1\u5BE6\u4F5C\u5E33\u6236\u8A2D\u5B9A\u3001KYC \u6D41\u7A0B\u8207\u901A\u77E5\u4E2D\u5FC3\u3002",
+        "\u8207\u5F8C\u7AEF\u5DE5\u7A0B\u5E2B\u5354\u4F5C OpenAPI \u5408\u7D04\u8207\u4ED8\u6B3E\u72C0\u614B\u7684 optimistic UI\u3002",
+        "\u64B0\u5BEB React \u6E2C\u8A66\u6A21\u5F0F\u5167\u90E8 wiki\uFF0C\u7372\u5169\u500B\u529F\u80FD\u5C0F\u968A\u63A1\u7528\u3002"
+      ]
+    }
+  ],
+  education: [
+    {
+      id: "edu-1",
+      institution: "\u9999\u6E2F\u7406\u5DE5\u5927\u5B78",
+      degree: "\u7406\u5B78\u58EB",
+      field: "\u8A08\u7B97\u6A5F",
+      gradDate: "2021-06",
+      location: "\u9999\u6E2F\u7D05\u78E1"
+    },
+    {
+      id: "edu-2",
+      institution: "\u9999\u6E2F\u5927\u5B78\u5C08\u696D\u9032\u4FEE\u5B78\u9662",
+      degree: "\u5C08\u696D\u8B49\u66F8",
+      field: "UX \u8A2D\u8A08\u8207\u524D\u7AEF\u958B\u767C",
+      gradDate: "2019-08",
+      location: "\u9999\u6E2F\u91D1\u9418"
+    }
+  ],
+  projects: [
+    {
+      id: "proj-1",
+      name: "Sprintboard HK",
+      description: "\u770B\u677F\u898F\u5283\u5DE5\u5177\uFF0C\u652F\u63F4\u62D6\u653E\u6B04\u4F4D\u3001\u6307\u4EE4\u9762\u677F\u8207\u9375\u76E4\u512A\u5148\u64CD\u4F5C\uFF0C\u9069\u5408\u5206\u6563\u5F0F\u5718\u968A\u3002",
+      techStack: "React, TypeScript, Tailwind CSS, Zustand",
+      url: "https://github.com/alexchan/sprintboard-hk"
+    },
+    {
+      id: "proj-2",
+      name: "Token Studio",
+      description: "Design Token \u63A2\u7D22\u5668\uFF0C\u540C\u6B65 Figma \u8B8A\u6578\u81F3 CSS \u81EA\u8A02\u5C6C\u6027\uFF0C\u4E26\u8A18\u9304\u5404\u4E3B\u984C\u5C0D\u6BD4\u5EA6\u3002",
+      techStack: "Next.js, TypeScript, Figma API",
+      url: "https://github.com/alexchan/token-studio"
+    }
+  ],
+  skills: [
+    "TypeScript",
+    "React",
+    "Next.js",
+    "Node.js",
+    "Tailwind CSS",
+    "\u8A2D\u8A08\u7CFB\u7D71",
+    "\u7121\u969C\u7919\uFF08WCAG 2.1\uFF09",
+    "REST API",
+    "GraphQL",
+    "Playwright",
+    "Storybook",
+    "Vite",
+    "\u6548\u80FD\u5206\u6790",
+    "Git \u8207 CI/CD",
+    "\u7CB5\u8A9E",
+    "\u82F1\u8A9E"
+  ],
+  certifications: [
+    "AWS Certified Cloud Practitioner\uFF082023\uFF09",
+    "Meta \u524D\u7AEF\u958B\u767C\u5C08\u696D\u8B49\u66F8\uFF082022\uFF09"
+  ],
+  volunteerWork: [
+    "Code for Hong Kong \u2014 \u9031\u672B React \u5DE5\u4F5C\u574A\u5C0E\u5E2B\uFF082021\u2013\u81F3\u4ECA\uFF09"
+  ],
+  languages: ["\u82F1\u8A9E\uFF08\u6D41\u5229\uFF09", "\u7CB5\u8A9E\uFF08\u6BCD\u8A9E\uFF09", "\u666E\u901A\u8A71\uFF08\u65E5\u5E38\u6703\u8A71\uFF09"]
+};
+var TEMPLATE_DEMO_SUMMARY_TAIL = {
+  en: "Four years of shipping production UI for cross-functional product teams.",
+  zh: "\u64C1\u6709\u56DB\u5E74\u524D\u7AEF\u7522\u54C1\u4EA4\u4ED8\u7D93\u9A57\uFF0C\u9577\u671F\u8207\u8DE8\u8077\u80FD\u5718\u968A\u5354\u4F5C\u3002"
+};
+function buildTwoPageBaseResume(locale) {
+  return locale === "zh" ? structuredClone(ZH_BASE) : structuredClone(EN_BASE);
+}
+
+// src/lib/templates/templateDemoProfiles.ts
+var MODERN_PROFILES_EN = [
+  {
+    title: "Frontend Product Engineer",
+    summaryLead: "Product-minded frontend engineer shipping React and TypeScript experiences for Hong Kong and APAC users.",
+    summaryFocus: "Design systems, accessible UI, and measurable delivery impact."
+  },
+  {
+    title: "Senior UI Engineer",
+    summaryLead: "UI engineer focused on editorial layouts, typography rhythm, and crisp component APIs.",
+    summaryFocus: "Turning complex workflows into calm, readable interfaces."
+  },
+  {
+    title: "Design Systems Engineer",
+    summaryLead: "Engineer bridging design tokens, component libraries, and production React surfaces.",
+    summaryFocus: "Consistent visual language across admin, marketing, and analytics products."
+  },
+  {
+    title: "Full-Stack Product Developer",
+    summaryLead: "Full-stack developer building merchant tooling with React, Node.js, and cloud-native services.",
+    summaryFocus: "End-to-end ownership from API design to polished UI states."
+  },
+  {
+    title: "Lead Frontend Developer",
+    summaryLead: "Lead frontend developer guiding squads through migrations, performance budgets, and release quality.",
+    summaryFocus: "Mentorship, code review culture, and predictable delivery cadence."
+  },
+  {
+    title: "Creative Technologist",
+    summaryLead: "Creative technologist crafting interactive dashboards and brand-forward product surfaces.",
+    summaryFocus: "Motion, micro-interactions, and storytelling through data visualization."
+  },
+  {
+    title: "Platform UI Engineer",
+    summaryLead: "Platform engineer improving shared UI infrastructure, build pipelines, and developer experience.",
+    summaryFocus: "Reusable primitives that accelerate feature teams without sacrificing craft."
+  },
+  {
+    title: "Product Engineer \u2014 Growth",
+    summaryLead: "Growth-oriented engineer optimizing onboarding, activation funnels, and experimentation tooling.",
+    summaryFocus: "A/B testing infrastructure paired with accessible, conversion-aware UI."
+  },
+  {
+    title: "Frontend Architect",
+    summaryLead: "Frontend architect defining module boundaries, state management patterns, and rendering strategy.",
+    summaryFocus: "Scalable architecture for multi-market SaaS with strong TypeScript contracts."
+  },
+  {
+    title: "Web Performance Engineer",
+    summaryLead: "Performance engineer profiling Core Web Vitals, bundle budgets, and server/client rendering trade-offs.",
+    summaryFocus: "Faster dashboards for large datasets without sacrificing clarity."
+  },
+  {
+    title: "Staff Frontend Engineer",
+    summaryLead: "Staff engineer partnering with design and product to raise the bar on craft and reliability.",
+    summaryFocus: "Cross-team initiatives, technical RFCs, and production incident follow-through."
+  }
+];
+var MODERN_PROFILES_ZH = [
+  {
+    title: "\u524D\u7AEF\u7522\u54C1\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u5177\u7522\u54C1\u601D\u7DAD\u7684\u524D\u7AEF\u5DE5\u7A0B\u5E2B\uFF0C\u70BA\u9999\u6E2F\u53CA\u4E9E\u592A\u7528\u6236\u4EA4\u4ED8 React \u8207 TypeScript \u9AD4\u9A57\u3002",
+    summaryFocus: "\u5C08\u7CBE\u8A2D\u8A08\u7CFB\u7D71\u3001\u7121\u969C\u7919\u4ECB\u9762\u8207\u53EF\u91CF\u5316\u7684\u4EA4\u4ED8\u6210\u679C\u3002"
+  },
+  {
+    title: "\u8CC7\u6DF1 UI \u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u5C08\u6CE8\u7DE8\u8F2F\u5F0F\u7248\u9762\u3001\u5B57\u7D1A\u7BC0\u594F\u8207\u6E05\u6670\u5143\u4EF6 API \u7684 UI \u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u5C07\u8907\u96DC\u6D41\u7A0B\u8F49\u5316\u70BA\u6C89\u7A69\u3001\u6613\u8B80\u7684\u64CD\u4F5C\u4ECB\u9762\u3002"
+  },
+  {
+    title: "\u8A2D\u8A08\u7CFB\u7D71\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u9023\u7D50 Design Token\u3001\u5143\u4EF6\u5EAB\u8207\u6B63\u5F0F\u74B0\u5883 React \u4ECB\u9762\u7684\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u5728\u5F8C\u53F0\u3001\u884C\u92B7\u8207\u5206\u6790\u7522\u54C1\u9593\u7DAD\u6301\u4E00\u81F4\u7684\u8996\u89BA\u8A9E\u8A00\u3002"
+  },
+  {
+    title: "\u5168\u7AEF\u7522\u54C1\u958B\u767C\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u4EE5 React\u3001Node.js \u8207\u96F2\u7AEF\u670D\u52D9\u5EFA\u69CB\u5546\u6236\u5DE5\u5177\u7684\u958B\u767C\u8005\u3002",
+    summaryFocus: "\u5F9E API \u8A2D\u8A08\u5230\u7CBE\u7DFB UI \u72C0\u614B\u7684\u5168\u6D41\u7A0B\u8CA0\u8CAC\u3002"
+  },
+  {
+    title: "\u524D\u7AEF\u958B\u767C\u7D44\u9577",
+    summaryLead: "\u5E36\u9818\u5C0F\u7D44\u5B8C\u6210\u9077\u79FB\u3001\u6548\u80FD\u9810\u7B97\u8207\u767C\u5E03\u54C1\u8CEA\u7684\u524D\u7AEF\u7D44\u9577\u3002",
+    summaryFocus: "\u91CD\u8996\u6307\u5C0E\u3001Code Review \u6587\u5316\u8207\u53EF\u9810\u671F\u7684\u4EA4\u4ED8\u7BC0\u594F\u3002"
+  },
+  {
+    title: "\u5275\u610F\u6280\u8853\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u6253\u9020\u4E92\u52D5\u5100\u8868\u677F\u8207\u5177\u54C1\u724C\u611F\u7522\u54C1\u4ECB\u9762\u7684\u5275\u610F\u6280\u8853\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u52D5\u6548\u3001\u5FAE\u4E92\u52D5\u8207\u6578\u64DA\u8996\u89BA\u5316\u6558\u4E8B\u3002"
+  },
+  {
+    title: "\u5E73\u53F0 UI \u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u6539\u5584\u5171\u7528 UI \u57FA\u790E\u8A2D\u65BD\u3001\u5EFA\u7F6E\u6D41\u7A0B\u8207\u958B\u767C\u8005\u9AD4\u9A57\u7684\u5E73\u53F0\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u53EF\u91CD\u7528\u57FA\u790E\u5143\u4EF6\uFF0C\u52A0\u901F\u529F\u80FD\u5718\u968A\u800C\u4E0D\u72A7\u7272\u54C1\u8CEA\u3002"
+  },
+  {
+    title: "\u7522\u54C1\u5DE5\u7A0B\u5E2B \u2014 \u6210\u9577",
+    summaryLead: "\u512A\u5316 onboarding\u3001\u6FC0\u6D3B\u6F0F\u6597\u8207\u5BE6\u9A57\u5DE5\u5177\u7684\u6210\u9577\u5C0E\u5411\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "A/B \u6E2C\u8A66\u57FA\u790E\u5EFA\u8A2D\u642D\u914D\u7121\u969C\u7919\u3001\u8F49\u63DB\u5C0E\u5411 UI\u3002"
+  },
+  {
+    title: "\u524D\u7AEF\u67B6\u69CB\u5E2B",
+    summaryLead: "\u5B9A\u7FA9\u6A21\u7D44\u908A\u754C\u3001\u72C0\u614B\u7BA1\u7406\u6A21\u5F0F\u8207\u6E32\u67D3\u7B56\u7565\u7684\u524D\u7AEF\u67B6\u69CB\u5E2B\u3002",
+    summaryFocus: "\u591A\u5E02\u5834 SaaS \u7684\u53EF\u64F4\u5C55\u67B6\u69CB\u8207\u56B4\u8B39 TypeScript \u5408\u7D04\u3002"
+  },
+  {
+    title: "\u7DB2\u9801\u6548\u80FD\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u5206\u6790 Core Web Vitals\u3001bundle \u9810\u7B97\u8207 SSR/CSR \u6B0A\u8861\u7684\u6548\u80FD\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u5728\u5927\u91CF\u8CC7\u6599\u5100\u8868\u677F\u4E2D\u63D0\u5347\u901F\u5EA6\u800C\u4E0D\u640D\u5931\u6E05\u6670\u5EA6\u3002"
+  },
+  {
+    title: "\u8CC7\u6DF1\u524D\u7AEF\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u8207\u8A2D\u8A08\u3001\u7522\u54C1\u5354\u4F5C\uFF0C\u63D0\u5347\u5DE5\u7A0B\u54C1\u8CEA\u8207\u53EF\u9760\u5EA6\u7684 Staff \u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u8DE8\u5718\u968A\u5C08\u6848\u3001\u6280\u8853 RFC \u8207\u6B63\u5F0F\u74B0\u5883\u4E8B\u6545\u5F8C\u7E8C\u3002"
+  }
+];
+var CLASSIC_PROFILES_EN = [
+  {
+    title: "Software Engineer \u2014 Applications",
+    summaryLead: "Applications engineer with a conservative, ATS-friendly presentation and clear achievement metrics.",
+    summaryFocus: "Stable releases, regression prevention, and stakeholder-ready documentation."
+  },
+  {
+    title: "Senior Software Developer",
+    summaryLead: "Senior developer delivering enterprise dashboards, reporting modules, and integration layers.",
+    summaryFocus: "Readable code, structured delivery, and dependable cross-functional communication."
+  },
+  {
+    title: "Technical Lead \u2014 Web Platform",
+    summaryLead: "Technical lead coordinating roadmap delivery for internal web platforms and shared services.",
+    summaryFocus: "Risk-managed rollouts, runbooks, and operational excellence."
+  },
+  {
+    title: "Principal Engineer \u2014 Frontend",
+    summaryLead: "Principal engineer setting engineering standards for large React codebases and release trains.",
+    summaryFocus: "Architecture reviews, quality gates, and long-term maintainability."
+  },
+  {
+    title: "Engineering Manager \u2014 Product UI",
+    summaryLead: "Engineering manager balancing people leadership with hands-on UI architecture guidance.",
+    summaryFocus: "Hiring, career growth, and predictable quarterly outcomes."
+  },
+  {
+    title: "Solutions Engineer",
+    summaryLead: "Solutions engineer translating client requirements into implementable product specifications.",
+    summaryFocus: "Pre-sales demos, proof-of-concept builds, and smooth handoff to delivery teams."
+  },
+  {
+    title: "Integration Engineer",
+    summaryLead: "Integration engineer connecting CRM, billing, and analytics systems through robust APIs.",
+    summaryFocus: "Data integrity, observability, and pragmatic error handling."
+  },
+  {
+    title: "Quality Engineering Lead",
+    summaryLead: "Quality lead establishing automated regression suites for customer-facing web applications.",
+    summaryFocus: "Playwright coverage, release checklists, and defect trend analysis."
+  },
+  {
+    title: "Programmer Analyst",
+    summaryLead: "Programmer analyst modernizing legacy intranet tools into responsive React modules.",
+    summaryFocus: "Incremental migration, user training, and change management."
+  },
+  {
+    title: "IT Applications Specialist",
+    summaryLead: "Applications specialist supporting business units with custom workflow and reporting tools.",
+    summaryFocus: "Requirements gathering, SLA adherence, and knowledge base upkeep."
+  }
+];
+var CLASSIC_PROFILES_ZH = [
+  {
+    title: "\u61C9\u7528\u7A0B\u5F0F\u8EDF\u9AD4\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u4EE5\u4FDD\u5B88\u3001ATS \u53CB\u5584\u683C\u5F0F\u5448\u73FE\uFF0C\u4E26\u4EE5\u660E\u78BA\u91CF\u5316\u6210\u679C\u70BA\u91CD\u7684\u61C9\u7528\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u7A69\u5B9A\u767C\u5E03\u3001\u8FF4\u6B78\u9632\u8B77\u8207\u5229\u5BB3\u95DC\u4FC2\u4EBA\u53EF\u8B80\u7684\u6587\u4EF6\u3002"
+  },
+  {
+    title: "\u8CC7\u6DF1\u8EDF\u9AD4\u958B\u767C\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u4EA4\u4ED8\u4F01\u696D\u5100\u8868\u677F\u3001\u5831\u8868\u6A21\u7D44\u8207\u6574\u5408\u5C64\u7684\u8CC7\u6DF1\u958B\u767C\u8005\u3002",
+    summaryFocus: "\u53EF\u8B80\u7A0B\u5F0F\u78BC\u3001\u7D50\u69CB\u5316\u4EA4\u4ED8\u8207\u53EF\u9760\u7684\u8DE8\u8077\u80FD\u6E9D\u901A\u3002"
+  },
+  {
+    title: "\u6280\u8853\u4E3B\u7BA1 \u2014 \u7DB2\u9801\u5E73\u53F0",
+    summaryLead: "\u5354\u8ABF\u5167\u90E8\u7DB2\u9801\u5E73\u53F0\u8207\u5171\u7528\u670D\u52D9\u8DEF\u7DDA\u5716\u4EA4\u4ED8\u7684\u6280\u8853\u4E3B\u7BA1\u3002",
+    summaryFocus: "\u98A8\u96AA\u63A7\u7BA1\u4E0A\u7DDA\u3001Runbook \u8207\u71DF\u904B\u5353\u8D8A\u3002"
+  },
+  {
+    title: "\u9996\u5E2D\u5DE5\u7A0B\u5E2B \u2014 \u524D\u7AEF",
+    summaryLead: "\u70BA\u5927\u578B React \u7A0B\u5F0F\u5EAB\u8207\u767C\u5E03\u7BC0\u594F\u8A02\u7ACB\u5DE5\u7A0B\u6A19\u6E96\u7684\u9996\u5E2D\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u67B6\u69CB\u5BE9\u67E5\u3001\u54C1\u8CEA\u95DC\u5361\u8207\u9577\u671F\u53EF\u7DAD\u8B77\u6027\u3002"
+  },
+  {
+    title: "\u5DE5\u7A0B\u7D93\u7406 \u2014 \u7522\u54C1 UI",
+    summaryLead: "\u5E73\u8861\u4EBA\u54E1\u7BA1\u7406\u8207 UI \u67B6\u69CB\u6307\u5C0E\u7684\u5DE5\u7A0B\u7D93\u7406\u3002",
+    summaryFocus: "\u62DB\u52DF\u3001\u8077\u6DAF\u767C\u5C55\u8207\u53EF\u9810\u671F\u7684\u5B63\u5EA6\u6210\u679C\u3002"
+  },
+  {
+    title: "\u89E3\u6C7A\u65B9\u6848\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u5C07\u5BA2\u6236\u9700\u6C42\u8F49\u5316\u70BA\u53EF\u5BE6\u4F5C\u7522\u54C1\u898F\u683C\u7684\u89E3\u6C7A\u65B9\u6848\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u552E\u524D Demo\u3001PoC \u5EFA\u7F6E\u8207\u9806\u66A2\u7684\u4EA4\u4ED8\u4EA4\u63A5\u3002"
+  },
+  {
+    title: "\u6574\u5408\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u900F\u904E\u7A69\u5065 API \u4E32\u63A5 CRM\u3001\u5E33\u52D9\u8207\u5206\u6790\u7CFB\u7D71\u7684\u6574\u5408\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u8CC7\u6599\u5B8C\u6574\u6027\u3001\u53EF\u89C0\u6E2C\u6027\u8207\u52D9\u5BE6\u7684\u932F\u8AA4\u8655\u7406\u3002"
+  },
+  {
+    title: "\u54C1\u8CEA\u5DE5\u7A0B\u7D44\u9577",
+    summaryLead: "\u70BA\u9762\u5411\u5BA2\u6236\u7684\u7DB2\u9801\u61C9\u7528\u5EFA\u7ACB\u81EA\u52D5\u5316\u8FF4\u6B78\u6E2C\u8A66\u7684\u54C1\u8CEA\u7D44\u9577\u3002",
+    summaryFocus: "Playwright \u8986\u84CB\u7387\u3001\u767C\u5E03\u6AA2\u67E5\u6E05\u55AE\u8207\u7F3A\u9677\u8DA8\u52E2\u5206\u6790\u3002"
+  },
+  {
+    title: "\u7A0B\u5F0F\u5206\u6790\u5E2B",
+    summaryLead: "\u5C07\u820A\u7248\u5167\u7DB2\u5DE5\u5177\u73FE\u4EE3\u5316\u70BA\u97FF\u61C9\u5F0F React \u6A21\u7D44\u7684\u7A0B\u5F0F\u5206\u6790\u5E2B\u3002",
+    summaryFocus: "\u6F38\u9032\u5F0F\u9077\u79FB\u3001\u4F7F\u7528\u8005\u57F9\u8A13\u8207\u8B8A\u9769\u7BA1\u7406\u3002"
+  },
+  {
+    title: "IT \u61C9\u7528\u5C08\u54E1",
+    summaryLead: "\u70BA\u5404\u4E8B\u696D\u55AE\u4F4D\u652F\u63F4\u81EA\u8A02\u6D41\u7A0B\u8207\u5831\u8868\u5DE5\u5177\u7684\u61C9\u7528\u5C08\u54E1\u3002",
+    summaryFocus: "\u9700\u6C42\u8A2A\u8AC7\u3001SLA \u9075\u5FAA\u8207\u77E5\u8B58\u5EAB\u7DAD\u8B77\u3002"
+  }
+];
+var MINIMALIST_PROFILES_EN = [
+  {
+    title: "Product Designer \u2014 UI Engineering",
+    summaryLead: "Designer-engineer hybrid shaping whitespace-driven product UI with systematic typography.",
+    summaryFocus: "Minimal layouts that still communicate hierarchy and trust."
+  },
+  {
+    title: "UX Engineer",
+    summaryLead: "UX engineer prototyping flows in code and shipping production-ready React components.",
+    summaryFocus: "Research-informed interaction design with fast iteration loops."
+  },
+  {
+    title: "Interface Developer",
+    summaryLead: "Interface developer crafting calm admin tools with strong grid discipline and neutral palettes.",
+    summaryFocus: "Clarity over decoration; every pixel earns its place."
+  },
+  {
+    title: "Design Ops Engineer",
+    summaryLead: "Design ops engineer connecting Figma libraries to coded tokens and CI visual checks.",
+    summaryFocus: "Single source of truth for color, spacing, and component variants."
+  },
+  {
+    title: "Frontend Engineer \u2014 SaaS",
+    summaryLead: "SaaS frontend engineer building settings, billing, and onboarding with restrained visual language.",
+    summaryFocus: "Predictable patterns users can scan in seconds."
+  },
+  {
+    title: "Web Developer \u2014 Studio Practice",
+    summaryLead: "Studio-minded developer delivering portfolio-grade marketing sites and product landing pages.",
+    summaryFocus: "Responsive grids, subtle motion, and accessible contrast."
+  },
+  {
+    title: "Product Engineer \u2014 Mobile Web",
+    summaryLead: "Product engineer optimizing mobile-first dashboards for field teams across APAC.",
+    summaryFocus: "Touch targets, offline-tolerant states, and lightweight bundles."
+  },
+  {
+    title: "UI Developer \u2014 Analytics",
+    summaryLead: "UI developer presenting dense analytics with generous margins and typographic hierarchy.",
+    summaryFocus: "Tables, filters, and charts that remain legible under load."
+  },
+  {
+    title: "Creative Developer",
+    summaryLead: "Creative developer experimenting with monospace accents and editorial grid systems.",
+    summaryFocus: "Distinctive but readable interfaces for developer-facing products."
+  },
+  {
+    title: "Digital Product Builder",
+    summaryLead: "Product builder launching MVPs quickly while maintaining a polished, gallery-like presentation.",
+    summaryFocus: "Scope discipline, user feedback loops, and craft in the details."
+  }
+];
+var MINIMALIST_PROFILES_ZH = [
+  {
+    title: "\u7522\u54C1\u8A2D\u8A08\u5E2B \u2014 UI \u5DE5\u7A0B",
+    summaryLead: "\u8A2D\u8A08\u8207\u5DE5\u7A0B\u96D9\u4FEE\uFF0C\u4EE5\u7559\u767D\u8207\u7CFB\u7D71\u5316\u5B57\u7D1A\u5851\u9020\u7522\u54C1 UI\u3002",
+    summaryFocus: "\u6975\u7C21\u7248\u9762\u4ECD\u80FD\u50B3\u9054\u5C64\u7D1A\u8207\u4FE1\u4EFB\u611F\u3002"
+  },
+  {
+    title: "UX \u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u4EE5\u7A0B\u5F0F\u78BC\u539F\u578B\u5316\u6D41\u7A0B\u4E26\u4EA4\u4ED8\u53EF\u4E0A\u7DDA React \u5143\u4EF6\u7684 UX \u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u7814\u7A76\u9A45\u52D5\u7684\u4E92\u52D5\u8A2D\u8A08\u8207\u5FEB\u901F\u8FED\u4EE3\u3002"
+  },
+  {
+    title: "\u4ECB\u9762\u958B\u767C\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u4EE5\u56B4\u8B39\u683C\u7DDA\u8207\u4E2D\u6027\u8272\u8ABF\u6253\u9020\u6C89\u7A69\u5F8C\u53F0\u5DE5\u5177\u7684\u4ECB\u9762\u958B\u767C\u8005\u3002",
+    summaryFocus: "\u6E05\u6670\u512A\u65BC\u88DD\u98FE\uFF1B\u6BCF\u500B\u50CF\u7D20\u90FD\u6709\u5B58\u5728\u7406\u7531\u3002"
+  },
+  {
+    title: "\u8A2D\u8A08\u71DF\u904B\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u9023\u7D50 Figma \u51FD\u5F0F\u5EAB\u3001\u7A0B\u5F0F Token \u8207 CI \u8996\u89BA\u6AA2\u67E5\u7684\u8A2D\u8A08\u71DF\u904B\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u8272\u5F69\u3001\u9593\u8DDD\u8207\u5143\u4EF6\u8B8A\u9AD4\u7684\u55AE\u4E00\u4E8B\u5BE6\u4F86\u6E90\u3002"
+  },
+  {
+    title: "\u524D\u7AEF\u5DE5\u7A0B\u5E2B \u2014 SaaS",
+    summaryLead: "\u4EE5\u514B\u5236\u8996\u89BA\u8A9E\u8A00\u5EFA\u69CB\u8A2D\u5B9A\u3001\u5E33\u52D9\u8207 onboarding \u7684 SaaS \u524D\u7AEF\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u4F7F\u7528\u8005\u6578\u79D2\u5167\u53EF\u6383\u8B80\u7684\u53EF\u9810\u671F\u6A21\u5F0F\u3002"
+  },
+  {
+    title: "\u7DB2\u9801\u958B\u767C\u5DE5\u7A0B\u5E2B \u2014 \u5DE5\u4F5C\u5BA4",
+    summaryLead: "\u4EA4\u4ED8\u4F5C\u54C1\u96C6\u7D1A\u884C\u92B7\u7DB2\u7AD9\u8207\u7522\u54C1\u8457\u9678\u9801\u7684\u5DE5\u4F5C\u5BA4\u578B\u958B\u767C\u8005\u3002",
+    summaryFocus: "\u97FF\u61C9\u5F0F\u683C\u7DDA\u3001\u7D30\u7DFB\u52D5\u6548\u8207\u7121\u969C\u7919\u5C0D\u6BD4\u3002"
+  },
+  {
+    title: "\u7522\u54C1\u5DE5\u7A0B\u5E2B \u2014 \u884C\u52D5\u7DB2\u9801",
+    summaryLead: "\u70BA\u4E9E\u592A\u5916\u52E4\u5718\u968A\u512A\u5316\u884C\u52D5\u512A\u5148\u5100\u8868\u677F\u7684\u7522\u54C1\u5DE5\u7A0B\u5E2B\u3002",
+    summaryFocus: "\u89F8\u63A7\u76EE\u6A19\u3001\u96E2\u7DDA\u5BB9\u932F\u72C0\u614B\u8207\u8F15\u91CF bundle\u3002"
+  },
+  {
+    title: "UI \u958B\u767C\u5DE5\u7A0B\u5E2B \u2014 \u5206\u6790",
+    summaryLead: "\u4EE5\u5BEC\u88D5\u908A\u8DDD\u8207\u5B57\u7D1A\u5C64\u7D1A\u5448\u73FE\u9AD8\u5BC6\u5EA6\u5206\u6790\u4ECB\u9762\u7684 UI \u958B\u767C\u8005\u3002",
+    summaryFocus: "\u9AD8\u8CA0\u8F09\u4E0B\u4ECD\u6E05\u6670\u7684\u8868\u683C\u3001\u7BE9\u9078\u8207\u5716\u8868\u3002"
+  },
+  {
+    title: "\u5275\u610F\u958B\u767C\u5DE5\u7A0B\u5E2B",
+    summaryLead: "\u63A2\u7D22\u7B49\u5BEC\u5B57\u5F37\u8ABF\u8207\u7DE8\u8F2F\u683C\u7DDA\u7CFB\u7D71\u7684\u5275\u610F\u958B\u767C\u8005\u3002",
+    summaryFocus: "\u9762\u5411\u958B\u767C\u8005\u7522\u54C1\u7684\u7368\u7279\u4F46\u53EF\u8B80\u4ECB\u9762\u3002"
+  },
+  {
+    title: "\u6578\u4F4D\u7522\u54C1\u5EFA\u69CB\u8005",
+    summaryLead: "\u5FEB\u901F\u63A8\u51FA MVP \u540C\u6642\u7DAD\u6301\u7CBE\u7DFB\u3001\u756B\u5ECA\u611F\u5448\u73FE\u7684\u7522\u54C1\u5EFA\u69CB\u8005\u3002",
+    summaryFocus: "\u7BC4\u570D\u7D00\u5F8B\u3001\u4F7F\u7528\u8005\u56DE\u994B\u8FF4\u5708\u8207\u7D30\u7BC0\u5DE5\u85DD\u3002"
+  }
+];
+var PROFILES_BY_LOCALE = {
+  en: {},
+  zh: {}
+};
+function familyProfiles(family, locale) {
+  if (family === "classic") return locale === "zh" ? CLASSIC_PROFILES_ZH : CLASSIC_PROFILES_EN;
+  if (family === "minimalist") return locale === "zh" ? MINIMALIST_PROFILES_ZH : MINIMALIST_PROFILES_EN;
+  return locale === "zh" ? MODERN_PROFILES_ZH : MODERN_PROFILES_EN;
+}
+for (const locale of ["en", "zh"]) {
+  for (const def of TEMPLATE_DEFINITION_LIST) {
+    const index = Number(def.id.split("-")[1]) - 1;
+    const profiles = familyProfiles(def.family, locale);
+    PROFILES_BY_LOCALE[locale][def.id] = profiles[index] ?? profiles[0];
+  }
+}
+var TEMPLATE_DEMO_PROFILES = PROFILES_BY_LOCALE.en;
+function getTemplateDemoProfile(style, locale = "en") {
+  return PROFILES_BY_LOCALE[locale][style] ?? PROFILES_BY_LOCALE.en["modern-01"];
+}
+
+// src/lib/templates/templateDemoLocale.ts
+function readStoredUiLocale() {
+  const allowed = getMarketLocales();
+  try {
+    const raw = localStorage.getItem(NSR_STORAGE_KEYS.uiLocale);
+    if (raw && allowed.includes(raw)) return raw;
+  } catch {
+  }
+  return DEFAULT_LOCALE;
+}
+function resolveTemplateDemoLocale(locale) {
+  const raw = locale ?? getActiveLocale();
+  if (raw === "en") return "en";
+  return "zh";
+}
+
+// src/lib/templates/templateDemoContent.ts
+function withTemplateProfile(base, style, locale) {
+  const profile = getTemplateDemoProfile(style, locale);
+  const tail = TEMPLATE_DEMO_SUMMARY_TAIL[locale];
+  return {
+    ...base,
+    personalInfo: {
+      ...base.personalInfo,
+      title: profile.title
+    },
+    summary: `${profile.summaryLead} ${profile.summaryFocus} ${tail}`
+  };
+}
+function buildDemoRegistry(locale) {
+  const base = buildTwoPageBaseResume(locale);
+  return Object.fromEntries(
+    TEMPLATE_DEFINITION_LIST.map((def) => [def.id, withTemplateProfile(base, def.id, locale)])
+  );
+}
+var TEMPLATE_DEMO_RESUMES_EN = buildDemoRegistry("en");
+var TEMPLATE_DEMO_RESUMES_ZH = buildDemoRegistry("zh");
+function getTemplateDemoResumesForLocale(locale) {
+  return locale === "zh" ? TEMPLATE_DEMO_RESUMES_ZH : TEMPLATE_DEMO_RESUMES_EN;
+}
+function getTemplateDemoResume(style, locale) {
+  const demoLocale = resolveTemplateDemoLocale(locale);
+  const registry = getTemplateDemoResumesForLocale(demoLocale);
+  const demo = registry[style];
+  if (!demo) return structuredClone(registry["modern-01"]);
+  return structuredClone(demo);
+}
+function getDefaultTemplateDemoResume(locale) {
+  return getTemplateDemoResume("classic-02", locale);
+}
+
 // src/data.ts
 var HK_RESUME = {
   personalInfo: {
@@ -3451,7 +4340,7 @@ var HK_RESUME = {
     noticePeriod: "1 month",
     expectedSalary: "HK$42,000 / month"
   },
-  summary: "Frontend product engineer with 4 years of experience shipping React and TypeScript workflows for Hong Kong and APAC teams.",
+  summary: "Frontend engineer with 4 years shipping React and TypeScript products for Hong Kong and APAC teams. Focused on accessible UI, design systems, and measurable delivery impact.",
   experience: [
     {
       id: "exp-1",
@@ -3459,10 +4348,10 @@ var HK_RESUME = {
       role: "Frontend Product Engineer",
       startDate: "2022-08",
       endDate: "Present",
-      location: "Quarry Bay, Hong Kong (Hybrid)",
+      location: "Quarry Bay, Hong Kong",
       bullets: [
-        "Led the rebuild of a merchant operations workspace in React and TypeScript, reducing daily task completion time for support teams by 22%.",
-        "Created a shared component library and token system used across admin, onboarding, and analytics surfaces."
+        "Rebuilt a merchant operations workspace in React and TypeScript, cutting support task time by 22%.",
+        "Built a shared component library and token system adopted across admin and analytics surfaces."
       ]
     },
     {
@@ -3471,10 +4360,10 @@ var HK_RESUME = {
       role: "Software Engineer",
       startDate: "2020-07",
       endDate: "2022-07",
-      location: "Kowloon Bay, Hong Kong (Hybrid)",
+      location: "Kowloon Bay, Hong Kong",
       bullets: [
-        "Built internal order and catalog tooling with React, Node.js, and REST APIs for operations and merchandising teams across three markets.",
-        "Delivered dashboard reporting modules that replaced manual spreadsheet workflows and saved analyst time each week."
+        "Delivered internal order and catalog tooling with React, Node.js, and REST APIs for three markets.",
+        "Replaced manual spreadsheet reporting with dashboard modules used weekly by operations teams."
       ]
     }
   ],
@@ -3498,7 +4387,6 @@ var HK_RESUME = {
     }
   ],
   skills: [
-    "JavaScript",
     "TypeScript",
     "React",
     "Next.js",
@@ -3583,7 +4471,8 @@ var DEFAULT_RESUME = {
   ],
   languages: ["English (Native)", "Spanish (Professional Working Proficiency)"]
 };
-var initialResumeData = isHongKongMarket() ? HK_RESUME : DEFAULT_RESUME;
+var initialResumeData = getDefaultTemplateDemoResume(readStoredUiLocale());
+var compactResumeFixture = isHongKongMarket() ? HK_RESUME : DEFAULT_RESUME;
 var HK_JOB_DESCRIPTION = `
 Software Engineer (React / TypeScript) \u2014 Hong Kong
 

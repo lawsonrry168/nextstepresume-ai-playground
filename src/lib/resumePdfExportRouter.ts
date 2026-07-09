@@ -20,7 +20,8 @@ export async function downloadResumePdfByMode(
   templateStyle?: TemplateStyle,
   options?: { watermark?: string; layout?: PrintLayoutPayload },
 ): Promise<void> {
-  if (mode === "visual" && isE2ePdfStubEnabled()) {
+  let exportMode = mode;
+  if (exportMode === "visual" && isE2ePdfStubEnabled()) {
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF();
     pdf.text("NextStepResume E2E", 10, 10);
@@ -28,7 +29,7 @@ export async function downloadResumePdfByMode(
     return;
   }
 
-  if (mode === "ats" && isE2ePdfStubEnabled()) {
+  if (exportMode === "ats" && isE2ePdfStubEnabled()) {
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF();
     pdf.text("NextStepResume ATS E2E", 10, 10);
@@ -36,10 +37,19 @@ export async function downloadResumePdfByMode(
     return;
   }
 
-  if (mode === "ats") {
-    const { downloadResumeAtsPdf } = await import("./resumeAtsPdfExport");
-    downloadResumeAtsPdf(resumeData, filename, templateStyle);
-    return;
+  if (exportMode === "ats") {
+    const { getActiveLocale } = await import("../i18n/translate");
+    const locale = getActiveLocale();
+    const serialized = JSON.stringify(resumeData);
+    const hasCjk = locale.startsWith("zh") || /[\u3400-\u9FFF\uF900-\uFAFF]/.test(serialized);
+    if (hasCjk) {
+      // Helvetica-based ATS PDF cannot render CJK section labels or content.
+      exportMode = "visual";
+    } else {
+      const { downloadResumeAtsPdf } = await import("./resumeAtsPdfExport");
+      downloadResumeAtsPdf(resumeData, filename, templateStyle);
+      return;
+    }
   }
 
   const snapshot = getPrintExportSnapshot();
