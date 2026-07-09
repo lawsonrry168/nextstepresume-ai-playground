@@ -669,7 +669,9 @@ var NSR_STORAGE_KEYS = {
   usageLedger: "nsr_usage_ledger",
   clientId: "nsr_client_id",
   workspaceCloudUpdatedAt: "nsr_workspace_cloud_updated_at",
-  packagesCloudUpdatedAt: "nsr_packages_cloud_updated_at"
+  packagesCloudUpdatedAt: "nsr_packages_cloud_updated_at",
+  /** Seed demo / two-page layout contract version — see demoSchemaMigration.ts */
+  demoSchemaVersion: "nsr_demo_schema_version"
 };
 
 // src/lib/subscriptionSnapshot.ts
@@ -2749,703 +2751,1422 @@ function registerConfigRoutes(app) {
   });
 }
 
-// server/exportPdfHandler.ts
-var PRINT_READY_SELECTOR = '[data-print-ready="true"]';
-var PRINT_TIMEOUT_MS = 45e3;
-var FONT_READY_TIMEOUT_MS = 18e3;
-var IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-async function launchChromium() {
-  if (IS_SERVERLESS) {
-    try {
-      const sparticuz = (await import("@sparticuz/chromium")).default;
-      const { chromium } = await import("playwright-core");
-      const executablePath = await sparticuz.executablePath();
-      return await chromium.launch({
-        headless: true,
-        executablePath,
-        args: [...sparticuz.args, "--disable-dev-shm-usage"]
-      });
-    } catch (error) {
-      console.error("[export/pdf] serverless chromium launch failed:", error);
-      return null;
-    }
-  }
-  try {
-    const pw = await import("playwright-core");
-    return await pw.chromium.launch({ headless: true });
-  } catch {
-    try {
-      const pw = await import("playwright");
-      return await pw.chromium.launch({ headless: true });
-    } catch {
-      return null;
-    }
-  }
-}
-function resolvePrintOrigin(req) {
-  if (IS_SERVERLESS) {
-    const host = req.headers["x-forwarded-host"] ?? req.headers.host;
-    if (host) {
-      const proto = req.headers["x-forwarded-proto"] ?? "https";
-      return `${proto.split(",")[0]}://${host.split(",")[0]}`;
-    }
-  }
-  const port = Number(process.env.PORT) || 3e3;
-  return `http://127.0.0.1:${port}`;
-}
-async function handleExportPdf(req, res) {
-  const body = req.body ?? {};
-  const format = body.pageFormat === "Letter" ? "Letter" : "A4";
-  if (!body.resumeData || typeof body.resumeData !== "object" || !("personalInfo" in body.resumeData)) {
-    res.status(400).json({ error: "resumeData is required", code: "MISSING_RESUME_DATA" });
-    return;
-  }
-  const browser = await launchChromium();
-  if (!browser) {
-    res.status(501).json({
-      error: "PDF renderer unavailable in this environment",
-      code: "CHROMIUM_UNAVAILABLE"
-    });
-    return;
-  }
-  try {
-    const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
-    const payload = JSON.stringify({
-      resumeData: body.resumeData,
-      templateStyle: body.templateStyle,
-      locale: body.locale,
-      pageFormat: format,
-      paperMode: body.paperMode === "white" ? "white" : "cream",
-      watermark: typeof body.watermark === "string" ? body.watermark : void 0,
-      layout: body.layout
-    });
-    await page.addInitScript((raw) => {
-      try {
-        localStorage.setItem("nsr_print_payload", raw);
-      } catch {
-      }
-    }, payload);
-    const printUrl = `${resolvePrintOrigin(req)}/?print=1`;
-    await page.goto(printUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: PRINT_TIMEOUT_MS
-    });
-    await page.waitForSelector(PRINT_READY_SELECTOR, { timeout: PRINT_TIMEOUT_MS });
-    await page.evaluate(async (fontTimeoutMs) => {
-      await Promise.race([
-        document.fonts.ready,
-        new Promise((resolve) => setTimeout(resolve, fontTimeoutMs))
-      ]);
-    }, FONT_READY_TIMEOUT_MS);
-    const pdf = await page.pdf({
-      format,
-      printBackground: true,
-      margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
-      preferCSSPageSize: true
-    });
-    if (!pdf || pdf.byteLength < 2e3) {
-      res.status(500).json({ error: "PDF render produced empty output", code: "EMPTY_PDF" });
-      return;
-    }
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=resume.pdf");
-    res.send(Buffer.from(pdf));
-  } catch (error) {
-    console.error("[export/pdf] render failed:", error);
-    if (!res.headersSent) {
-      const message = error instanceof Error ? error.message : "PDF render failed";
-      res.status(500).json({ error: message, code: "RENDER_FAILED" });
-    }
-  } finally {
-    await browser.close().catch(() => void 0);
-  }
-}
-
-// server/routes/exportPdf.ts
-function registerExportPdfRoutes(app) {
-  app.post("/api/export/pdf", (req, res) => {
-    void handleExportPdf(req, res);
-  });
-}
-
-// server/routes/health.ts
-function registerHealthRoutes(app, aiEnabled) {
-  app.get("/api/health", (_req, res) => {
-    res.json({
-      status: "ok",
-      ai_enabled: aiEnabled,
-      app_mode: readServerAppMode(),
-      stripe_enabled: isStripeConfigured(),
-      auth_enabled: isSupabaseConfigured(),
-      timestamp: (/* @__PURE__ */ new Date()).toISOString()
-    });
-  });
-}
-
-// src/lib/atsKeywords.ts
-var TECH_KEYWORDS_POOL = [
-  "react",
-  "typescript",
-  "javascript",
-  "tailwind",
-  "next.js",
-  "node.js",
-  "node",
-  "docker",
-  "kubernetes",
-  "aws",
-  "python",
-  "graphql",
-  "sql",
-  "postgresql",
-  "vite",
-  "performance",
-  "metrics",
-  "star",
-  "spa",
-  "hooks",
-  "redux",
-  "express",
-  "developer",
-  "engineer",
-  "engineering",
-  "quantifiable",
-  "quantitative",
-  "optimization",
-  "optimize",
-  "responsive",
-  "profiling",
-  "analytics",
-  "database",
-  "drizzle",
-  "supabase",
-  "git",
-  "github",
-  "ci/cd",
-  "agile",
-  "scrum"
-];
-function extractJdKeywords(jobDescription) {
-  const jdLower = (jobDescription || "").toLowerCase();
-  const matched = TECH_KEYWORDS_POOL.filter((word) => jdLower.includes(word));
-  if (matched.length > 0) return matched;
-  const tokens = jdLower.match(/\b[a-z][a-z0-9+#./-]{2,}\b/g) || [];
-  const unique = Array.from(new Set(tokens)).filter((t2) => t2.length >= 4 && !["with", "this", "that", "will", "your", "have", "role"].includes(t2)).slice(0, 12);
-  return unique.length > 0 ? unique : ["react", "typescript", "javascript", "tailwind", "metrics", "performance"];
-}
-
-// src/lib/jdHtmlExtract.ts
-function stripHtmlToText(html) {
-  let text = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<noscript[\s\S]*?<\/noscript>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<\/h[1-6]>/gi, "\n\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
-  text = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-  return text;
-}
-function extractHtmlPageHints(html) {
-  const pick = (pattern) => {
-    const m = html.match(pattern);
-    return m?.[1]?.trim().replace(/\s+/g, " ") ?? "";
-  };
-  const pageTitle = pick(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const ogTitle = pick(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || pick(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
-  const ogDescription = pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) || pick(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
-  const h1 = pick(/<h1[^>]*>([\s\S]*?)<\/h1>/i).replace(/<[^>]+>/g, "").trim();
-  return { pageTitle, ogTitle, ogDescription, h1 };
-}
-function buildJobDescriptionFromHtml(html) {
-  const hints = extractHtmlPageHints(html);
-  const bodyText = stripHtmlToText(html);
-  const headline = hints.ogTitle || (hints.pageTitle && /[|\-–—]/.test(hints.pageTitle) ? hints.pageTitle : "") || hints.h1 || hints.pageTitle;
-  const intro = [headline, hints.ogDescription].filter(Boolean).join("\n\n");
-  let jobDescription = bodyText;
-  if (bodyText.length > 8e3) {
-    jobDescription = bodyText.slice(0, 8e3).trim() + "\n\n[\u2026\u5167\u5BB9\u5DF2\u622A\u65B7]";
-  }
-  if (intro && !jobDescription.startsWith(intro.slice(0, 40))) {
-    jobDescription = intro ? `${intro}
-
-${jobDescription}` : jobDescription;
-  }
-  return {
-    jobDescription: jobDescription.trim(),
-    pageTitle: hints.pageTitle,
-    headline
-  };
-}
-
-// src/lib/extractJobMeta.ts
-function extractJobMeta(jobDescription) {
-  const jd = jobDescription.trim();
-  if (!jd) {
-    return { jobTitle: "", companyName: "" };
-  }
-  const titlePatterns = [
-    /(?:job title|position|role|職務名稱|職缺名稱|職稱|工作內容)\s*[：:\-]\s*([^\n]{2,80})/i,
-    /^([A-Z\u4e00-\u9fff][A-Za-z0-9\u4e00-\u9fff\s/&\-().]{2,60})\s*(?:\(|（|–|—|-|\|)/m,
-    /(?:hiring|seeking|looking for|誠徵|招募)\s*(?:a\s+)?([A-Za-z0-9\u4e00-\u9fff\s/&\-().]{2,60})/i,
-    /【([^】\n]{2,40})】/
-  ];
-  let jobTitle = "";
-  for (const pattern of titlePatterns) {
-    const match = jd.match(pattern);
-    if (match?.[1]?.trim()) {
-      jobTitle = match[1].trim().replace(/\s{2,}/g, " ");
-      break;
-    }
-  }
-  const companyPatterns = [
-    /(?:company|employer|organization|公司名稱|雇主|企業)\s*[：:\-]\s*([^\n]{2,60})/i,
-    /(?:at|@|於)\s+([A-Z\u4e00-\u9fff][A-Za-z0-9\u4e00-\u9fff\s.&]{2,40})(?:\s|,|\.|\n|，)/,
-    /^([A-Z\u4e00-\u9fff][A-Za-z0-9\u4e00-\u9fff\s.&]{2,40})\s+(?:is\s+(?:hiring|seeking|looking)|誠徵|招募)/m
-  ];
-  let companyName = "";
-  for (const pattern of companyPatterns) {
-    const match = jd.match(pattern);
-    if (match?.[1]?.trim()) {
-      companyName = match[1].trim().replace(/\s{2,}/g, " ");
-      break;
-    }
-  }
-  return { jobTitle, companyName };
-}
-
 // src/i18n/types.ts
 var DEFAULT_LOCALE = getActiveMarket().defaultLocale;
 function getMarketLocales() {
   const fromMarket = getActiveMarket().locales;
   return fromMarket.length ? fromMarket : ["en", "zh-HK"];
 }
+function normalizeStoredUiLocale(raw) {
+  const allowed = getMarketLocales();
+  if (raw === "zh-TW" && allowed.includes("zh-HK")) return "zh-HK";
+  if (raw && allowed.includes(raw)) return raw;
+  return DEFAULT_LOCALE;
+}
 
 // src/i18n/translate.ts
+var MESSAGES = {};
 var activeLocale = DEFAULT_LOCALE;
 function getActiveLocale() {
   return activeLocale;
 }
+function resolvePath(tree, path) {
+  const parts = path.split(".");
+  let node = tree;
+  for (const part of parts) {
+    if (node == null || typeof node === "string") return void 0;
+    node = node[part];
+  }
+  return typeof node === "string" ? node : void 0;
+}
+function interpolate(template, vars) {
+  if (!vars) return template;
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const value = vars[key];
+    return value === void 0 ? `{{${key}}}` : String(value);
+  });
+}
+function translate(key, vars, locale = activeLocale) {
+  const tree = MESSAGES[locale] ?? MESSAGES[DEFAULT_LOCALE];
+  const primary = tree ? resolvePath(tree, key) : void 0;
+  if (primary) return interpolate(primary, vars);
+  if (locale !== DEFAULT_LOCALE) {
+    const fallbackTree = MESSAGES[DEFAULT_LOCALE];
+    const fallback = fallbackTree ? resolvePath(fallbackTree, key) : void 0;
+    if (fallback) return interpolate(fallback, vars);
+  }
+  return key;
+}
+function t(key, vars, locale) {
+  return translate(key, vars, locale);
+}
 
-// src/lib/createDraftApplicationPackage.ts
-function mergeImportedJobMeta(headline, extracted) {
-  let jobTitle = extracted.jobTitle;
-  let companyName = extracted.companyName;
-  if (!jobTitle && headline) {
-    const parts = headline.split(/\s*[|\-–—]\s*/);
-    if (parts.length >= 2) {
-      jobTitle = parts[0]?.trim() || jobTitle;
-      companyName = companyName || parts[parts.length - 1]?.trim() || "";
+// src/lib/sectionLabels.ts
+function formatCanvasPageLabel(index, locale) {
+  return t("canvas.pageLabel", { index }, locale ?? getActiveLocale());
+}
+
+// src/lib/layoutDocument/geometry.ts
+var LAYOUT_PAGE_WIDTH = 794;
+var LAYOUT_PAGE_HEIGHT = 1123;
+var LAYOUT_PAGE_MARGIN = 48;
+var LAYOUT_CONTENT_WIDTH = LAYOUT_PAGE_WIDTH - LAYOUT_PAGE_MARGIN * 2;
+var LAYOUT_CONTENT_HEIGHT = LAYOUT_PAGE_HEIGHT - LAYOUT_PAGE_MARGIN * 2;
+
+// src/lib/a4Page.ts
+var A4_PAGE_WIDTH = LAYOUT_PAGE_WIDTH;
+var A4_PAGE_HEIGHT = LAYOUT_PAGE_HEIGHT;
+var A4_CONTENT_WIDTH = LAYOUT_CONTENT_WIDTH;
+var A4_PAGE_INLINE_STYLE = {
+  width: `${A4_PAGE_WIDTH}px`,
+  maxWidth: `${A4_PAGE_WIDTH}px`,
+  minHeight: `${A4_PAGE_HEIGHT}px`,
+  height: `${A4_PAGE_HEIGHT}px`,
+  maxHeight: `${A4_PAGE_HEIGHT}px`,
+  boxSizing: "border-box"
+};
+
+// src/lib/canvasStudioTypes.ts
+var CANVAS_PAGE_WIDTH = LAYOUT_PAGE_WIDTH;
+var CANVAS_PAGE_HEIGHT = LAYOUT_PAGE_HEIGHT;
+
+// src/lib/resumeFreeLayout.ts
+var FREE_LAYOUT_BY_FAMILY_KEY = NSR_STORAGE_KEYS.freeLayoutByFamily;
+var FREE_LAYOUT_ENABLED_KEY = NSR_STORAGE_KEYS.freeLayoutEnabled;
+var FREE_LAYOUT_SNAP_KEY = NSR_STORAGE_KEYS.freeLayoutSnap;
+var FREE_LAYOUT_LIVE_PREVIEW_KEY = NSR_STORAGE_KEYS.freeLayoutLivePreview;
+var SNAP_GRID_SIZE = 24;
+var FREE_LAYOUT_MIN_WIDTH = 180;
+var FREE_LAYOUT_MAX_WIDTH = A4_CONTENT_WIDTH;
+var FREE_LAYOUT_MIN_HEIGHT = 72;
+var FREE_LAYOUT_MAX_HEIGHT = 1027;
+var DEFAULT_SECTION_HEIGHT = {
+  header: 150,
+  summary: 120,
+  experience: 260,
+  education: 110,
+  projects: 150,
+  skills: 110,
+  certifications: 100,
+  volunteer: 100,
+  languages: 80
+};
+function clampSectionHeight(height, maxHeight = FREE_LAYOUT_MAX_HEIGHT) {
+  return Math.min(maxHeight, Math.max(FREE_LAYOUT_MIN_HEIGHT, height));
+}
+function snapToGrid(value, grid = SNAP_GRID_SIZE) {
+  return Math.round(value / grid) * grid;
+}
+function clampSectionWidth(width, x, canvasWidth) {
+  const maxWidth = canvasWidth - x - 8;
+  return Math.min(FREE_LAYOUT_MAX_WIDTH, Math.max(FREE_LAYOUT_MIN_WIDTH, Math.min(width, maxWidth)));
+}
+function clampSectionPosition(pos, canvasWidth = FREE_LAYOUT_CANVAS.width) {
+  const width = clampSectionWidth(pos.width, pos.x, canvasWidth);
+  const next = {
+    x: Math.max(0, Math.min(pos.x, canvasWidth - width)),
+    y: Math.max(0, pos.y),
+    width,
+    height: clampSectionHeight(pos.height)
+  };
+  if (typeof pos.pageId === "string" && pos.pageId.trim()) {
+    next.pageId = pos.pageId;
+  }
+  return next;
+}
+function defaultSectionHeight(sectionId) {
+  return DEFAULT_SECTION_HEIGHT[sectionId] ?? 140;
+}
+var FREE_LAYOUT_CANVAS = {
+  width: CANVAS_PAGE_WIDTH,
+  minHeight: CANVAS_PAGE_HEIGHT
+};
+
+// src/lib/canvasPageSnap.ts
+function clampPositionToA4Page(pos) {
+  const width = Math.min(
+    Math.max(pos.width, FREE_LAYOUT_MIN_WIDTH),
+    FREE_LAYOUT_MAX_WIDTH,
+    CANVAS_PAGE_WIDTH
+  );
+  const height = Math.min(
+    Math.max(pos.height, FREE_LAYOUT_MIN_HEIGHT),
+    FREE_LAYOUT_MAX_HEIGHT,
+    CANVAS_PAGE_HEIGHT
+  );
+  const x = Math.max(0, Math.min(pos.x, CANVAS_PAGE_WIDTH - width));
+  const y = Math.max(0, Math.min(pos.y, CANVAS_PAGE_HEIGHT - height));
+  return { ...pos, x, y, width, height };
+}
+
+// src/lib/canvasAlignTools.ts
+var CANVAS_PAGE_MARGIN = LAYOUT_PAGE_MARGIN;
+
+// src/lib/resumeHkMeta.ts
+function getHkPersonalMetaLines(info) {
+  const lines = [];
+  if (info.rightToWork?.trim()) lines.push(info.rightToWork.trim());
+  if (info.noticePeriod?.trim()) lines.push(`Notice: ${info.noticePeriod.trim()}`);
+  if (info.expectedSalary?.trim()) lines.push(`Expected: ${info.expectedSalary.trim()}`);
+  return lines;
+}
+
+// src/lib/measure/textMeasure.ts
+var RESUME_BODY_FONT = {
+  family: 'Georgia, "Times New Roman", "Noto Serif TC", serif',
+  size: 12
+};
+var FALLBACK_CHAR_WIDTH = 7.2;
+var measureCtx;
+function getMeasureContext() {
+  if (measureCtx !== void 0) return measureCtx;
+  try {
+    if (typeof document === "undefined") {
+      measureCtx = null;
+      return null;
+    }
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    measureCtx = ctx && typeof ctx.measureText === "function" ? ctx : null;
+  } catch {
+    measureCtx = null;
+  }
+  return measureCtx;
+}
+function isPixelMeasureAvailable() {
+  return getMeasureContext() !== null;
+}
+function countWrappedLines(text, maxWidth, font = RESUME_BODY_FONT) {
+  const trimmed = text.trim();
+  if (!trimmed || maxWidth <= 0) return 0;
+  const ctx = getMeasureContext();
+  if (!ctx) {
+    const charWidth = FALLBACK_CHAR_WIDTH * (font.size / 14);
+    const charsPerLine = Math.max(18, Math.floor(maxWidth / charWidth));
+    return fallbackWrappedLineCount(trimmed, charsPerLine);
+  }
+  ctx.font = `${font.weight ?? 400} ${font.size}px ${font.family}`;
+  const spaceWidth = ctx.measureText(" ").width;
+  const words = trimmed.split(/\s+/);
+  let lines = 1;
+  let lineWidth = 0;
+  for (const word of words) {
+    const wordWidth = ctx.measureText(word).width;
+    if (wordWidth > maxWidth) {
+      const remaining = lineWidth > 0 ? maxWidth - lineWidth - spaceWidth : maxWidth;
+      const overflow = Math.max(0, wordWidth - Math.max(0, remaining));
+      lines += Math.ceil(overflow / maxWidth);
+      lineWidth = wordWidth % maxWidth;
+      continue;
+    }
+    if (lineWidth === 0) {
+      lineWidth = wordWidth;
+    } else if (lineWidth + spaceWidth + wordWidth > maxWidth) {
+      lines += 1;
+      lineWidth = wordWidth;
     } else {
-      jobTitle = headline.trim();
+      lineWidth += spaceWidth + wordWidth;
     }
   }
-  return { jobTitle, companyName };
+  return lines;
+}
+function fallbackWrappedLineCount(text, charsPerLine) {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  const words = trimmed.split(/\s+/);
+  let lines = 1;
+  let col = 0;
+  for (const word of words) {
+    const token = word.length;
+    if (token >= charsPerLine) {
+      lines += Math.ceil(token / charsPerLine);
+      col = 0;
+      continue;
+    }
+    if (col === 0) {
+      col = token;
+    } else if (col + 1 + token > charsPerLine) {
+      lines += 1;
+      col = token;
+    } else {
+      col += 1 + token;
+    }
+  }
+  return lines;
 }
 
-// src/lib/security/urlPolicy.ts
-var PRIVATE_HOST_PATTERNS = [
-  /^localhost$/i,
-  /\.local$/i,
-  /\.internal$/i,
-  /^127\.\d+\.\d+\.\d+$/,
-  /^10\.\d+\.\d+\.\d+$/,
-  /^192\.168\.\d+\.\d+$/,
-  /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
-  /^0\.0\.0\.0$/,
-  /^::1$/i,
-  /^\[::1\]$/,
-  /^fc[0-9a-f:]+$/i,
-  /^fd[0-9a-f:]+$/i,
-  /^fe8[0-9a-f:]*$/i,
-  /^fe9[0-9a-f:]*$/i,
-  /^fea[0-9a-f:]*$/i,
-  /^feb[0-9a-f:]*$/i
+// src/lib/canvasSectionContentSizing.ts
+var LINE_HEIGHT = 22;
+var SECTION_CHROME = 36;
+var SECTION_CONTENT_PADDING = 16;
+var CHAR_WIDTH = FALLBACK_CHAR_WIDTH;
+var CANVAS_SECTION_MAX_HEIGHT = 1027;
+function wrappedLinesAtWidth(text, contentWidth2, charsPerLine) {
+  if (isPixelMeasureAvailable()) {
+    return countWrappedLines(text, contentWidth2, RESUME_BODY_FONT);
+  }
+  return fallbackWrappedLineCount(text, charsPerLine);
+}
+function sectionContentWidth(width) {
+  return Math.max(120, width - SECTION_CONTENT_PADDING * 2);
+}
+function estimateBlockLines(texts, charsPerLine, extraLines = 0, contentWidth2) {
+  const w = contentWidth2 ?? charsPerLine * CHAR_WIDTH;
+  return extraLines + texts.reduce((sum, t2) => sum + wrappedLinesAtWidth(t2, w, charsPerLine), 0);
+}
+function getSectionTextLength(sectionId, data) {
+  switch (sectionId) {
+    case "header": {
+      const p = data.personalInfo;
+      return [
+        p.name,
+        p.title,
+        p.email,
+        p.phone,
+        p.location,
+        p.linkedin,
+        p.website,
+        ...getHkPersonalMetaLines(p)
+      ].join(" ").length;
+    }
+    case "summary":
+      return data.summary?.trim().length ?? 0;
+    case "experience":
+      return data.experience.reduce(
+        (sum, item) => sum + item.company.length + item.role.length + item.bullets.join(" ").length + item.location.length + 20,
+        0
+      );
+    case "education":
+      return data.education.reduce(
+        (sum, item) => sum + item.institution.length + item.degree.length + item.field.length + 16,
+        0
+      );
+    case "projects":
+      return data.projects.reduce(
+        (sum, item) => sum + item.name.length + item.description.length + item.techStack.length + 16,
+        0
+      );
+    case "skills":
+      return data.skills.join(" ").length;
+    case "certifications":
+      return (data.certifications ?? []).join(" ").length;
+    case "volunteer":
+      return (data.volunteerWork ?? []).join(" ").length;
+    case "languages":
+      return (data.languages ?? []).join(" ").length;
+    default:
+      return 0;
+  }
+}
+function estimateCharsPerLine(width) {
+  return Math.max(18, Math.floor(width / CHAR_WIDTH));
+}
+function marginaliaSectionChrome(sectionId) {
+  if (sectionId === "experience" || sectionId === "projects") return 56;
+  if (sectionId === "header") return 28;
+  if (sectionId === "skills") return 32;
+  return 20;
+}
+function estimateSectionHeightForContent(sectionId, data, width) {
+  const textLen = getSectionTextLength(sectionId, data);
+  if (textLen === 0) return defaultSectionHeight(sectionId);
+  const charsPerLine = estimateCharsPerLine(width);
+  const contentWidth2 = sectionContentWidth(width);
+  let contentLines = 0;
+  switch (sectionId) {
+    case "header": {
+      const p = data.personalInfo;
+      contentLines = estimateBlockLines([p.name, p.title], charsPerLine, 0, contentWidth2);
+      const contactFields = [p.email, p.phone, p.location, p.website, p.linkedin].filter(Boolean).length;
+      const hkMetaRows = getHkPersonalMetaLines(p).length;
+      const contactRowFactor = contentWidth2 < 340 ? 1.5 : 0.85;
+      const hkMetaFactor = contentWidth2 < 340 ? 1.85 : 1.75;
+      contentLines += contactFields * contactRowFactor + hkMetaRows * hkMetaFactor;
+      break;
+    }
+    case "summary":
+      contentLines = 1 + wrappedLinesAtWidth(data.summary ?? "", contentWidth2, charsPerLine);
+      break;
+    case "experience": {
+      contentLines = 1;
+      for (const item of data.experience) {
+        contentLines += estimateBlockLines(
+          [
+            `${item.role} at ${item.company}`,
+            `${item.startDate} \u2013 ${item.endDate}${item.location ? ` \xB7 ${item.location}` : ""}`,
+            ...item.bullets
+          ],
+          charsPerLine,
+          1,
+          contentWidth2
+        );
+      }
+      break;
+    }
+    case "education": {
+      contentLines = 1;
+      for (const item of data.education) {
+        contentLines += estimateBlockLines(
+          [item.degree, `${item.institution} \xB7 ${item.gradDate}${item.field ? ` \xB7 ${item.field}` : ""}`],
+          charsPerLine,
+          1,
+          contentWidth2
+        );
+      }
+      break;
+    }
+    case "projects": {
+      contentLines = 1;
+      for (const item of data.projects) {
+        contentLines += estimateBlockLines(
+          [item.name, item.description, item.techStack ? `Tech: ${item.techStack}` : ""].filter(Boolean),
+          charsPerLine,
+          1,
+          contentWidth2
+        );
+      }
+      break;
+    }
+    case "skills": {
+      if (data.skills.length > 0) {
+        const chipsPerRow = Math.max(2, Math.floor(width / 108));
+        const chipRows = Math.ceil(data.skills.length / chipsPerRow);
+        contentLines = 1 + chipRows;
+      } else {
+        contentLines = 2;
+      }
+      break;
+    }
+    default: {
+      const bodyLines = Math.ceil(textLen / charsPerLine);
+      contentLines = 1 + bodyLines;
+    }
+  }
+  const raw = SECTION_CHROME + contentLines * LINE_HEIGHT;
+  return snapToGrid(clampSectionHeight(raw, CANVAS_SECTION_MAX_HEIGHT), SNAP_GRID_SIZE);
+}
+function estimateContentAwareGap(heights) {
+  if (!heights.length) return 12;
+  const avg = heights.reduce((a, b) => a + b, 0) / heights.length;
+  if (avg >= 240) return 16;
+  if (avg >= 160) return 12;
+  if (avg >= 100) return 10;
+  return 8;
+}
+
+// src/lib/resumeTemplateCatalog.ts
+var MODERN_PRESETS = [
+  {
+    accentBar: "resume-marginalia-accent-bar",
+    accentText: "text-[#c0392b]",
+    accentBg: "bg-[#c0392b]",
+    accentBgSoft: "bg-[#d4edda]",
+    accentBorder: "border-[#c5d9e8]",
+    sectionHeading: "text-[#535c68] font-sans tracking-widest",
+    skillChip: "bg-[#d4edda]/90 text-[#1a2438] border-[#c5d9e8]",
+    langChip: "bg-[#f5d76e]/45 text-[#1a2438] border-[#c5d9e8]",
+    tailoredBg: "bg-[#f5d76e]/30",
+    tailoredBorder: "border-[#c0392b]",
+    expHighlightBg: "bg-[#f5d76e]/25",
+    expHighlightBorder: "border-[#c0392b]",
+    headerBorder: "border-[#c5d9e8]",
+    nameClass: "font-display text-[#1a2438]",
+    sectionTitle: "border-b border-[#c5d9e8]",
+    sidebarDot: "bg-[#c0392b]",
+    sidebarTitle: "text-[#535c68]",
+    roleAccent: "text-[#c0392b]",
+    sheetFont: "font-serif"
+  },
+  // notebook-02 Legal Pad — 黃箋紙 + 雙紅邊線
+  { accentBar: "from-[#C0392B] to-[#A93226]", roleAccent: "text-[#C0392B]", sectionTitle: "border-b-2 border-[#C0392B]/40" },
+  // notebook-03 Graph Paper — 深湖水綠 accent
+  { accentBar: "from-[#2E7D74] to-[#1F5B54]", accentText: "text-[#2E7D74]", accentBg: "bg-[#2E7D74]", tailoredBorder: "border-[#2E7D74]", expHighlightBorder: "border-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", roleAccent: "text-[#2E7D74]", sectionTitle: "border-b border-[#2E7D74]/35" },
+  // notebook-04 Index Card — 紅頂線卡片
+  { accentBar: "from-[#C0392B] to-[#A93226]", sectionTitle: "border-b-2 border-[#C0392B]/30" },
+  // notebook-05 Composition — 置中 + 雙紅底線
+  { accentBar: "from-[#C0392B] to-[#A93226]", nameClass: "font-display text-[#1A2438] tracking-normal", sectionTitle: "border-b-4 border-double border-[#C0392B]/50" },
+  // notebook-06 Sticky Note — mint/marker 便利貼 chip
+  { accentBar: "from-[#C0392B] to-[#A93226]", skillChip: "bg-[#D4EDDA] text-[#1A2438] border-[#C5D9E8]", langChip: "bg-[#F5D76E]/60 text-[#1A2438] border-[#C5D9E8]" },
+  // notebook-07 Highlighter — 螢光掃字重點
+  { accentBar: "from-[#F5D76E] to-[#C0392B]", tailoredBg: "bg-[#F5D76E]/45", expHighlightBg: "bg-[#F5D76E]/35" },
+  // notebook-08 Red Thread — 紅線裝訂時間軸
+  { accentBar: "from-[#C0392B] to-[#A93226]", headerBorder: "border-dashed border-[#C0392B]/60", sectionTitle: "border-b border-[#C0392B]/30" },
+  // notebook-09 Blueprint — 藍格線深階 accent
+  { accentBar: "from-[#5B8FB9] to-[#3E6E93]", accentText: "text-[#5B8FB9]", accentBg: "bg-[#5B8FB9]", tailoredBorder: "border-[#5B8FB9]", expHighlightBorder: "border-[#5B8FB9]", sidebarDot: "bg-[#5B8FB9]", roleAccent: "text-[#5B8FB9]", sectionTitle: "border-b border-[#5B8FB9]/40" },
+  // notebook-10 Teal Ledger — 湖水帳簿隔行底紋
+  { accentBar: "from-[#2E7D74] to-[#1F5B54]", accentText: "text-[#2E7D74]", accentBg: "bg-[#2E7D74]", expHighlightBg: "bg-[#D4EDDA]/55", tailoredBorder: "border-[#2E7D74]", expHighlightBorder: "border-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sectionTitle: "border-b border-[#2E7D74]/35" },
+  // notebook-11 Draft Stamp — 石墨為主、紅印章點綴
+  { accentBar: "from-[#535C68] to-[#1A2438]", accentText: "text-[#535C68]", accentBg: "bg-[#535C68]", nameClass: "font-display text-[#1A2438]", sidebarDot: "bg-[#535C68]", roleAccent: "text-[#535C68]", sectionTitle: "border-b border-[#535C68]/30" }
 ];
-function parsePublicHttpUrl(raw) {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return { ok: false, error: "URL is required" };
-  }
-  let parsed;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    return { ok: false, error: "Invalid URL" };
-  }
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    return { ok: false, error: "Only http/https URLs are allowed" };
-  }
-  if (parsed.username || parsed.password) {
-    return { ok: false, error: "URLs with embedded credentials are not allowed" };
-  }
-  const host = parsed.hostname.toLowerCase();
-  if (PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(host))) {
-    return { ok: false, error: "Private or local URLs are not allowed" };
-  }
-  return { ok: true, url: parsed };
+var CLASSIC_PRESETS = [
+  // bureau-01 Bureau Classic — 置中經典文書
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "tracking-tight", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-02 Barrister — 英式編年體
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#1A2438]/30", nameClass: "uppercase tracking-wide", sectionTitle: "border-b-2 border-[#C5D9E8]" },
+  // bureau-03 Registrar — 寬字距大寫
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#535C68]/40", nameClass: "uppercase tracking-widest", sectionTitle: "border-b border-double border-[#C5D9E8]" },
+  // bureau-04 Broadsheet — 大報墨色
+  { accentText: "text-[#1A2438]", headerBorder: "border-[#1A2438]/40", nameClass: "uppercase tracking-tight", sectionTitle: "border-b-4 border-double border-[#1A2438]/45" },
+  // bureau-05 Minute Book — 紅色節序號
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "tracking-normal", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-06 Treasury — 深湖水標題 + 字母磚
+  { accentText: "text-[#2E7D74]", headerBorder: "border-[#C5D9E8]", nameClass: "uppercase tracking-wide", sectionTitle: "border-b border-[#2E7D74]/35" },
+  // bureau-07 Chancery — 衡平斜體
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "italic", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-08 Docket — 案卷緊湊 + 點線引導
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#535C68]/30", nameClass: "tracking-widest uppercase text-xl", sectionTitle: "border-b border-dotted border-[#C0392B]/50" },
+  // bureau-09 Archive — 檔案室紅頂線
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C0392B]/60", nameClass: "uppercase", sectionTitle: "border-b border-[#C5D9E8]" },
+  // bureau-10 Signet — 印鑑置中
+  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "uppercase tracking-widest", sectionTitle: "border-b border-[#C5D9E8]" }
+];
+var MINIMAL_PRESETS = [
+  // studio-01 Studio Grid — 深湖水 + mint 圓點
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#2E7D74]" },
+  // studio-02 Whiteboard — teal 左邊線
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
+  // studio-03 Marker One — 全墨 + 螢光一筆
+  { accentText: "text-[#1A2438]", sidebarDot: "bg-[#F5D76E]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
+  // studio-04 Mint Tab — 薄荷標籤
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#D4EDDA]", sidebarTitle: "text-[#2E7D74]", roleAccent: "text-[#2E7D74]" },
+  // studio-05 Redline — 紅細線
+  { accentText: "text-[#C0392B]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#C0392B]" },
+  // studio-06 Graphite — 全石墨無彩
+  { accentText: "text-[#535C68]", sidebarDot: "bg-[#535C68]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#535C68]" },
+  // studio-07 Two-Track — 石墨雙欄 + 紅摺角
+  { accentText: "text-[#535C68]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
+  // studio-08 Eraser — mint/粉 chip
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#F2C1C1]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#2E7D74]" },
+  // studio-09 Console — mono + teal 游標
+  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#2E7D74]", roleAccent: "text-[#2E7D74]" },
+  // studio-10 Gallery — 紅點畫廊
+  { accentText: "text-[#C0392B]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#C0392B]" }
+];
+function buildFamilyThemes(family, presets, defaults) {
+  return presets.map((preset, index) => {
+    const id = `${family}-${String(index + 1).padStart(2, "0")}`;
+    return {
+      ...defaults,
+      ...preset,
+      id,
+      family
+    };
+  });
 }
-function validateJobsdbStartUrl(raw, country) {
-  const base = parsePublicHttpUrl(raw);
-  if (!base.ok) return base;
-  if (base.url.protocol !== "https:") {
-    return { ok: false, error: "JobsDB URLs must use HTTPS" };
-  }
-  const host = base.url.hostname.toLowerCase();
-  const countryHosts = /* @__PURE__ */ new Set([
-    `${country}.jobsdb.com`,
-    `www.${country}.jobsdb.com`
-  ]);
-  if (!countryHosts.has(host)) {
-    return { ok: false, error: "startUrl must match the selected JobsDB country" };
-  }
-  return base;
+var MODERN_DEFAULTS = {
+  accentBar: "resume-marginalia-accent-bar",
+  accentText: "text-[#c0392b]",
+  accentBg: "bg-[#c0392b]",
+  accentBgSoft: "bg-[#d4edda]",
+  accentBorder: "border-[#c5d9e8]",
+  sectionHeading: "text-[#535c68]",
+  skillChip: "bg-[#d4edda]/90 text-[#1a2438] border-[#c5d9e8]",
+  langChip: "bg-[#f5d76e]/45 text-[#1a2438] border-[#c5d9e8]",
+  tailoredBg: "bg-[#f5d76e]/35",
+  tailoredBorder: "border-[#c0392b]",
+  expHighlightBg: "bg-[#f5d76e]/30",
+  expHighlightBorder: "border-[#c0392b]",
+  headerBorder: "border-[#c5d9e8]",
+  nameClass: "font-display",
+  sectionTitle: "border-b border-[#c5d9e8]",
+  sidebarDot: "bg-[#c0392b]",
+  sidebarTitle: "text-[#535c68]",
+  roleAccent: "text-[#c0392b]",
+  sheetFont: "font-serif"
+};
+var CLASSIC_DEFAULTS = {
+  ...MODERN_DEFAULTS,
+  accentBar: "from-[#C0392B] to-[#A93226]",
+  accentText: "text-[#C0392B]",
+  accentBg: "bg-[#1A2438]",
+  accentBgSoft: "bg-[#FAF6EB]",
+  accentBorder: "border-[#C5D9E8]",
+  sectionHeading: "text-[#1A2438]",
+  skillChip: "text-[#535C68]",
+  langChip: "text-[#535C68]",
+  tailoredBg: "bg-[#F5D76E]/30",
+  tailoredBorder: "border-[#C0392B]",
+  expHighlightBg: "bg-[#D4EDDA]/55",
+  expHighlightBorder: "border-[#2E7D74]",
+  headerBorder: "border-[#C5D9E8]",
+  nameClass: "uppercase tracking-tight",
+  sectionTitle: "border-b border-[#C5D9E8]",
+  sheetFont: "font-serif"
+};
+var MINIMAL_DEFAULTS = {
+  ...MODERN_DEFAULTS,
+  sheetFont: "font-sans"
+};
+var MARGINALIA_NOTEBOOK_TEMPLATE = "modern-01";
+var DEFAULT_A4_TEMPLATE = "classic-02";
+function isMarginaliaNotebookTemplate(style) {
+  return style === MARGINALIA_NOTEBOOK_TEMPLATE;
+}
+var RESUME_TEMPLATE_CATALOG = [
+  ...buildFamilyThemes("modern", MODERN_PRESETS, MODERN_DEFAULTS),
+  ...buildFamilyThemes("classic", CLASSIC_PRESETS, CLASSIC_DEFAULTS),
+  ...buildFamilyThemes("minimalist", MINIMAL_PRESETS, MINIMAL_DEFAULTS)
+];
+var LEGACY_TEMPLATE_MAP = {
+  modern: "modern-01",
+  academic: "classic-01",
+  classic: "classic-01",
+  minimalist: "minimalist-01"
+};
+function normalizeTemplateStyle(value) {
+  if (!value) return DEFAULT_A4_TEMPLATE;
+  if (value in LEGACY_TEMPLATE_MAP) return LEGACY_TEMPLATE_MAP[value];
+  const found = RESUME_TEMPLATE_CATALOG.find((t2) => t2.id === value);
+  return found?.id ?? DEFAULT_A4_TEMPLATE;
 }
 
-// server/lib/outboundUrlSafety.ts
-var import_promises = require("node:dns/promises");
-var import_node_net = require("node:net");
-function isPrivateIpv4(address) {
-  const parts = address.split(".").map((part) => Number(part));
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
-    return false;
-  }
-  const [a, b] = parts;
-  if (a === 10 || a === 127) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 0) return true;
-  return false;
+// src/lib/canvasLayoutTools.ts
+var DEFAULT_OPTS = {
+  margin: CANVAS_PAGE_MARGIN,
+  gap: 16,
+  pageWidth: CANVAS_PAGE_WIDTH,
+  pageHeight: CANVAS_PAGE_HEIGHT,
+  layerOrder: []
+};
+function resolveOpts(options) {
+  return { ...DEFAULT_OPTS, ...options };
 }
-function expandIpv6(address) {
-  const normalized = address.toLowerCase().split("%")[0];
-  if (!normalized.includes(":")) return null;
-  const halves = normalized.split("::");
-  if (halves.length > 2) return null;
-  const left = halves[0] ? halves[0].split(":").filter(Boolean) : [];
-  const right = halves[1] ? halves[1].split(":").filter(Boolean) : [];
-  if (left.length + right.length > 8) return null;
-  const fill = new Array(8 - left.length - right.length).fill("0");
-  const groups = halves.length === 2 ? [...left, ...fill, ...right] : left;
-  if (groups.length !== 8) return null;
-  return groups.map((group) => group.padStart(4, "0"));
+function mergeLayoutOptions(options, content) {
+  const resumeData = content?.resumeData ?? options?.resumeData;
+  const layerOrder = content?.layerOrder ?? options?.layerOrder;
+  if (!options && !resumeData && !layerOrder) return void 0;
+  return { ...options, resumeData, layerOrder };
 }
-function isPrivateIpv6(address) {
-  const groups = expandIpv6(address);
-  if (!groups) return false;
-  const first = parseInt(groups[0], 16);
-  const second = parseInt(groups[1], 16);
-  if (first === 0 && second === 0 && groups.slice(2, 7).every((group) => parseInt(group, 16) === 0)) {
-    const last = parseInt(groups[7], 16);
-    if (last === 0 || last === 1) return true;
-  }
-  if ((first & 65024) === 64512) return true;
-  if ((first & 65472) === 65152) return true;
-  return false;
+function sortSectionsByPanelOrder(sectionIds, layerOrder) {
+  const panelOrder = [...layerOrder].reverse();
+  const rank = new Map(panelOrder.map((id, index) => [id, index]));
+  return [...sectionIds].sort((a, b) => {
+    const ra = rank.get(a);
+    const rb = rank.get(b);
+    if (ra !== void 0 && rb !== void 0) return ra - rb;
+    if (ra !== void 0) return -1;
+    if (rb !== void 0) return 1;
+    return a.localeCompare(b);
+  });
 }
-function isPrivateIpAddress(address) {
-  const version = (0, import_node_net.isIP)(address);
-  if (version === 4) return isPrivateIpv4(address);
-  if (version === 6) return isPrivateIpv6(address);
-  return false;
+function sectionsOnPage(sectionIds, positions, pageId, getPageId, layerOrder) {
+  const onPage = sectionIds.filter((id) => getPageId(id) === pageId);
+  if (layerOrder?.length) {
+    return sortSectionsByPanelOrder(onPage, layerOrder);
+  }
+  return onPage.sort((a, b) => {
+    const ya = positions[a]?.y ?? 0;
+    const yb = positions[b]?.y ?? 0;
+    if (ya !== yb) return ya - yb;
+    return a.localeCompare(b);
+  });
 }
-async function assertSafeOutboundUrl(url) {
-  const resolved = await (0, import_promises.lookup)(url.hostname, { all: true, verbatim: true });
-  if (resolved.length === 0) {
-    throw new Error("Unable to resolve remote host");
+function resolveStackGap(heights, opts, preferredGap) {
+  if (heights.length <= 1) return preferredGap ?? opts.gap;
+  const totalH = heights.reduce((a, b) => a + b, 0);
+  const usable = opts.pageHeight - opts.margin * 2;
+  let gap = preferredGap ?? (opts.resumeData ? estimateContentAwareGap(heights) : opts.gap);
+  if (totalH + gap * (heights.length - 1) > usable) {
+    gap = Math.floor((usable - totalH) / (heights.length - 1));
+  } else if (opts.resumeData && totalH < usable * 0.88) {
+    const fillGap = Math.floor((usable - totalH) / (heights.length - 1));
+    gap = Math.min(48, Math.max(gap, fillGap));
   }
-  const blocked = resolved.find((entry) => isPrivateIpAddress(entry.address));
-  if (blocked) {
-    throw new Error("Private or local URLs are not allowed");
+  return Math.max(8, gap);
+}
+var A4_PRINTABLE_HEIGHT = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN * 2;
+var A4_MIN_SECTION_GAP = 8;
+var A4_COMPACT_SECTION_GAP = 8;
+function computeA4VerticalStack(orderedIds, patches, opts, mode, preferredGap, startY) {
+  if (!orderedIds.length) return patches;
+  const stackTop = startY ?? opts.margin;
+  const next = { ...patches };
+  const heights = orderedIds.map((id) => next[id]?.height ?? 0);
+  const totalH = heights.reduce((a, b) => a + b, 0);
+  const usable = opts.pageHeight - stackTop - opts.margin;
+  const count = orderedIds.length;
+  let gap;
+  const gaps = [];
+  if (mode === "compact" && count > 1) {
+    gap = snapToGrid(Math.max(A4_MIN_SECTION_GAP, preferredGap ?? opts.gap ?? A4_COMPACT_SECTION_GAP), SNAP_GRID_SIZE);
+  } else if (mode === "fill-page-exact" && count > 1) {
+    const slack = Math.max(0, usable - totalH);
+    if (slack <= 0) {
+      gap = A4_MIN_SECTION_GAP;
+    } else {
+      const base = Math.floor(slack / (count - 1));
+      const remainder = slack - base * (count - 1);
+      for (let i = 0; i < count - 1; i++) {
+        gaps.push(Math.max(A4_MIN_SECTION_GAP, base + (i < remainder ? 1 : 0)));
+      }
+      gap = gaps[0] ?? A4_MIN_SECTION_GAP;
+    }
+  } else if (mode === "fill-page" && count > 1) {
+    const slack = Math.max(0, usable - totalH);
+    gap = slack <= 0 ? A4_MIN_SECTION_GAP : Math.max(A4_MIN_SECTION_GAP, Math.floor(slack / (count - 1)));
+  } else if (mode === "align-bottom") {
+    gap = count > 1 ? snapToGrid(Math.max(A4_MIN_SECTION_GAP, preferredGap ?? estimateContentAwareGap(heights)), SNAP_GRID_SIZE) : 0;
+  } else {
+    gap = resolveStackGap(heights, opts, preferredGap);
+    if (count > 1 && totalH + gap * (count - 1) > usable) {
+      gap = Math.max(A4_MIN_SECTION_GAP, Math.floor((usable - totalH) / (count - 1)));
+    }
   }
+  let y;
+  if (mode === "align-bottom") {
+    let bottomY = opts.pageHeight - opts.margin;
+    for (let i = count - 1; i >= 0; i--) {
+      const id = orderedIds[i];
+      const pos = next[id];
+      if (!pos) continue;
+      bottomY -= pos.height;
+      next[id] = { ...pos, y: bottomY };
+      if (i > 0) bottomY -= gap;
+    }
+    return next;
+  }
+  y = stackTop;
+  for (let i = 0; i < orderedIds.length; i++) {
+    const id = orderedIds[i];
+    const pos = next[id];
+    if (!pos) continue;
+    next[id] = { ...pos, y };
+    const stepGap = mode === "fill-page-exact" && gaps.length ? gaps[i] ?? gap : gap;
+    y += pos.height + stepGap;
+  }
+  return next;
+}
+function groupIdsByColumnX(patches) {
+  const entries = Object.entries(patches);
+  if (!entries.length) return /* @__PURE__ */ new Map();
+  const xs = [...new Set(entries.map(([, pos]) => pos.x))].sort((a, b) => a - b);
+  const anchors = [];
+  for (const x of xs) {
+    if (anchors.some((anchor) => Math.abs(anchor - x) <= SNAP_GRID_SIZE * 2)) continue;
+    anchors.push(x);
+  }
+  const byColumn = /* @__PURE__ */ new Map();
+  for (const [id, pos] of entries) {
+    let anchor = anchors[0];
+    let best = Infinity;
+    for (const candidate of anchors) {
+      const dist = Math.abs(pos.x - candidate);
+      if (dist < best) {
+        best = dist;
+        anchor = candidate;
+      }
+    }
+    const bucket = byColumn.get(anchor) ?? [];
+    bucket.push(id);
+    byColumn.set(anchor, bucket);
+  }
+  return byColumn;
+}
+var FULL_WIDTH_BAND_RATIO = 0.7;
+var BAND_TO_COLUMN_GAP = 16;
+function fillColumnsToA4(patches, opts, mode = "fill-page-exact") {
+  const printableWidth = opts.pageWidth - opts.margin * 2;
+  const bandIds = [];
+  const columnPatches = {};
+  for (const [id, pos] of Object.entries(patches)) {
+    if (pos.width >= printableWidth * FULL_WIDTH_BAND_RATIO) {
+      bandIds.push(id);
+    } else {
+      columnPatches[id] = pos;
+    }
+  }
+  let next = { ...patches };
+  bandIds.sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+  let bandBottom = opts.margin;
+  for (const id of bandIds) {
+    const pos = next[id];
+    if (!pos) continue;
+    next[id] = { ...pos, y: bandBottom };
+    bandBottom += pos.height + A4_MIN_SECTION_GAP;
+  }
+  const columnStartY = bandIds.length ? bandBottom - A4_MIN_SECTION_GAP + BAND_TO_COLUMN_GAP : opts.margin;
+  const byColumn = groupIdsByColumnX(columnPatches);
+  for (const [columnX, ids] of byColumn.entries()) {
+    const ordered = [...ids].sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+    for (const id of ordered) {
+      const pos = next[id];
+      if (pos) next[id] = { ...pos, x: columnX };
+    }
+    next = computeA4VerticalStack(ordered, next, opts, mode, void 0, columnStartY);
+  }
+  return next;
+}
+function reflowPageColumnsNatural(sectionIds, positions, pageId, getPageId, content) {
+  const opts = resolveOpts(mergeLayoutOptions(void 0, content));
+  const onPage = sectionsOnPage(sectionIds, positions, pageId, getPageId, opts.layerOrder);
+  if (!onPage.length) return positions;
+  const patches = {};
+  for (const id of onPage) {
+    const pos = positions[id];
+    if (pos) patches[id] = { ...pos, pageId };
+  }
+  const xs = onPage.map((id) => patches[id]?.x ?? opts.margin);
+  const xSpread = xs.length ? Math.max(...xs) - Math.min(...xs) : 0;
+  const centers = onPage.map((id) => {
+    const pos = patches[id];
+    return pos ? pos.x + pos.width / 2 : opts.pageWidth / 2;
+  });
+  const centerSpread = centers.length ? Math.max(...centers) - Math.min(...centers) : 0;
+  const isSingleColumnStack = xSpread <= SNAP_GRID_SIZE || centerSpread < 96;
+  if (isSingleColumnStack) {
+    const stackMode = content?.stackFillMode ?? "natural";
+    const orderedByY = [...onPage].sort((a, b) => (patches[a]?.y ?? 0) - (patches[b]?.y ?? 0));
+    const reflowed2 = computeA4VerticalStack(orderedByY, patches, opts, stackMode);
+    return patchPositions(positions, reflowed2);
+  }
+  const reflowed = fillColumnsToA4(patches, opts, "natural");
+  return patchPositions(positions, reflowed);
+}
+function patchPositions(positions, patches) {
+  const next = {};
+  for (const [id, pos] of Object.entries(patches)) {
+    next[id] = clampSectionPosition({ ...positions[id], ...pos });
+  }
+  return next;
 }
 
-// server/routes/jd.ts
-var JD_FETCH_TIMEOUT_MS = 12e3;
-var JD_FETCH_MAX_BYTES = 512 * 1024;
-var JD_FETCH_MAX_REDIRECTS = 5;
-var JD_FETCH_ACCEPT_HEADER = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8";
-function isRedirectStatus(status) {
-  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+// src/lib/layoutEntryPagination.ts
+var EXPORT_PAGE_PREFIX = "export-page-";
+function createContinuationPageId(existingPageIds) {
+  let index = existingPageIds.length;
+  let candidate = `${EXPORT_PAGE_PREFIX}${index + 1}`;
+  while (existingPageIds.includes(candidate)) {
+    index += 1;
+    candidate = `${EXPORT_PAGE_PREFIX}${index + 1}`;
+  }
+  return candidate;
 }
-async function fetchJobDescriptionPage(startUrl, signal) {
-  let currentUrl = startUrl;
-  for (let redirectCount = 0; redirectCount <= JD_FETCH_MAX_REDIRECTS; redirectCount += 1) {
-    await assertSafeOutboundUrl(currentUrl);
-    const response = await fetch(currentUrl, {
-      signal,
-      redirect: "manual",
-      headers: {
-        "User-Agent": "NextStepResume-Playground-JD-Fetch/1.0 (+local dev; job description import)",
-        Accept: JD_FETCH_ACCEPT_HEADER,
-        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"
+var SECTION_FRAGMENT_SEP = "@f";
+var LINE_HEIGHT2 = 22;
+var SECTION_HEADING_LINES = 2;
+var SPLITTABLE_SECTION_IDS = [
+  "experience",
+  "education",
+  "projects"
+];
+function isSectionFragmentId(sectionId) {
+  return sectionId.includes(SECTION_FRAGMENT_SEP);
+}
+function makeFragmentId(baseSectionId, fragmentIndex) {
+  return `${baseSectionId}${SECTION_FRAGMENT_SEP}${fragmentIndex}`;
+}
+function contentWidth(width) {
+  return Math.max(120, width - SECTION_CONTENT_PADDING * 2);
+}
+function linesToHeight(lines) {
+  return snapToGrid(SECTION_CONTENT_PADDING + lines * LINE_HEIGHT2, SNAP_GRID_SIZE);
+}
+function estimateExperienceEntryLines(exp, bulletStart, bulletEnd, showHeader, width, themeFontScale) {
+  const charsPerLine = estimateCharsPerLine(width);
+  const w = contentWidth(width);
+  const bullets = exp.bullets.slice(bulletStart, bulletEnd);
+  let lines = showHeader ? estimateBlockLines(
+    [
+      `${exp.role} at ${exp.company}`,
+      `${exp.startDate} \u2013 ${exp.endDate}${exp.location ? ` \xB7 ${exp.location}` : ""}`
+    ],
+    charsPerLine,
+    0,
+    w
+  ) : 0;
+  if (bullets.length > 0) {
+    lines += estimateBlockLines(bullets, charsPerLine, 1, w);
+  }
+  if (themeFontScale !== 1) {
+    lines = Math.ceil(lines * themeFontScale);
+  }
+  return Math.max(lines, 1);
+}
+function estimateEducationEntryLines(edu, width, themeFontScale) {
+  const charsPerLine = estimateCharsPerLine(width);
+  const w = contentWidth(width);
+  let lines = estimateBlockLines(
+    [edu.degree, `${edu.institution} \xB7 ${edu.gradDate}${edu.field ? ` \xB7 ${edu.field}` : ""}`],
+    charsPerLine,
+    0,
+    w
+  );
+  if (themeFontScale !== 1) {
+    lines = Math.ceil(lines * themeFontScale);
+  }
+  return Math.max(lines, 1);
+}
+function estimateProjectEntryLines(project, width, themeFontScale) {
+  const charsPerLine = estimateCharsPerLine(width);
+  const w = contentWidth(width);
+  let lines = estimateBlockLines(
+    [project.name, project.description, project.techStack ? `Tech: ${project.techStack}` : ""].filter(Boolean),
+    charsPerLine,
+    1,
+    w
+  );
+  if (themeFontScale !== 1) {
+    lines = Math.ceil(lines * themeFontScale);
+  }
+  return Math.max(lines, 1);
+}
+function splitExperienceSection(baseSectionId, pos, data, themeFontScale, continuationPageIds) {
+  const maxBottom = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN;
+  const fragments = [];
+  let fragmentIndex = 0;
+  let pageIndex = 0;
+  let y = pos.y;
+  const pageIdFor = (index) => index === 0 ? pos.pageId ?? continuationPageIds[0] : continuationPageIds[index] ?? continuationPageIds[continuationPageIds.length - 1];
+  const available = () => maxBottom - y;
+  const availableLines = () => Math.max(1, Math.floor(available() / LINE_HEIGHT2));
+  let builder = {
+    slices: [],
+    lines: SECTION_HEADING_LINES,
+    showHeading: true,
+    pageIndex,
+    y
+  };
+  const flush = () => {
+    if (!builder.slices.length) return;
+    const fragmentId = makeFragmentId(baseSectionId, fragmentIndex++);
+    fragments.push({
+      fragmentId,
+      position: {
+        ...pos,
+        pageId: pageIdFor(builder.pageIndex),
+        y: builder.y,
+        height: clampSectionHeight(linesToHeight(builder.lines))
+      },
+      slice: {
+        baseSectionId,
+        fragmentIndex: fragmentIndex - 1,
+        showHeading: builder.showHeading,
+        continued: !builder.showHeading,
+        experience: [...builder.slices]
       }
     });
-    if (!isRedirectStatus(response.status)) {
-      return response;
-    }
-    const location = response.headers.get("location");
-    if (!location) {
-      throw new Error(`Redirect missing location header (HTTP ${response.status})`);
-    }
-    const nextUrl = new URL(location, currentUrl);
-    const parsedRedirect = parsePublicHttpUrl(nextUrl.toString());
-    if (parsedRedirect.ok === false) {
-      throw new Error(parsedRedirect.error);
-    }
-    currentUrl = parsedRedirect.url;
-  }
-  throw new Error("Too many redirects while fetching job description");
-}
-function registerJdRoutes(app) {
-  app.post("/api/jd/extract-keywords", (req, res) => {
-    const { jobDescription } = req.body;
-    if (!jobDescription || typeof jobDescription !== "string") {
-      return res.status(400).json({ error: "jobDescription is required" });
-    }
-    const keywords = extractJdKeywords(jobDescription);
-    return res.json({ keywords, meta: { source: "parser", simulated: false } });
-  });
-  app.post("/api/jd/fetch-url", async (req, res) => {
-    const { url } = req.body ?? {};
-    if (!url || typeof url !== "string") {
-      return res.status(400).json({ error: "url is required" });
-    }
-    const parsed = parsePublicHttpUrl(url);
-    if (parsed.ok === false) {
-      return res.status(400).json({ error: parsed.error });
-    }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), JD_FETCH_TIMEOUT_MS);
-    try {
-      const response = await fetchJobDescriptionPage(parsed.url, controller.signal);
-      if (!response.ok) {
-        return res.status(422).json({
-          error: `\u7121\u6CD5\u6293\u53D6\u9801\u9762\uFF08HTTP ${response.status}\uFF09\u3002\u82E5\u70BA\u767B\u5165\u7246\u6216 SPA \u7DB2\u7AD9\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587\u3002`
-        });
-      }
-      const contentType = response.headers.get("content-type") ?? "";
-      if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
-        return res.status(422).json({ error: "URL \u56DE\u50B3\u7684\u4E0D\u662F HTML \u9801\u9762" });
-      }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.byteLength > JD_FETCH_MAX_BYTES) {
-        return res.status(422).json({ error: "\u9801\u9762\u904E\u5927\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587" });
-      }
-      const html = buffer.toString("utf-8");
-      const { jobDescription, pageTitle, headline } = buildJobDescriptionFromHtml(html);
-      if (jobDescription.length < 20) {
-        return res.status(422).json({
-          error: "\u7121\u6CD5\u5F9E\u9801\u9762\u63D0\u53D6\u8DB3\u5920\u6587\u5B57\u3002\u6B64\u7AD9\u53EF\u80FD\u9700\u767B\u5165\u6216\u7531 JavaScript \u6E32\u67D3\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587\u3002"
-        });
-      }
-      const meta = extractJobMeta(jobDescription);
-      const merged = mergeImportedJobMeta(headline || pageTitle, meta);
-      return res.json({
-        jobDescription,
-        jobTitle: merged.jobTitle,
-        companyName: merged.companyName,
-        sourceUrl: parsed.url.toString(),
-        pageTitle,
-        extractedChars: jobDescription.length,
-        meta: { source: "fetch-url", simulated: false }
-      });
-    } catch (err) {
-      const message = err instanceof Error && err.name === "AbortError" ? "\u6293\u53D6\u903E\u6642\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u6216\u6539\u8CBC JD \u5168\u6587" : err instanceof Error ? err.message : "Fetch failed";
-      return res.status(422).json({ error: message });
-    } finally {
-      clearTimeout(timeout);
-    }
-  });
-}
-
-// src/lib/apify/client.ts
-async function runApifyActorSync(options) {
-  const { actorId, token, input, signal } = options;
-  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify(input),
-    signal
-  });
-  const rawText = await response.text();
-  let payload;
-  try {
-    payload = JSON.parse(rawText);
-  } catch {
-    payload = rawText;
-  }
-  return {
-    ok: response.ok,
-    status: response.status,
-    payload,
-    rawText
+    pageIndex += 1;
+    y = CANVAS_PAGE_MARGIN;
+    builder = {
+      slices: [],
+      lines: 0,
+      showHeading: false,
+      pageIndex,
+      y
+    };
   };
-}
-function extractApifyErrorMessage(payload, status) {
-  if (typeof payload === "object" && payload !== null && "error" in payload && typeof payload.error === "object" && payload.error?.message) {
-    return payload.error.message;
+  for (const exp of data.experience) {
+    let bulletStart = 0;
+    while (bulletStart <= exp.bullets.length) {
+      const showEntryHeader = bulletStart === 0;
+      let bulletEnd = bulletStart === exp.bullets.length ? bulletStart : bulletStart + 1;
+      let chunkLines = estimateExperienceEntryLines(
+        exp,
+        bulletStart,
+        bulletEnd,
+        showEntryHeader,
+        pos.width,
+        themeFontScale
+      );
+      while (bulletEnd < exp.bullets.length) {
+        const tryLines = estimateExperienceEntryLines(
+          exp,
+          bulletStart,
+          bulletEnd + 1,
+          showEntryHeader,
+          pos.width,
+          themeFontScale
+        );
+        if (builder.lines + tryLines > availableLines()) break;
+        bulletEnd += 1;
+        chunkLines = tryLines;
+      }
+      if (builder.lines + chunkLines > availableLines() && builder.slices.length > 0) {
+        flush();
+      }
+      if (bulletStart >= exp.bullets.length) {
+        if (showEntryHeader) {
+          const headerOnlyLines = estimateExperienceEntryLines(exp, 0, 0, true, pos.width, themeFontScale);
+          if (builder.lines + headerOnlyLines > availableLines() && builder.slices.length > 0) {
+            flush();
+          }
+          builder.slices.push({
+            entryId: exp.id,
+            bulletStart: 0,
+            bulletEnd: 0,
+            showEntryHeader: true
+          });
+          builder.lines += headerOnlyLines;
+        }
+        break;
+      }
+      builder.slices.push({
+        entryId: exp.id,
+        bulletStart,
+        bulletEnd,
+        showEntryHeader
+      });
+      builder.lines += chunkLines;
+      bulletStart = bulletEnd;
+    }
   }
-  return `Apify request failed (${status})`;
+  if (builder.slices.length) {
+    flush();
+  }
+  return fragments.length > 1 ? fragments : [];
+}
+function splitEducationSection(baseSectionId, pos, data, themeFontScale, continuationPageIds) {
+  const maxBottom = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN;
+  const fragments = [];
+  let fragmentIndex = 0;
+  let pageIndex = 0;
+  let y = pos.y;
+  let showHeading = true;
+  let currentEntries = [];
+  let currentLines = SECTION_HEADING_LINES;
+  const pageIdFor = (index) => index === 0 ? pos.pageId ?? continuationPageIds[0] : continuationPageIds[index] ?? continuationPageIds[continuationPageIds.length - 1];
+  const available = () => maxBottom - y;
+  const availableLines = () => Math.max(1, Math.floor(available() / LINE_HEIGHT2));
+  const flush = () => {
+    if (!currentEntries.length) return;
+    const fragmentId = makeFragmentId(baseSectionId, fragmentIndex++);
+    fragments.push({
+      fragmentId,
+      position: {
+        ...pos,
+        pageId: pageIdFor(pageIndex),
+        y,
+        height: clampSectionHeight(linesToHeight(currentLines))
+      },
+      slice: {
+        baseSectionId,
+        fragmentIndex: fragmentIndex - 1,
+        showHeading,
+        continued: !showHeading,
+        education: [...currentEntries]
+      }
+    });
+    showHeading = false;
+    pageIndex += 1;
+    y = CANVAS_PAGE_MARGIN;
+    currentEntries = [];
+    currentLines = 0;
+  };
+  for (const edu of data.education) {
+    const entryLines = estimateEducationEntryLines(edu, pos.width, themeFontScale);
+    if (currentLines + entryLines > availableLines() && currentEntries.length > 0) {
+      flush();
+    }
+    currentEntries.push({ entryId: edu.id });
+    currentLines += entryLines;
+  }
+  if (currentEntries.length) {
+    flush();
+  }
+  return fragments.length > 1 ? fragments : [];
+}
+function splitProjectsSection(baseSectionId, pos, data, themeFontScale, continuationPageIds) {
+  const maxBottom = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN;
+  const fragments = [];
+  let fragmentIndex = 0;
+  let pageIndex = 0;
+  let y = pos.y;
+  let showHeading = true;
+  let currentEntries = [];
+  let currentLines = SECTION_HEADING_LINES;
+  const pageIdFor = (index) => index === 0 ? pos.pageId ?? continuationPageIds[0] : continuationPageIds[index] ?? continuationPageIds[continuationPageIds.length - 1];
+  const available = () => maxBottom - y;
+  const availableLines = () => Math.max(1, Math.floor(available() / LINE_HEIGHT2));
+  const flush = () => {
+    if (!currentEntries.length) return;
+    const fragmentId = makeFragmentId(baseSectionId, fragmentIndex++);
+    fragments.push({
+      fragmentId,
+      position: {
+        ...pos,
+        pageId: pageIdFor(pageIndex),
+        y,
+        height: clampSectionHeight(linesToHeight(currentLines))
+      },
+      slice: {
+        baseSectionId,
+        fragmentIndex: fragmentIndex - 1,
+        showHeading,
+        continued: !showHeading,
+        projects: [...currentEntries]
+      }
+    });
+    showHeading = false;
+    pageIndex += 1;
+    y = CANVAS_PAGE_MARGIN;
+    currentEntries = [];
+    currentLines = 0;
+  };
+  for (const project of data.projects) {
+    const entryLines = estimateProjectEntryLines(project, pos.width, themeFontScale);
+    if (currentLines + entryLines > availableLines() && currentEntries.length > 0) {
+      flush();
+    }
+    currentEntries.push({ entryId: project.id, showEntryHeader: true });
+    currentLines += entryLines;
+  }
+  if (currentEntries.length) {
+    flush();
+  }
+  return fragments.length > 1 ? fragments : [];
+}
+function shouldSplitSectionAtEntryLevel(sectionId, pos, resumeData) {
+  if (!SPLITTABLE_SECTION_IDS.includes(sectionId)) return false;
+  if (!sectionOverflowsPrintPage(pos)) return false;
+  if (sectionId === "experience") return resumeData.experience.length > 0;
+  if (sectionId === "education") return resumeData.education.length > 0;
+  if (sectionId === "projects") return resumeData.projects.length > 0;
+  return false;
+}
+function splitSectionIntoEntryFragments(sectionId, pos, resumeData, themeFontScale = 1, continuationPageIds = []) {
+  const pageIds = pos.pageId ? [pos.pageId, ...continuationPageIds] : continuationPageIds;
+  if (sectionId === "experience") return splitExperienceSection(sectionId, pos, resumeData, themeFontScale, pageIds);
+  if (sectionId === "education") return splitEducationSection(sectionId, pos, resumeData, themeFontScale, pageIds);
+  if (sectionId === "projects") return splitProjectsSection(sectionId, pos, resumeData, themeFontScale, pageIds);
+  return [];
+}
+function applyEntryLevelPagination(sectionIds, positions, pageIds, resumeData, options) {
+  if (options?.enabled === false) {
+    return { positions, sectionSlices: {}, pageIds };
+  }
+  const themeFontScale = options?.themeFontScale ?? 1;
+  const next = { ...positions };
+  const sectionSlices = {};
+  let workingPageIds = [...pageIds];
+  for (const sectionId of sectionIds) {
+    const pos = next[sectionId];
+    if (!pos || isSectionFragmentId(sectionId)) continue;
+    if (!shouldSplitSectionAtEntryLevel(sectionId, pos, resumeData)) continue;
+    const startPageIndex = Math.max(0, workingPageIds.indexOf(pos.pageId ?? workingPageIds[0]));
+    const continuationPageIds = workingPageIds.slice(startPageIndex + 1);
+    let fragments = splitSectionIntoEntryFragments(sectionId, pos, resumeData, themeFontScale, continuationPageIds);
+    if (fragments.length <= 1) continue;
+    const extendedPageIds = [...workingPageIds];
+    for (let i = 1; i < fragments.length; i++) {
+      const targetIndex = startPageIndex + i;
+      while (extendedPageIds.length <= targetIndex) {
+        extendedPageIds.push(createContinuationPageId(extendedPageIds));
+      }
+    }
+    fragments = fragments.map((frag, index) => {
+      const pageId = extendedPageIds[startPageIndex + index];
+      return {
+        ...frag,
+        position: {
+          ...frag.position,
+          pageId,
+          y: index === 0 ? frag.position.y : CANVAS_PAGE_MARGIN
+        }
+      };
+    });
+    delete next[sectionId];
+    for (const frag of fragments) {
+      next[frag.fragmentId] = frag.position;
+      sectionSlices[frag.fragmentId] = frag.slice;
+    }
+    workingPageIds = extendedPageIds;
+  }
+  return { positions: next, sectionSlices, pageIds: workingPageIds };
 }
 
-// src/lib/jobsdbApifyScraper.ts
-function normalizeJobsdbListings(raw) {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item) => item !== null && typeof item === "object").map((item) => ({
-    id: String(item.id ?? ""),
-    url: String(item.url ?? ""),
-    title: String(item.title ?? ""),
-    company: String(item.company ?? ""),
-    location: String(item.location ?? ""),
-    workType: item.workType ? String(item.workType) : void 0,
-    classification: item.classification ? String(item.classification) : void 0,
-    salary: item.salary ? String(item.salary) : void 0,
-    postedAt_relative: item.postedAt_relative ? String(item.postedAt_relative) : void 0,
-    postedAt_iso: item.postedAt_iso ? String(item.postedAt_iso) : void 0,
-    description_text: item.description_text ? String(item.description_text) : void 0,
-    teaser: item.teaser ? String(item.teaser) : void 0,
-    bulletPoints: Array.isArray(item.bulletPoints) ? item.bulletPoints.map((p) => String(p)) : void 0,
-    source: item.source ? String(item.source) : void 0
-  })).filter((job) => job.title.trim() || job.url.trim());
+// src/lib/layoutExportSurface.ts
+var EXPORT_PAGE_PREFIX2 = "export-page-";
+function sectionPageBottom(pos) {
+  return pos.y + pos.height;
 }
-
-// server/simulation/jobsdb.ts
-function shouldSimulateJobsdbSearch() {
-  const flag = process.env.NSR_JOBSDB_SIMULATE?.trim().toLowerCase();
-  if (flag === "1" || flag === "true" || flag === "yes") {
+function sectionOverflowsPrintPage(pos, pageHeight = CANVAS_PAGE_HEIGHT, margin = CANVAS_PAGE_MARGIN) {
+  return sectionPageBottom(pos) > pageHeight - margin;
+}
+function printPlanPageHasContent(plan, sectionIds, pageId, layerOrder) {
+  const getPageId = (id) => plan.positions[id]?.pageId ?? plan.pageIds[0] ?? pageId;
+  if (sectionsOnPage(sectionIds, plan.positions, pageId, getPageId, layerOrder).length > 0) {
     return true;
   }
-  if (flag === "0" || flag === "false" || flag === "no") {
-    return false;
+  return Object.entries(plan.positions).some(
+    ([id, pos]) => !sectionIds.includes(id) && pos?.pageId === pageId
+  );
+}
+function filterPrintPlanToNonemptyPages(plan, sectionIds, layerOrder) {
+  const pageIds = plan.pageIds.filter(
+    (pageId) => printPlanPageHasContent(plan, sectionIds, pageId, layerOrder)
+  );
+  return {
+    ...plan,
+    pageIds: pageIds.length ? pageIds : plan.pageIds.slice(0, 1)
+  };
+}
+function createExportPageId(index) {
+  return `${EXPORT_PAGE_PREFIX2}${index + 1}`;
+}
+function fitSectionHeightForExport(sectionId, pos, resumeData, themeFontScale, templateStyle) {
+  let height = estimateSectionHeightForContent(sectionId, resumeData, pos.width);
+  if (templateStyle && isMarginaliaNotebookTemplate(templateStyle)) {
+    height = snapToGrid(height + marginaliaSectionChrome(sectionId), SNAP_GRID_SIZE);
   }
-  return !process.env.APIFY_API_TOKEN?.trim();
-}
-function buildSimulatedJobsdbListings(keyword, limit = 10) {
-  const query = keyword?.trim() || "software engineer";
-  const count = Math.min(Math.max(1, limit), 3);
-  return Array.from({ length: count }, (_, index) => ({
-    id: `sim-${index + 1}`,
-    url: `https://hk.jobsdb.com/job/sim-${index + 1}`,
-    title: `${query} (Sim ${index + 1})`,
-    company: "NextStep Demo Co.",
-    location: "Hong Kong",
-    workType: "Full-time",
-    salary: "HK$ 35,000 \u2013 45,000",
-    postedAt_relative: "2d ago",
-    description_text: `Simulated JobsDB listing for E2E and playground demos.
-Keyword: ${query}.`,
-    bulletPoints: ["React", "TypeScript", "Playwright"],
-    source: "simulation"
-  }));
-}
-
-// server/routes/jobsdb.ts
-var JOBSDB_ACTOR_ID = "shahidirfan~jobsdb-scraper";
-var JOBSDB_SEARCH_MAX_RESULTS = 30;
-var JOBSDB_SEARCH_TIMEOUT_MS = 12e4;
-function parseJobsdbCountry(value) {
-  return value === "hk" || value === "th" ? value : null;
-}
-function parsePostedDate(value) {
-  if (value === "anytime" || value === "24h" || value === "7d" || value === "30d") {
-    return value;
+  if (themeFontScale !== 1) {
+    height = Math.round(height * themeFontScale);
   }
-  return "anytime";
+  return snapToGrid(clampSectionHeight(height), SNAP_GRID_SIZE);
 }
-function registerJobsdbRoutes(app) {
-  app.post("/api/jobsdb/search", async (req, res) => {
-    const {
-      keyword,
-      location,
-      startUrl,
-      country: countryRaw = "hk",
-      posted_date: postedDateRaw = "anytime",
-      results_wanted = 10
-    } = req.body ?? {};
-    const country = parseJobsdbCountry(countryRaw);
-    if (!country) {
-      return res.status(400).json({ error: "country \u5FC5\u9808\u70BA hk \u6216 th" });
-    }
-    const posted_date = parsePostedDate(postedDateRaw);
-    const hasStartUrl = typeof startUrl === "string" && startUrl.trim().length > 0;
-    const hasKeyword = typeof keyword === "string" && keyword.trim().length > 0;
-    if (!hasStartUrl && !hasKeyword) {
-      return res.status(400).json({ error: "\u8ACB\u63D0\u4F9B keyword \u6216 startUrl" });
-    }
-    if (hasStartUrl) {
-      const validated = validateJobsdbStartUrl(String(startUrl), country);
-      if (validated.ok === false) {
-        return res.status(400).json({ error: validated.error });
-      }
-    }
-    const limit = Math.min(
-      Math.max(1, Number(results_wanted) || 10),
-      JOBSDB_SEARCH_MAX_RESULTS
-    );
-    if (shouldSimulateJobsdbSearch()) {
-      const jobs = buildSimulatedJobsdbListings(
-        hasKeyword ? String(keyword) : "JobsDB search",
-        limit
-      );
-      return res.json({
-        jobs,
-        meta: { source: "jobsdb-simulation", count: jobs.length, simulated: true }
-      });
-    }
-    const apifyToken = process.env.APIFY_API_TOKEN?.trim();
-    if (!apifyToken) {
-      return res.status(503).json({
-        error: "\u672A\u8A2D\u5B9A APIFY_API_TOKEN\u3002\u8ACB\u5728 .env \u52A0\u5165 Apify API Token\uFF08https://console.apify.com/account/integrations\uFF09"
-      });
-    }
-    const actorInput = {
-      country,
-      posted_date,
-      results_wanted: limit,
-      maxPagesPerList: Math.min(10, Math.ceil(limit / 20) + 1),
-      proxyConfiguration: {
-        useApifyProxy: true,
-        apifyProxyGroups: ["RESIDENTIAL"]
-      }
-    };
-    if (hasStartUrl) {
-      actorInput.startUrl = String(startUrl).trim();
-    } else {
-      actorInput.keyword = String(keyword).trim();
-      if (typeof location === "string" && location.trim()) {
-        actorInput.location = location.trim();
-      }
-    }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), JOBSDB_SEARCH_TIMEOUT_MS);
-    try {
-      const apifyRes = await runApifyActorSync({
-        actorId: JOBSDB_ACTOR_ID,
-        token: apifyToken,
-        input: actorInput,
-        signal: controller.signal
-      });
-      if (!apifyRes.ok) {
-        return res.status(502).json({
-          error: extractApifyErrorMessage(apifyRes.payload, apifyRes.status)
-        });
-      }
-      const jobs = normalizeJobsdbListings(apifyRes.payload).slice(0, limit);
-      return res.json({
-        jobs,
-        meta: { source: "jobsdb-apify", count: jobs.length, simulated: false }
-      });
-    } catch (err) {
-      const message = err instanceof Error && err.name === "AbortError" ? "JobsDB \u641C\u5C0B\u903E\u6642\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66" : err instanceof Error ? err.message : "JobsDB search failed";
-      return res.status(502).json({ error: message });
-    } finally {
-      clearTimeout(timeout);
-    }
+function studioUsesMultiplePages(sectionIds, studioPages, studioSectionPageMap, positions) {
+  if (studioPages.length <= 1) return false;
+  const primary = studioPages[0].id;
+  return sectionIds.some((id) => {
+    const pid = studioSectionPageMap[id] ?? positions[id]?.pageId;
+    return pid && pid !== primary;
   });
 }
+var PRESERVE_PAGE_GAP = 12;
+function paginatePreservePlacements(sectionIds, positions, pageIds, content, maxStudioPageIds) {
+  let current = { ...positions };
+  let pages = [...pageIds];
+  const maxBottom = CANVAS_PAGE_HEIGHT - CANVAS_PAGE_MARGIN;
+  const maxIterations = Math.max(4, sectionIds.length * 4);
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let moved = false;
+    const getPageId2 = (id) => current[id]?.pageId ?? pages[0];
+    for (const pageId of [...pages]) {
+      const onPage = sectionsOnPage(sectionIds, current, pageId, getPageId2, content.layerOrder);
+      const sorted = [...onPage].sort(
+        (a, b) => sectionPageBottom(current[b] ?? { x: 0, y: 0, width: 0, height: 0 }) - sectionPageBottom(current[a] ?? { x: 0, y: 0, width: 0, height: 0 })
+      );
+      for (const id of sorted) {
+        const pos = current[id];
+        if (!pos || pos.y + pos.height <= maxBottom) continue;
+        const pageIndex = pages.indexOf(pageId);
+        let targetPageId = pages[pageIndex + 1];
+        if (!targetPageId) {
+          if (maxStudioPageIds?.length) {
+            targetPageId = pageIndex + 1 < maxStudioPageIds.length ? maxStudioPageIds[pageIndex + 1] : maxStudioPageIds[maxStudioPageIds.length - 1];
+            if (!pages.includes(targetPageId)) {
+              pages.push(targetPageId);
+            }
+          } else {
+            targetPageId = createExportPageId(pages.length);
+            pages.push(targetPageId);
+          }
+        }
+        const onTarget = sectionsOnPage(sectionIds, current, targetPageId, getPageId2, content.layerOrder).filter(
+          (sid) => {
+            if (sid === id) return false;
+            const peer = current[sid];
+            return peer ? Math.abs(peer.x - pos.x) <= SNAP_GRID_SIZE * 2 : false;
+          }
+        );
+        let nextY = CANVAS_PAGE_MARGIN;
+        for (const sid of onTarget) {
+          const peer = current[sid];
+          if (peer) nextY = Math.max(nextY, peer.y + peer.height + PRESERVE_PAGE_GAP);
+        }
+        current[id] = clampPositionToA4Page({
+          ...pos,
+          pageId: targetPageId,
+          y: nextY
+        });
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  const getPageId = (id) => current[id]?.pageId ?? pages[0];
+  const usedPages = pages.filter(
+    (pid) => sectionsOnPage(sectionIds, current, pid, getPageId, content.layerOrder).length > 0
+  );
+  return { positions: current, pageIds: usedPages.length ? usedPages : [pages[0]] };
+}
+function paginateExportOverflow(sectionIds, positions, pageIds, content, maxStudioPageIds) {
+  let current = { ...positions };
+  let pages = [...pageIds];
+  const maxIterations = Math.max(4, sectionIds.length * 4);
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let moved = false;
+    const getPageId2 = (id) => current[id]?.pageId ?? pages[0];
+    for (const pageId of [...pages]) {
+      const onPage = sectionsOnPage(sectionIds, current, pageId, getPageId2, content.layerOrder);
+      const sorted = [...onPage].sort((a, b) => {
+        const posA = current[a];
+        const posB = current[b];
+        return sectionPageBottom(posB ?? { x: 0, y: 0, width: 0, height: 0 }) - sectionPageBottom(posA ?? { x: 0, y: 0, width: 0, height: 0 });
+      });
+      for (const id of sorted) {
+        const pos = current[id];
+        if (!pos || !sectionOverflowsPrintPage(pos)) continue;
+        const pageIndex = pages.indexOf(pageId);
+        let targetPageId = pages[pageIndex + 1];
+        if (!targetPageId) {
+          if (maxStudioPageIds?.length) {
+            targetPageId = pageIndex + 1 < maxStudioPageIds.length ? maxStudioPageIds[pageIndex + 1] : maxStudioPageIds[maxStudioPageIds.length - 1];
+            if (!pages.includes(targetPageId)) {
+              pages.push(targetPageId);
+            }
+          } else {
+            targetPageId = createExportPageId(pages.length);
+            pages.push(targetPageId);
+          }
+        }
+        current[id] = clampPositionToA4Page({
+          ...pos,
+          pageId: targetPageId,
+          y: CANVAS_PAGE_MARGIN
+        });
+        moved = true;
+      }
+    }
+    if (!moved) break;
+    const getPageIdAfterMove = (id) => current[id]?.pageId ?? pages[0];
+    for (const pageId of pages) {
+      current = { ...current, ...reflowPageColumnsNatural(sectionIds, current, pageId, getPageIdAfterMove, content) };
+    }
+  }
+  const getPageId = (id) => current[id]?.pageId ?? pages[0];
+  const usedPages = pages.filter(
+    (pid) => sectionsOnPage(sectionIds, current, pid, getPageId, content.layerOrder).length > 0
+  );
+  return { positions: current, pageIds: usedPages.length ? usedPages : [pages[0]] };
+}
+function studioLayoutHasOverflow(sectionIds, positions) {
+  return sectionIds.some((id) => {
+    const pos = positions[id];
+    return pos ? sectionOverflowsPrintPage(pos) : false;
+  });
+}
+function finalizeStudioPageLayout(sectionIds, positions, pageIds, content, maxStudioPageIds) {
+  let laid = { ...positions };
+  let pages = [...pageIds];
+  if (studioLayoutHasOverflow(sectionIds, laid)) {
+    const paginated = paginateExportOverflow(sectionIds, laid, pages, content, maxStudioPageIds);
+    laid = paginated.positions;
+    pages = paginated.pageIds;
+    const getPageId2 = (id) => laid[id]?.pageId ?? pages[0];
+    for (const pageId of pages) {
+      laid = { ...laid, ...reflowPageColumnsNatural(sectionIds, laid, pageId, getPageId2, content) };
+    }
+  }
+  const getPageId = (id) => laid[id]?.pageId ?? pages[0];
+  const scopedPages = maxStudioPageIds?.length ? maxStudioPageIds : pages;
+  const usedPages = scopedPages.filter(
+    (pid) => sectionsOnPage(sectionIds, laid, pid, getPageId, content.layerOrder).length > 0
+  );
+  return { positions: laid, pageIds: usedPages.length ? usedPages : pages.slice(0, 1) };
+}
+function buildPrintReadyExportLayout(sectionIds, positions, resumeData, options) {
+  const content = {
+    resumeData,
+    layerOrder: options?.layerOrder,
+    themeFontScale: options?.themeFontScale ?? 1
+  };
+  const themeFontScale = options?.themeFontScale ?? 1;
+  const templateStyle = options?.templateStyle;
+  const studioPages = options?.studioPages ?? [];
+  const studioMap = options?.studioSectionPageMap ?? {};
+  const useStudioPages = studioUsesMultiplePages(sectionIds, studioPages, studioMap, positions);
+  const maxStudioPageIds = useStudioPages ? studioPages.map((p) => p.id) : void 0;
+  let pageIds = useStudioPages ? studioPages.map((p) => p.id) : [createExportPageId(0)];
+  const current = {};
+  for (const id of sectionIds) {
+    const pos = positions[id];
+    if (!pos) continue;
+    const pageId = useStudioPages ? studioMap[id] ?? pos.pageId ?? studioPages[0].id : pageIds[0];
+    current[id] = { ...pos, pageId };
+  }
+  for (const id of sectionIds) {
+    if (options?.manualSizedSections?.has(id)) continue;
+    const pos = current[id];
+    if (!pos) continue;
+    current[id] = clampPositionToA4Page({
+      ...pos,
+      height: fitSectionHeightForExport(id, pos, resumeData, themeFontScale, templateStyle)
+    });
+  }
+  let laid = { ...current };
+  const getPageId = (id) => laid[id]?.pageId ?? pageIds[0];
+  const preservePlacements = options?.preservePlacements === true;
+  for (const pageId of pageIds) {
+    laid = { ...laid, ...reflowPageColumnsNatural(sectionIds, laid, pageId, getPageId, content) };
+  }
+  if (!useStudioPages) {
+    const paginated = preservePlacements ? paginatePreservePlacements(sectionIds, laid, pageIds, content, maxStudioPageIds) : paginateExportOverflow(sectionIds, laid, pageIds, content);
+    laid = paginated.positions;
+    pageIds = paginated.pageIds;
+  } else {
+    pageIds = pageIds.filter(
+      (pid) => sectionsOnPage(sectionIds, laid, pid, (id) => laid[id]?.pageId ?? pid, content.layerOrder).length > 0
+    );
+    if (preservePlacements) {
+      const paginated = paginatePreservePlacements(sectionIds, laid, pageIds, content, maxStudioPageIds);
+      laid = paginated.positions;
+      pageIds = paginated.pageIds;
+      const finalized = finalizeStudioPageLayout(sectionIds, laid, pageIds, content, maxStudioPageIds);
+      laid = finalized.positions;
+      pageIds = finalized.pageIds;
+    } else {
+      const finalized = finalizeStudioPageLayout(sectionIds, laid, pageIds, content, maxStudioPageIds);
+      laid = finalized.positions;
+      pageIds = finalized.pageIds;
+    }
+  }
+  const filtered = filterPrintPlanToNonemptyPages(
+    {
+      positions: laid,
+      pageIds: pageIds.length ? pageIds : [createExportPageId(0)],
+      sectionSlices: void 0
+    },
+    sectionIds,
+    content.layerOrder
+  );
+  const entrySplit = applyEntryLevelPagination(sectionIds, filtered.positions, filtered.pageIds, resumeData, {
+    themeFontScale,
+    enabled: options?.enableEntrySplit === true
+  });
+  laid = entrySplit.positions;
+  pageIds = entrySplit.pageIds;
+  return filterPrintPlanToNonemptyPages(
+    {
+      positions: laid,
+      pageIds: pageIds.length ? pageIds : [createExportPageId(0)],
+      sectionSlices: Object.keys(entrySplit.sectionSlices).length ? entrySplit.sectionSlices : void 0
+    },
+    sectionIds,
+    content.layerOrder
+  );
+}
 
-// server/routes/resume.ts
-var import_multer = __toESM(require("multer"), 1);
+// src/lib/layoutDocument/buildLayoutDocument.ts
+function buildLayoutDocument(input) {
+  const {
+    sectionIds,
+    draftPositions,
+    resumeData,
+    freeLayoutEnabled,
+    manualSizedSections,
+    layerOrder,
+    themeFontScale,
+    templateStyle,
+    studioPages,
+    studioSectionPageMap
+  } = input;
+  const printPlan = buildPrintReadyExportLayout(sectionIds, draftPositions, resumeData, {
+    manualSizedSections,
+    layerOrder,
+    themeFontScale,
+    templateStyle,
+    studioPages,
+    studioSectionPageMap,
+    preservePlacements: freeLayoutEnabled
+  });
+  return {
+    sectionIds,
+    draftPositions,
+    printPlan,
+    editMode: freeLayoutEnabled ? "free" : "flow",
+    resumeData
+  };
+}
 
 // src/lib/templates/tokens.ts
 var STATIONERY = {
@@ -3689,6 +4410,177 @@ for (const def of TEMPLATE_DEFINITION_LIST) {
   DEFINITION_MAP.set(def.id, def);
   DEFINITION_MAP.set(def.designId, def);
 }
+function getTemplateDefinition(style) {
+  return DEFINITION_MAP.get(style) ?? TEMPLATE_DEFINITION_LIST[0];
+}
+
+// src/lib/templates/templateDemoLayout.ts
+var TEMPLATE_DEMO_PAGE_IDS = {
+  page1: "demo-page-1",
+  page2: "demo-page-2"
+};
+var M = CANVAS_PAGE_MARGIN;
+var PAGE_W = CANVAS_PAGE_WIDTH;
+var PAGE_H = CANVAS_PAGE_HEIGHT;
+var USABLE_W = PAGE_W - M * 2;
+var PAGE_BOTTOM = PAGE_H - M;
+var SECTION_GAP = snapToGrid(8, SNAP_GRID_SIZE);
+var CENTER_COL_W = snapToGrid(Math.min(600, USABLE_W), SNAP_GRID_SIZE);
+var READING_ORDER = [
+  "header",
+  "summary",
+  "experience",
+  "projects",
+  "education",
+  "skills",
+  "languages",
+  "certifications",
+  "volunteer"
+];
+function sortForPagination(sectionIds) {
+  const rank = new Map(READING_ORDER.map((id, index) => [id, index]));
+  return [...sectionIds].sort((a, b) => (rank.get(a) ?? 99) - (rank.get(b) ?? 99));
+}
+function columnForFamily(family) {
+  if (family === "classic") {
+    const x = snapToGrid(Math.round((PAGE_W - CENTER_COL_W) / 2), SNAP_GRID_SIZE);
+    return { x, width: CENTER_COL_W };
+  }
+  return { x: M, width: USABLE_W };
+}
+function sectionHeight(id, width, resumeData, style) {
+  let height = estimateSectionHeightForContent(id, resumeData, width);
+  if (style && isMarginaliaNotebookTemplate(style)) {
+    height = snapToGrid(height + marginaliaSectionChrome(id), SNAP_GRID_SIZE);
+  }
+  return height;
+}
+function stackHeight(sizes, from, to) {
+  let total = M;
+  for (let i = from; i < to; i++) {
+    if (i > from) total += SECTION_GAP;
+    total += sizes[i].height;
+  }
+  return total;
+}
+function findBalancedSplit(sizes) {
+  const count = sizes.length;
+  if (count <= 1) return count;
+  for (let split = 1; split < count; split++) {
+    if (stackHeight(sizes, 0, split) <= PAGE_BOTTOM && stackHeight(sizes, split, count) <= PAGE_BOTTOM) {
+      return split;
+    }
+  }
+  let bestSplit = 1;
+  let bestOverflow = Infinity;
+  for (let split = 1; split < count; split++) {
+    const page1Over = Math.max(0, stackHeight(sizes, 0, split) - PAGE_BOTTOM);
+    const page2Over = Math.max(0, stackHeight(sizes, split, count) - PAGE_BOTTOM);
+    const overflow = Math.max(page1Over, page2Over);
+    if (overflow < bestOverflow) {
+      bestOverflow = overflow;
+      bestSplit = split;
+    }
+  }
+  return bestSplit;
+}
+function stackHeightForIds(sizes, ids) {
+  const heightById = new Map(sizes.map((entry) => [entry.id, entry.height]));
+  let total = M;
+  for (let index = 0; index < ids.length; index++) {
+    if (index > 0) total += SECTION_GAP;
+    total += heightById.get(ids[index]) ?? 0;
+  }
+  return total;
+}
+function paginateLayoutToTwoPages(sectionIds, resumeData, family, style) {
+  const ordered = sortForPagination(sectionIds);
+  const column = columnForFamily(family);
+  const sizes = ordered.map((id) => ({
+    id,
+    height: sectionHeight(id, column.width, resumeData, style)
+  }));
+  if (!sizes.length) return {};
+  const splitAt = findBalancedSplit(sizes);
+  const page1Ids = ordered.slice(0, splitAt);
+  const page2Ids = ordered.slice(splitAt);
+  while (page2Ids.length > 0 && stackHeightForIds(sizes, page2Ids) > PAGE_BOTTOM) {
+    const movedId = page2Ids.pop();
+    const nextPage1 = [...page1Ids, movedId];
+    if (stackHeightForIds(sizes, nextPage1) <= PAGE_BOTTOM) {
+      page1Ids.push(movedId);
+      continue;
+    }
+    page2Ids.push(movedId);
+    break;
+  }
+  while (page1Ids.length > 1 && stackHeightForIds(sizes, page1Ids) > PAGE_BOTTOM) {
+    const movedId = page1Ids.pop();
+    page2Ids.unshift(movedId);
+  }
+  const result = {};
+  const layoutPage = (ids, pageId) => {
+    let cursorY = M;
+    for (const id of ids) {
+      const height = sizes.find((entry) => entry.id === id)?.height ?? defaultSectionHeight(id);
+      result[id] = {
+        x: column.x,
+        y: cursorY,
+        width: column.width,
+        height,
+        pageId
+      };
+      cursorY += height + SECTION_GAP;
+    }
+  };
+  layoutPage(page1Ids, TEMPLATE_DEMO_PAGE_IDS.page1);
+  layoutPage(page2Ids, TEMPLATE_DEMO_PAGE_IDS.page2);
+  return result;
+}
+function createTemplateDemoLayoutPositions(style, sectionIds, resumeData) {
+  const def = getTemplateDefinition(style);
+  return createTemplateDemoLayoutPositionsForFamily(def.family, sectionIds, resumeData, style);
+}
+function createTemplateDemoLayoutPositionsForFamily(family, sectionIds, resumeData, style) {
+  return paginateLayoutToTwoPages(sectionIds, resumeData, family, style);
+}
+function demoLayoutPageAssignmentDriftForFamily(positions, family, sectionIds, resumeData) {
+  if (!isDemoPageLayout(positions)) return false;
+  const expected = createTemplateDemoLayoutPositionsForFamily(family, sectionIds, resumeData);
+  return sectionIds.some((id) => expected[id]?.pageId !== positions[id]?.pageId);
+}
+function buildTemplateDemoPagesDocument() {
+  return {
+    pages: [
+      { id: TEMPLATE_DEMO_PAGE_IDS.page1, label: formatCanvasPageLabel(1) },
+      { id: TEMPLATE_DEMO_PAGE_IDS.page2, label: formatCanvasPageLabel(2) }
+    ],
+    activePageId: TEMPLATE_DEMO_PAGE_IDS.page1
+  };
+}
+function layoutUsesTwoDemoPages(positions) {
+  const pageIds = /* @__PURE__ */ new Set();
+  for (const pos of Object.values(positions)) {
+    if (pos.pageId) pageIds.add(pos.pageId);
+  }
+  return pageIds.has(TEMPLATE_DEMO_PAGE_IDS.page1) && pageIds.has(TEMPLATE_DEMO_PAGE_IDS.page2);
+}
+function demoLayoutMissingSecondPage(positions) {
+  const usesDemoPage1 = Object.values(positions).some(
+    (pos) => pos.pageId === TEMPLATE_DEMO_PAGE_IDS.page1
+  );
+  if (!usesDemoPage1) return false;
+  return !layoutUsesTwoDemoPages(positions);
+}
+function demoLayoutPageAssignmentDrift(positions, style, sectionIds, resumeData) {
+  const def = getTemplateDefinition(style);
+  return demoLayoutPageAssignmentDriftForFamily(positions, def.family, sectionIds, resumeData);
+}
+function isDemoPageLayout(positions) {
+  return Object.values(positions).some(
+    (pos) => pos.pageId === TEMPLATE_DEMO_PAGE_IDS.page1 || pos.pageId === TEMPLATE_DEMO_PAGE_IDS.page2
+  );
+}
 
 // src/lib/templates/templateDemoBaseContent.ts
 var EN_BASE = {
@@ -3715,8 +4607,7 @@ var EN_BASE = {
       location: "Quarry Bay, Hong Kong",
       bullets: [
         "Rebuilt a merchant operations workspace in React and TypeScript, cutting support task time by 22%.",
-        "Built a shared component library and token system adopted across admin, analytics, and marketing surfaces.",
-        "Partnered with design to ship accessible table, filter, and form patterns with WCAG 2.1 AA coverage."
+        "Built a shared component library and token system adopted across admin, analytics, and marketing surfaces."
       ]
     },
     {
@@ -3728,21 +4619,7 @@ var EN_BASE = {
       location: "Kowloon Bay, Hong Kong",
       bullets: [
         "Delivered internal order and catalog tooling with React, Node.js, and REST APIs for three APAC markets.",
-        "Replaced manual spreadsheet reporting with dashboard modules used weekly by operations and finance teams.",
         "Migrated legacy jQuery modules to TypeScript with shared Tailwind utilities and Storybook documentation."
-      ]
-    },
-    {
-      id: "exp-3",
-      company: "Pearl River FinTech",
-      role: "Junior Frontend Developer",
-      startDate: "2019-01",
-      endDate: "2020-06",
-      location: "Central, Hong Kong",
-      bullets: [
-        "Implemented responsive account settings, KYC flows, and notification centers for a regulated fintech product.",
-        "Collaborated with backend engineers on OpenAPI contracts and optimistic UI for payment status updates.",
-        "Authored internal wiki guides on React testing patterns adopted by two feature squads."
       ]
     }
   ],
@@ -3754,14 +4631,6 @@ var EN_BASE = {
       field: "Computing",
       gradDate: "2021-06",
       location: "Hung Hom, Hong Kong"
-    },
-    {
-      id: "edu-2",
-      institution: "HKU SPACE",
-      degree: "Professional Certificate",
-      field: "UX Design & Front-end Development",
-      gradDate: "2019-08",
-      location: "Admiralty, Hong Kong"
     }
   ],
   projects: [
@@ -4277,10 +5146,8 @@ function getTemplateDemoProfile(style, locale = "en") {
 
 // src/lib/templates/templateDemoLocale.ts
 function readStoredUiLocale() {
-  const allowed = getMarketLocales();
   try {
-    const raw = localStorage.getItem(NSR_STORAGE_KEYS.uiLocale);
-    if (raw && allowed.includes(raw)) return raw;
+    return normalizeStoredUiLocale(localStorage.getItem(NSR_STORAGE_KEYS.uiLocale));
   } catch {
   }
   return DEFAULT_LOCALE;
@@ -4512,6 +5379,838 @@ var COMPILED_ENDPOINTS = [
 var reverseEngineeringOverview = {
   compiledEndpoints: COMPILED_ENDPOINTS.map(({ path, method }) => ({ path, method }))
 };
+
+// src/lib/templates/templateDemoMatch.ts
+function resumeDataEquals(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+function isTemplateDemoResume(resume, style) {
+  return resumeDataEquals(resume, getTemplateDemoResume(style, "en")) || resumeDataEquals(resume, getTemplateDemoResume(style, "zh"));
+}
+
+// src/lib/printExportBridge.ts
+function exportSectionPageMapFromPositions(sections, positions, fallbackPageId) {
+  const primary = fallbackPageId ?? Object.values(positions).find((p) => p.pageId)?.pageId ?? "page-1";
+  return Object.fromEntries(
+    sections.filter((s) => positions[s.id]).map((s) => [s.id, positions[s.id].pageId ?? primary])
+  );
+}
+function distinctPositionPageCount(positions) {
+  return new Set(Object.values(positions).map((pos) => pos.pageId).filter(Boolean)).size;
+}
+function healDemoExportLayoutSnapshot(snap) {
+  if (!isTemplateDemoResume(snap.resumeData, snap.activeTemplate)) {
+    return { exportSurfacePositions: snap.exportSurfacePositions, exportPages: snap.exportPages };
+  }
+  const singleExportPage = snap.exportPages.length <= 1 || distinctPositionPageCount(snap.exportSurfacePositions) <= 1;
+  const sectionIds = snap.sections.map((section) => section.id);
+  const needsHeal = demoLayoutMissingSecondPage(snap.exportSurfacePositions) || demoLayoutPageAssignmentDrift(
+    snap.exportSurfacePositions,
+    snap.activeTemplate,
+    sectionIds,
+    snap.resumeData
+  ) || singleExportPage && snap.sections.length > 5;
+  if (!needsHeal) {
+    return { exportSurfacePositions: snap.exportSurfacePositions, exportPages: snap.exportPages };
+  }
+  const draftPositions = createTemplateDemoLayoutPositions(
+    snap.activeTemplate,
+    sectionIds,
+    snap.resumeData
+  );
+  const studioPages = buildTemplateDemoPagesDocument();
+  const doc = buildLayoutDocument({
+    sectionIds,
+    draftPositions,
+    resumeData: snap.resumeData,
+    freeLayoutEnabled: true,
+    studioPages: studioPages.pages,
+    studioSectionPageMap: exportSectionPageMapFromPositions(
+      snap.sections,
+      draftPositions,
+      studioPages.pages[0].id
+    )
+  });
+  return {
+    exportSurfacePositions: doc.printPlan.positions,
+    exportPages: doc.printPlan.pageIds.map((id, index) => ({
+      id,
+      label: formatCanvasPageLabel(index + 1)
+    }))
+  };
+}
+function healDemoPrintLayoutPayload(resumeData, templateStyle, layout) {
+  if (!layout.enabled) return layout;
+  const healed = healDemoExportLayoutSnapshot({
+    resumeData,
+    activeTemplate: templateStyle,
+    highlightChanges: false,
+    analysisResult: null,
+    grayscaleMode: layout.grayscaleMode ?? false,
+    themeCustomization: layout.themeCustomization ?? {},
+    freeLayoutEnabled: true,
+    sections: layout.sections,
+    exportSurfacePositions: layout.positions,
+    exportPages: layout.pages ?? [],
+    sectionPageMap: layout.sectionPageMap ?? {},
+    layerOrder: layout.layerOrder ?? [],
+    hiddenSections: layout.hiddenSections ?? {},
+    sectionSlices: layout.sectionSlices
+  });
+  return {
+    ...layout,
+    positions: healed.exportSurfacePositions,
+    pages: healed.exportPages
+  };
+}
+function normalizePrintLayoutPayload(layout) {
+  if (!layout.enabled || !layout.sections.length || !Object.keys(layout.positions).length) {
+    return layout;
+  }
+  const primaryPageId = layout.pages?.[0]?.id;
+  const sectionPageMap = exportSectionPageMapFromPositions(
+    layout.sections,
+    layout.positions,
+    primaryPageId
+  );
+  const referencedIds = [];
+  const pushId = (pageId) => {
+    if (pageId && !referencedIds.includes(pageId)) referencedIds.push(pageId);
+  };
+  for (const pageId of Object.values(sectionPageMap)) pushId(pageId);
+  for (const pos of Object.values(layout.positions)) pushId(pos.pageId);
+  for (const page of layout.pages ?? []) pushId(page.id);
+  const pageById = new Map((layout.pages ?? []).map((page) => [page.id, page]));
+  const pages = referencedIds.map((id, index) => pageById.get(id) ?? { id, label: formatCanvasPageLabel(index + 1) });
+  return {
+    ...layout,
+    sectionPageMap,
+    pages: pages.length ? pages : layout.pages
+  };
+}
+
+// server/exportPdfHandler.ts
+var PRINT_READY_SELECTOR = '[data-print-ready="true"]';
+var PRINT_TIMEOUT_MS = 45e3;
+var FONT_READY_TIMEOUT_MS = 18e3;
+var IS_SERVERLESS = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+async function launchChromium() {
+  if (IS_SERVERLESS) {
+    try {
+      const sparticuz = (await import("@sparticuz/chromium")).default;
+      const { chromium } = await import("playwright-core");
+      const executablePath = await sparticuz.executablePath();
+      return await chromium.launch({
+        headless: true,
+        executablePath,
+        args: [...sparticuz.args, "--disable-dev-shm-usage"]
+      });
+    } catch (error) {
+      console.error("[export/pdf] serverless chromium launch failed:", error);
+      return null;
+    }
+  }
+  try {
+    const pw = await import("playwright-core");
+    return await pw.chromium.launch({ headless: true });
+  } catch {
+    try {
+      const pw = await import("playwright");
+      return await pw.chromium.launch({ headless: true });
+    } catch {
+      return null;
+    }
+  }
+}
+function firstHeaderValue(value) {
+  if (!value) return void 0;
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw.split(",")[0]?.trim() || void 0;
+}
+function isProtectedVercelDeploymentHost(host) {
+  const hostname = host.trim().toLowerCase().split(":")[0] ?? "";
+  if (!hostname.endsWith(".vercel.app")) return false;
+  const sub = hostname.slice(0, -".vercel.app".length);
+  return /-[a-z0-9]{8,}-[a-z0-9-]+$/i.test(sub);
+}
+function configuredPublicOrigin() {
+  const raw = process.env.PRINT_ORIGIN || process.env.PUBLIC_APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : void 0);
+  if (!raw) return void 0;
+  return raw.replace(/\/$/, "");
+}
+function resolvePrintOrigin(req) {
+  const serverless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (serverless) {
+    const publicOrigin = configuredPublicOrigin();
+    if (publicOrigin) return publicOrigin;
+    const host = firstHeaderValue(req.headers["x-forwarded-host"]) ?? firstHeaderValue(req.headers.host);
+    const proto = firstHeaderValue(req.headers["x-forwarded-proto"]) ?? "https";
+    if (host && !isProtectedVercelDeploymentHost(host)) {
+      return `${proto}://${host}`;
+    }
+    if (host) return `${proto}://${host}`;
+  }
+  const port = Number(process.env.PORT) || 3e3;
+  return `http://127.0.0.1:${port}`;
+}
+function buildPrintUrl(origin) {
+  const url = new URL("/?print=1", origin.endsWith("/") ? origin : `${origin}/`);
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (bypass) {
+    url.searchParams.set("x-vercel-protection-bypass", bypass);
+    url.searchParams.set("x-vercel-set-bypass-cookie", "true");
+  }
+  return url.toString();
+}
+async function handleExportPdf(req, res) {
+  const body = req.body ?? {};
+  const format = body.pageFormat === "Letter" ? "Letter" : "A4";
+  if (!body.resumeData || typeof body.resumeData !== "object" || !("personalInfo" in body.resumeData)) {
+    res.status(400).json({ error: "resumeData is required", code: "MISSING_RESUME_DATA" });
+    return;
+  }
+  const browser = await launchChromium();
+  if (!browser) {
+    res.status(501).json({
+      error: "PDF renderer unavailable in this environment",
+      code: "CHROMIUM_UNAVAILABLE"
+    });
+    return;
+  }
+  try {
+    const page = await browser.newPage({ viewport: { width: 900, height: 1400 } });
+    let normalizedLayout = body.layout && typeof body.layout === "object" && body.layout.enabled === true ? body.layout : body.layout;
+    if (normalizedLayout && typeof normalizedLayout === "object" && normalizedLayout.enabled === true) {
+      const healed = healDemoPrintLayoutPayload(
+        body.resumeData,
+        normalizeTemplateStyle(body.templateStyle),
+        normalizedLayout
+      );
+      normalizedLayout = normalizePrintLayoutPayload(healed);
+    }
+    const payload = JSON.stringify({
+      resumeData: body.resumeData,
+      templateStyle: body.templateStyle,
+      locale: body.locale,
+      pageFormat: format,
+      paperMode: body.paperMode === "white" ? "white" : "cream",
+      watermark: typeof body.watermark === "string" ? body.watermark : void 0,
+      layout: normalizedLayout
+    });
+    await page.addInitScript((raw) => {
+      try {
+        localStorage.setItem("nsr_print_payload", raw);
+      } catch {
+      }
+    }, payload);
+    const printUrl = buildPrintUrl(resolvePrintOrigin(req));
+    await page.goto(printUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: PRINT_TIMEOUT_MS
+    });
+    await page.waitForSelector(PRINT_READY_SELECTOR, { timeout: PRINT_TIMEOUT_MS });
+    await page.evaluate(async (fontTimeoutMs) => {
+      await Promise.race([
+        document.fonts.ready,
+        new Promise((resolve) => setTimeout(resolve, fontTimeoutMs))
+      ]);
+    }, FONT_READY_TIMEOUT_MS);
+    const pdf = await page.pdf({
+      format,
+      printBackground: true,
+      margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
+      preferCSSPageSize: true
+    });
+    if (!pdf || pdf.byteLength < 2e3) {
+      res.status(500).json({ error: "PDF render produced empty output", code: "EMPTY_PDF" });
+      return;
+    }
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=resume.pdf");
+    res.send(Buffer.from(pdf));
+  } catch (error) {
+    console.error("[export/pdf] render failed:", error);
+    if (!res.headersSent) {
+      const message = error instanceof Error ? error.message : "PDF render failed";
+      res.status(500).json({ error: message, code: "RENDER_FAILED" });
+    }
+  } finally {
+    await browser.close().catch(() => void 0);
+  }
+}
+
+// server/routes/exportPdf.ts
+function registerExportPdfRoutes(app) {
+  app.post("/api/export/pdf", (req, res) => {
+    void handleExportPdf(req, res);
+  });
+}
+
+// server/routes/health.ts
+function registerHealthRoutes(app, aiEnabled) {
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      ai_enabled: aiEnabled,
+      app_mode: readServerAppMode(),
+      stripe_enabled: isStripeConfigured(),
+      auth_enabled: isSupabaseConfigured(),
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  });
+}
+
+// src/lib/atsKeywords.ts
+var TECH_KEYWORDS_POOL = [
+  "react",
+  "typescript",
+  "javascript",
+  "tailwind",
+  "next.js",
+  "node.js",
+  "node",
+  "docker",
+  "kubernetes",
+  "aws",
+  "python",
+  "graphql",
+  "sql",
+  "postgresql",
+  "vite",
+  "performance",
+  "metrics",
+  "star",
+  "spa",
+  "hooks",
+  "redux",
+  "express",
+  "developer",
+  "engineer",
+  "engineering",
+  "quantifiable",
+  "quantitative",
+  "optimization",
+  "optimize",
+  "responsive",
+  "profiling",
+  "analytics",
+  "database",
+  "drizzle",
+  "supabase",
+  "git",
+  "github",
+  "ci/cd",
+  "agile",
+  "scrum"
+];
+function extractJdKeywords(jobDescription) {
+  const jdLower = (jobDescription || "").toLowerCase();
+  const matched = TECH_KEYWORDS_POOL.filter((word) => jdLower.includes(word));
+  if (matched.length > 0) return matched;
+  const tokens = jdLower.match(/\b[a-z][a-z0-9+#./-]{2,}\b/g) || [];
+  const unique = Array.from(new Set(tokens)).filter((t2) => t2.length >= 4 && !["with", "this", "that", "will", "your", "have", "role"].includes(t2)).slice(0, 12);
+  return unique.length > 0 ? unique : ["react", "typescript", "javascript", "tailwind", "metrics", "performance"];
+}
+
+// src/lib/jdHtmlExtract.ts
+function stripHtmlToText(html) {
+  let text = html.replace(/<!--[\s\S]*?-->/g, "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<noscript[\s\S]*?<\/noscript>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<\/h[1-6]>/gi, "\n\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'");
+  text = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+  return text;
+}
+function extractHtmlPageHints(html) {
+  const pick = (pattern) => {
+    const m = html.match(pattern);
+    return m?.[1]?.trim().replace(/\s+/g, " ") ?? "";
+  };
+  const pageTitle = pick(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const ogTitle = pick(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) || pick(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+  const ogDescription = pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i) || pick(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
+  const h1 = pick(/<h1[^>]*>([\s\S]*?)<\/h1>/i).replace(/<[^>]+>/g, "").trim();
+  return { pageTitle, ogTitle, ogDescription, h1 };
+}
+function buildJobDescriptionFromHtml(html) {
+  const hints = extractHtmlPageHints(html);
+  const bodyText = stripHtmlToText(html);
+  const headline = hints.ogTitle || (hints.pageTitle && /[|\-–—]/.test(hints.pageTitle) ? hints.pageTitle : "") || hints.h1 || hints.pageTitle;
+  const intro = [headline, hints.ogDescription].filter(Boolean).join("\n\n");
+  let jobDescription = bodyText;
+  if (bodyText.length > 8e3) {
+    jobDescription = bodyText.slice(0, 8e3).trim() + "\n\n[\u2026\u5167\u5BB9\u5DF2\u622A\u65B7]";
+  }
+  if (intro && !jobDescription.startsWith(intro.slice(0, 40))) {
+    jobDescription = intro ? `${intro}
+
+${jobDescription}` : jobDescription;
+  }
+  return {
+    jobDescription: jobDescription.trim(),
+    pageTitle: hints.pageTitle,
+    headline
+  };
+}
+
+// src/lib/extractJobMeta.ts
+function extractJobMeta(jobDescription) {
+  const jd = jobDescription.trim();
+  if (!jd) {
+    return { jobTitle: "", companyName: "" };
+  }
+  const titlePatterns = [
+    /(?:job title|position|role|職務名稱|職缺名稱|職稱|工作內容)\s*[：:\-]\s*([^\n]{2,80})/i,
+    /^([A-Z\u4e00-\u9fff][A-Za-z0-9\u4e00-\u9fff\s/&\-().]{2,60})\s*(?:\(|（|–|—|-|\|)/m,
+    /(?:hiring|seeking|looking for|誠徵|招募)\s*(?:a\s+)?([A-Za-z0-9\u4e00-\u9fff\s/&\-().]{2,60})/i,
+    /【([^】\n]{2,40})】/
+  ];
+  let jobTitle = "";
+  for (const pattern of titlePatterns) {
+    const match = jd.match(pattern);
+    if (match?.[1]?.trim()) {
+      jobTitle = match[1].trim().replace(/\s{2,}/g, " ");
+      break;
+    }
+  }
+  const companyPatterns = [
+    /(?:company|employer|organization|公司名稱|雇主|企業)\s*[：:\-]\s*([^\n]{2,60})/i,
+    /(?:at|@|於)\s+([A-Z\u4e00-\u9fff][A-Za-z0-9\u4e00-\u9fff\s.&]{2,40})(?:\s|,|\.|\n|，)/,
+    /^([A-Z\u4e00-\u9fff][A-Za-z0-9\u4e00-\u9fff\s.&]{2,40})\s+(?:is\s+(?:hiring|seeking|looking)|誠徵|招募)/m
+  ];
+  let companyName = "";
+  for (const pattern of companyPatterns) {
+    const match = jd.match(pattern);
+    if (match?.[1]?.trim()) {
+      companyName = match[1].trim().replace(/\s{2,}/g, " ");
+      break;
+    }
+  }
+  return { jobTitle, companyName };
+}
+
+// src/lib/createDraftApplicationPackage.ts
+function mergeImportedJobMeta(headline, extracted) {
+  let jobTitle = extracted.jobTitle;
+  let companyName = extracted.companyName;
+  if (!jobTitle && headline) {
+    const parts = headline.split(/\s*[|\-–—]\s*/);
+    if (parts.length >= 2) {
+      jobTitle = parts[0]?.trim() || jobTitle;
+      companyName = companyName || parts[parts.length - 1]?.trim() || "";
+    } else {
+      jobTitle = headline.trim();
+    }
+  }
+  return { jobTitle, companyName };
+}
+
+// src/lib/security/urlPolicy.ts
+var PRIVATE_HOST_PATTERNS = [
+  /^localhost$/i,
+  /\.local$/i,
+  /\.internal$/i,
+  /^127\.\d+\.\d+\.\d+$/,
+  /^10\.\d+\.\d+\.\d+$/,
+  /^192\.168\.\d+\.\d+$/,
+  /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/,
+  /^0\.0\.0\.0$/,
+  /^::1$/i,
+  /^\[::1\]$/,
+  /^fc[0-9a-f:]+$/i,
+  /^fd[0-9a-f:]+$/i,
+  /^fe8[0-9a-f:]*$/i,
+  /^fe9[0-9a-f:]*$/i,
+  /^fea[0-9a-f:]*$/i,
+  /^feb[0-9a-f:]*$/i
+];
+function parsePublicHttpUrl(raw) {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { ok: false, error: "URL is required" };
+  }
+  let parsed;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return { ok: false, error: "Invalid URL" };
+  }
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    return { ok: false, error: "Only http/https URLs are allowed" };
+  }
+  if (parsed.username || parsed.password) {
+    return { ok: false, error: "URLs with embedded credentials are not allowed" };
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (PRIVATE_HOST_PATTERNS.some((pattern) => pattern.test(host))) {
+    return { ok: false, error: "Private or local URLs are not allowed" };
+  }
+  return { ok: true, url: parsed };
+}
+function validateJobsdbStartUrl(raw, country) {
+  const base = parsePublicHttpUrl(raw);
+  if (!base.ok) return base;
+  if (base.url.protocol !== "https:") {
+    return { ok: false, error: "JobsDB URLs must use HTTPS" };
+  }
+  const host = base.url.hostname.toLowerCase();
+  const countryHosts = /* @__PURE__ */ new Set([
+    `${country}.jobsdb.com`,
+    `www.${country}.jobsdb.com`
+  ]);
+  if (!countryHosts.has(host)) {
+    return { ok: false, error: "startUrl must match the selected JobsDB country" };
+  }
+  return base;
+}
+
+// server/lib/outboundUrlSafety.ts
+var import_promises = require("node:dns/promises");
+var import_node_net = require("node:net");
+function isPrivateIpv4(address) {
+  const parts = address.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return false;
+  }
+  const [a, b] = parts;
+  if (a === 10 || a === 127) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 0) return true;
+  return false;
+}
+function expandIpv6(address) {
+  const normalized = address.toLowerCase().split("%")[0];
+  if (!normalized.includes(":")) return null;
+  const halves = normalized.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":").filter(Boolean) : [];
+  const right = halves[1] ? halves[1].split(":").filter(Boolean) : [];
+  if (left.length + right.length > 8) return null;
+  const fill = new Array(8 - left.length - right.length).fill("0");
+  const groups = halves.length === 2 ? [...left, ...fill, ...right] : left;
+  if (groups.length !== 8) return null;
+  return groups.map((group) => group.padStart(4, "0"));
+}
+function isPrivateIpv6(address) {
+  const groups = expandIpv6(address);
+  if (!groups) return false;
+  const first = parseInt(groups[0], 16);
+  const second = parseInt(groups[1], 16);
+  if (first === 0 && second === 0 && groups.slice(2, 7).every((group) => parseInt(group, 16) === 0)) {
+    const last = parseInt(groups[7], 16);
+    if (last === 0 || last === 1) return true;
+  }
+  if ((first & 65024) === 64512) return true;
+  if ((first & 65472) === 65152) return true;
+  return false;
+}
+function isPrivateIpAddress(address) {
+  const version = (0, import_node_net.isIP)(address);
+  if (version === 4) return isPrivateIpv4(address);
+  if (version === 6) return isPrivateIpv6(address);
+  return false;
+}
+async function assertSafeOutboundUrl(url) {
+  const resolved = await (0, import_promises.lookup)(url.hostname, { all: true, verbatim: true });
+  if (resolved.length === 0) {
+    throw new Error("Unable to resolve remote host");
+  }
+  const blocked = resolved.find((entry) => isPrivateIpAddress(entry.address));
+  if (blocked) {
+    throw new Error("Private or local URLs are not allowed");
+  }
+}
+
+// server/routes/jd.ts
+var JD_FETCH_TIMEOUT_MS = 12e3;
+var JD_FETCH_MAX_BYTES = 512 * 1024;
+var JD_FETCH_MAX_REDIRECTS = 5;
+var JD_FETCH_ACCEPT_HEADER = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8";
+function isRedirectStatus(status) {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+}
+async function fetchJobDescriptionPage(startUrl, signal) {
+  let currentUrl = startUrl;
+  for (let redirectCount = 0; redirectCount <= JD_FETCH_MAX_REDIRECTS; redirectCount += 1) {
+    await assertSafeOutboundUrl(currentUrl);
+    const response = await fetch(currentUrl, {
+      signal,
+      redirect: "manual",
+      headers: {
+        "User-Agent": "NextStepResume-Playground-JD-Fetch/1.0 (+local dev; job description import)",
+        Accept: JD_FETCH_ACCEPT_HEADER,
+        "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"
+      }
+    });
+    if (!isRedirectStatus(response.status)) {
+      return response;
+    }
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new Error(`Redirect missing location header (HTTP ${response.status})`);
+    }
+    const nextUrl = new URL(location, currentUrl);
+    const parsedRedirect = parsePublicHttpUrl(nextUrl.toString());
+    if (parsedRedirect.ok === false) {
+      throw new Error(parsedRedirect.error);
+    }
+    currentUrl = parsedRedirect.url;
+  }
+  throw new Error("Too many redirects while fetching job description");
+}
+function registerJdRoutes(app) {
+  app.post("/api/jd/extract-keywords", (req, res) => {
+    const { jobDescription } = req.body;
+    if (!jobDescription || typeof jobDescription !== "string") {
+      return res.status(400).json({ error: "jobDescription is required" });
+    }
+    const keywords = extractJdKeywords(jobDescription);
+    return res.json({ keywords, meta: { source: "parser", simulated: false } });
+  });
+  app.post("/api/jd/fetch-url", async (req, res) => {
+    const { url } = req.body ?? {};
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "url is required" });
+    }
+    const parsed = parsePublicHttpUrl(url);
+    if (parsed.ok === false) {
+      return res.status(400).json({ error: parsed.error });
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), JD_FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetchJobDescriptionPage(parsed.url, controller.signal);
+      if (!response.ok) {
+        return res.status(422).json({
+          error: `\u7121\u6CD5\u6293\u53D6\u9801\u9762\uFF08HTTP ${response.status}\uFF09\u3002\u82E5\u70BA\u767B\u5165\u7246\u6216 SPA \u7DB2\u7AD9\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587\u3002`
+        });
+      }
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+        return res.status(422).json({ error: "URL \u56DE\u50B3\u7684\u4E0D\u662F HTML \u9801\u9762" });
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > JD_FETCH_MAX_BYTES) {
+        return res.status(422).json({ error: "\u9801\u9762\u904E\u5927\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587" });
+      }
+      const html = buffer.toString("utf-8");
+      const { jobDescription, pageTitle, headline } = buildJobDescriptionFromHtml(html);
+      if (jobDescription.length < 20) {
+        return res.status(422).json({
+          error: "\u7121\u6CD5\u5F9E\u9801\u9762\u63D0\u53D6\u8DB3\u5920\u6587\u5B57\u3002\u6B64\u7AD9\u53EF\u80FD\u9700\u767B\u5165\u6216\u7531 JavaScript \u6E32\u67D3\uFF0C\u8ACB\u6539\u8CBC JD \u5168\u6587\u3002"
+        });
+      }
+      const meta = extractJobMeta(jobDescription);
+      const merged = mergeImportedJobMeta(headline || pageTitle, meta);
+      return res.json({
+        jobDescription,
+        jobTitle: merged.jobTitle,
+        companyName: merged.companyName,
+        sourceUrl: parsed.url.toString(),
+        pageTitle,
+        extractedChars: jobDescription.length,
+        meta: { source: "fetch-url", simulated: false }
+      });
+    } catch (err) {
+      const message = err instanceof Error && err.name === "AbortError" ? "\u6293\u53D6\u903E\u6642\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66\u6216\u6539\u8CBC JD \u5168\u6587" : err instanceof Error ? err.message : "Fetch failed";
+      return res.status(422).json({ error: message });
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+}
+
+// src/lib/apify/client.ts
+async function runApifyActorSync(options) {
+  const { actorId, token, input, signal } = options;
+  const url = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(input),
+    signal
+  });
+  const rawText = await response.text();
+  let payload;
+  try {
+    payload = JSON.parse(rawText);
+  } catch {
+    payload = rawText;
+  }
+  return {
+    ok: response.ok,
+    status: response.status,
+    payload,
+    rawText
+  };
+}
+function extractApifyErrorMessage(payload, status) {
+  if (typeof payload === "object" && payload !== null && "error" in payload && typeof payload.error === "object" && payload.error?.message) {
+    return payload.error.message;
+  }
+  return `Apify request failed (${status})`;
+}
+
+// src/lib/jobsdbApifyScraper.ts
+function normalizeJobsdbListings(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item) => item !== null && typeof item === "object").map((item) => ({
+    id: String(item.id ?? ""),
+    url: String(item.url ?? ""),
+    title: String(item.title ?? ""),
+    company: String(item.company ?? ""),
+    location: String(item.location ?? ""),
+    workType: item.workType ? String(item.workType) : void 0,
+    classification: item.classification ? String(item.classification) : void 0,
+    salary: item.salary ? String(item.salary) : void 0,
+    postedAt_relative: item.postedAt_relative ? String(item.postedAt_relative) : void 0,
+    postedAt_iso: item.postedAt_iso ? String(item.postedAt_iso) : void 0,
+    description_text: item.description_text ? String(item.description_text) : void 0,
+    teaser: item.teaser ? String(item.teaser) : void 0,
+    bulletPoints: Array.isArray(item.bulletPoints) ? item.bulletPoints.map((p) => String(p)) : void 0,
+    source: item.source ? String(item.source) : void 0
+  })).filter((job) => job.title.trim() || job.url.trim());
+}
+
+// server/simulation/jobsdb.ts
+function shouldSimulateJobsdbSearch() {
+  const flag = process.env.NSR_JOBSDB_SIMULATE?.trim().toLowerCase();
+  if (flag === "1" || flag === "true" || flag === "yes") {
+    return true;
+  }
+  if (flag === "0" || flag === "false" || flag === "no") {
+    return false;
+  }
+  return !process.env.APIFY_API_TOKEN?.trim();
+}
+function buildSimulatedJobsdbListings(keyword, limit = 10) {
+  const query = keyword?.trim() || "software engineer";
+  const count = Math.min(Math.max(1, limit), 3);
+  return Array.from({ length: count }, (_, index) => ({
+    id: `sim-${index + 1}`,
+    url: `https://hk.jobsdb.com/job/sim-${index + 1}`,
+    title: `${query} (Sim ${index + 1})`,
+    company: "NextStep Demo Co.",
+    location: "Hong Kong",
+    workType: "Full-time",
+    salary: "HK$ 35,000 \u2013 45,000",
+    postedAt_relative: "2d ago",
+    description_text: `Simulated JobsDB listing for E2E and playground demos.
+Keyword: ${query}.`,
+    bulletPoints: ["React", "TypeScript", "Playwright"],
+    source: "simulation"
+  }));
+}
+
+// server/routes/jobsdb.ts
+var JOBSDB_ACTOR_ID = "shahidirfan~jobsdb-scraper";
+var JOBSDB_SEARCH_MAX_RESULTS = 30;
+var JOBSDB_SEARCH_TIMEOUT_MS = 12e4;
+function parseJobsdbCountry(value) {
+  return value === "hk" || value === "th" ? value : null;
+}
+function parsePostedDate(value) {
+  if (value === "anytime" || value === "24h" || value === "7d" || value === "30d") {
+    return value;
+  }
+  return "anytime";
+}
+function registerJobsdbRoutes(app) {
+  app.post("/api/jobsdb/search", async (req, res) => {
+    const {
+      keyword,
+      location,
+      startUrl,
+      country: countryRaw = "hk",
+      posted_date: postedDateRaw = "anytime",
+      results_wanted = 10
+    } = req.body ?? {};
+    const country = parseJobsdbCountry(countryRaw);
+    if (!country) {
+      return res.status(400).json({ error: "country \u5FC5\u9808\u70BA hk \u6216 th" });
+    }
+    const posted_date = parsePostedDate(postedDateRaw);
+    const hasStartUrl = typeof startUrl === "string" && startUrl.trim().length > 0;
+    const hasKeyword = typeof keyword === "string" && keyword.trim().length > 0;
+    if (!hasStartUrl && !hasKeyword) {
+      return res.status(400).json({ error: "\u8ACB\u63D0\u4F9B keyword \u6216 startUrl" });
+    }
+    if (hasStartUrl) {
+      const validated = validateJobsdbStartUrl(String(startUrl), country);
+      if (validated.ok === false) {
+        return res.status(400).json({ error: validated.error });
+      }
+    }
+    const limit = Math.min(
+      Math.max(1, Number(results_wanted) || 10),
+      JOBSDB_SEARCH_MAX_RESULTS
+    );
+    if (shouldSimulateJobsdbSearch()) {
+      const jobs = buildSimulatedJobsdbListings(
+        hasKeyword ? String(keyword) : "JobsDB search",
+        limit
+      );
+      return res.json({
+        jobs,
+        meta: { source: "jobsdb-simulation", count: jobs.length, simulated: true }
+      });
+    }
+    const apifyToken = process.env.APIFY_API_TOKEN?.trim();
+    if (!apifyToken) {
+      return res.status(503).json({
+        error: "\u672A\u8A2D\u5B9A APIFY_API_TOKEN\u3002\u8ACB\u5728 .env \u52A0\u5165 Apify API Token\uFF08https://console.apify.com/account/integrations\uFF09"
+      });
+    }
+    const actorInput = {
+      country,
+      posted_date,
+      results_wanted: limit,
+      maxPagesPerList: Math.min(10, Math.ceil(limit / 20) + 1),
+      proxyConfiguration: {
+        useApifyProxy: true,
+        apifyProxyGroups: ["RESIDENTIAL"]
+      }
+    };
+    if (hasStartUrl) {
+      actorInput.startUrl = String(startUrl).trim();
+    } else {
+      actorInput.keyword = String(keyword).trim();
+      if (typeof location === "string" && location.trim()) {
+        actorInput.location = location.trim();
+      }
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), JOBSDB_SEARCH_TIMEOUT_MS);
+    try {
+      const apifyRes = await runApifyActorSync({
+        actorId: JOBSDB_ACTOR_ID,
+        token: apifyToken,
+        input: actorInput,
+        signal: controller.signal
+      });
+      if (!apifyRes.ok) {
+        return res.status(502).json({
+          error: extractApifyErrorMessage(apifyRes.payload, apifyRes.status)
+        });
+      }
+      const jobs = normalizeJobsdbListings(apifyRes.payload).slice(0, limit);
+      return res.json({
+        jobs,
+        meta: { source: "jobsdb-apify", count: jobs.length, simulated: false }
+      });
+    } catch (err) {
+      const message = err instanceof Error && err.name === "AbortError" ? "JobsDB \u641C\u5C0B\u903E\u6642\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66" : err instanceof Error ? err.message : "JobsDB search failed";
+      return res.status(502).json({ error: message });
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+}
+
+// server/routes/resume.ts
+var import_multer = __toESM(require("multer"), 1);
 
 // src/lib/resumeTextParser.ts
 var SECTION_PATTERNS = [
@@ -4758,168 +6457,6 @@ function registerSubscriptionRoutes(app) {
       month: record.month
     });
   });
-}
-
-// src/lib/resumeTemplateCatalog.ts
-var MODERN_PRESETS = [
-  {
-    accentBar: "resume-marginalia-accent-bar",
-    accentText: "text-[#c0392b]",
-    accentBg: "bg-[#c0392b]",
-    accentBgSoft: "bg-[#d4edda]",
-    accentBorder: "border-[#c5d9e8]",
-    sectionHeading: "text-[#535c68] font-sans tracking-widest",
-    skillChip: "bg-[#d4edda]/90 text-[#1a2438] border-[#c5d9e8]",
-    langChip: "bg-[#f5d76e]/45 text-[#1a2438] border-[#c5d9e8]",
-    tailoredBg: "bg-[#f5d76e]/30",
-    tailoredBorder: "border-[#c0392b]",
-    expHighlightBg: "bg-[#f5d76e]/25",
-    expHighlightBorder: "border-[#c0392b]",
-    headerBorder: "border-[#c5d9e8]",
-    nameClass: "font-display text-[#1a2438]",
-    sectionTitle: "border-b border-[#c5d9e8]",
-    sidebarDot: "bg-[#c0392b]",
-    sidebarTitle: "text-[#535c68]",
-    roleAccent: "text-[#c0392b]",
-    sheetFont: "font-serif"
-  },
-  // notebook-02 Legal Pad — 黃箋紙 + 雙紅邊線
-  { accentBar: "from-[#C0392B] to-[#A93226]", roleAccent: "text-[#C0392B]", sectionTitle: "border-b-2 border-[#C0392B]/40" },
-  // notebook-03 Graph Paper — 深湖水綠 accent
-  { accentBar: "from-[#2E7D74] to-[#1F5B54]", accentText: "text-[#2E7D74]", accentBg: "bg-[#2E7D74]", tailoredBorder: "border-[#2E7D74]", expHighlightBorder: "border-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", roleAccent: "text-[#2E7D74]", sectionTitle: "border-b border-[#2E7D74]/35" },
-  // notebook-04 Index Card — 紅頂線卡片
-  { accentBar: "from-[#C0392B] to-[#A93226]", sectionTitle: "border-b-2 border-[#C0392B]/30" },
-  // notebook-05 Composition — 置中 + 雙紅底線
-  { accentBar: "from-[#C0392B] to-[#A93226]", nameClass: "font-display text-[#1A2438] tracking-normal", sectionTitle: "border-b-4 border-double border-[#C0392B]/50" },
-  // notebook-06 Sticky Note — mint/marker 便利貼 chip
-  { accentBar: "from-[#C0392B] to-[#A93226]", skillChip: "bg-[#D4EDDA] text-[#1A2438] border-[#C5D9E8]", langChip: "bg-[#F5D76E]/60 text-[#1A2438] border-[#C5D9E8]" },
-  // notebook-07 Highlighter — 螢光掃字重點
-  { accentBar: "from-[#F5D76E] to-[#C0392B]", tailoredBg: "bg-[#F5D76E]/45", expHighlightBg: "bg-[#F5D76E]/35" },
-  // notebook-08 Red Thread — 紅線裝訂時間軸
-  { accentBar: "from-[#C0392B] to-[#A93226]", headerBorder: "border-dashed border-[#C0392B]/60", sectionTitle: "border-b border-[#C0392B]/30" },
-  // notebook-09 Blueprint — 藍格線深階 accent
-  { accentBar: "from-[#5B8FB9] to-[#3E6E93]", accentText: "text-[#5B8FB9]", accentBg: "bg-[#5B8FB9]", tailoredBorder: "border-[#5B8FB9]", expHighlightBorder: "border-[#5B8FB9]", sidebarDot: "bg-[#5B8FB9]", roleAccent: "text-[#5B8FB9]", sectionTitle: "border-b border-[#5B8FB9]/40" },
-  // notebook-10 Teal Ledger — 湖水帳簿隔行底紋
-  { accentBar: "from-[#2E7D74] to-[#1F5B54]", accentText: "text-[#2E7D74]", accentBg: "bg-[#2E7D74]", expHighlightBg: "bg-[#D4EDDA]/55", tailoredBorder: "border-[#2E7D74]", expHighlightBorder: "border-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sectionTitle: "border-b border-[#2E7D74]/35" },
-  // notebook-11 Draft Stamp — 石墨為主、紅印章點綴
-  { accentBar: "from-[#535C68] to-[#1A2438]", accentText: "text-[#535C68]", accentBg: "bg-[#535C68]", nameClass: "font-display text-[#1A2438]", sidebarDot: "bg-[#535C68]", roleAccent: "text-[#535C68]", sectionTitle: "border-b border-[#535C68]/30" }
-];
-var CLASSIC_PRESETS = [
-  // bureau-01 Bureau Classic — 置中經典文書
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "tracking-tight", sectionTitle: "border-b border-[#C5D9E8]" },
-  // bureau-02 Barrister — 英式編年體
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#1A2438]/30", nameClass: "uppercase tracking-wide", sectionTitle: "border-b-2 border-[#C5D9E8]" },
-  // bureau-03 Registrar — 寬字距大寫
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#535C68]/40", nameClass: "uppercase tracking-widest", sectionTitle: "border-b border-double border-[#C5D9E8]" },
-  // bureau-04 Broadsheet — 大報墨色
-  { accentText: "text-[#1A2438]", headerBorder: "border-[#1A2438]/40", nameClass: "uppercase tracking-tight", sectionTitle: "border-b-4 border-double border-[#1A2438]/45" },
-  // bureau-05 Minute Book — 紅色節序號
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "tracking-normal", sectionTitle: "border-b border-[#C5D9E8]" },
-  // bureau-06 Treasury — 深湖水標題 + 字母磚
-  { accentText: "text-[#2E7D74]", headerBorder: "border-[#C5D9E8]", nameClass: "uppercase tracking-wide", sectionTitle: "border-b border-[#2E7D74]/35" },
-  // bureau-07 Chancery — 衡平斜體
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "italic", sectionTitle: "border-b border-[#C5D9E8]" },
-  // bureau-08 Docket — 案卷緊湊 + 點線引導
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#535C68]/30", nameClass: "tracking-widest uppercase text-xl", sectionTitle: "border-b border-dotted border-[#C0392B]/50" },
-  // bureau-09 Archive — 檔案室紅頂線
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#C0392B]/60", nameClass: "uppercase", sectionTitle: "border-b border-[#C5D9E8]" },
-  // bureau-10 Signet — 印鑑置中
-  { accentText: "text-[#C0392B]", headerBorder: "border-[#C5D9E8]", nameClass: "uppercase tracking-widest", sectionTitle: "border-b border-[#C5D9E8]" }
-];
-var MINIMAL_PRESETS = [
-  // studio-01 Studio Grid — 深湖水 + mint 圓點
-  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#2E7D74]" },
-  // studio-02 Whiteboard — teal 左邊線
-  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
-  // studio-03 Marker One — 全墨 + 螢光一筆
-  { accentText: "text-[#1A2438]", sidebarDot: "bg-[#F5D76E]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
-  // studio-04 Mint Tab — 薄荷標籤
-  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#D4EDDA]", sidebarTitle: "text-[#2E7D74]", roleAccent: "text-[#2E7D74]" },
-  // studio-05 Redline — 紅細線
-  { accentText: "text-[#C0392B]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#C0392B]" },
-  // studio-06 Graphite — 全石墨無彩
-  { accentText: "text-[#535C68]", sidebarDot: "bg-[#535C68]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#535C68]" },
-  // studio-07 Two-Track — 石墨雙欄 + 紅摺角
-  { accentText: "text-[#535C68]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#1A2438]" },
-  // studio-08 Eraser — mint/粉 chip
-  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#F2C1C1]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#2E7D74]" },
-  // studio-09 Console — mono + teal 游標
-  { accentText: "text-[#2E7D74]", sidebarDot: "bg-[#2E7D74]", sidebarTitle: "text-[#2E7D74]", roleAccent: "text-[#2E7D74]" },
-  // studio-10 Gallery — 紅點畫廊
-  { accentText: "text-[#C0392B]", sidebarDot: "bg-[#C0392B]", sidebarTitle: "text-[#535C68]", roleAccent: "text-[#C0392B]" }
-];
-function buildFamilyThemes(family, presets, defaults) {
-  return presets.map((preset, index) => {
-    const id = `${family}-${String(index + 1).padStart(2, "0")}`;
-    return {
-      ...defaults,
-      ...preset,
-      id,
-      family
-    };
-  });
-}
-var MODERN_DEFAULTS = {
-  accentBar: "resume-marginalia-accent-bar",
-  accentText: "text-[#c0392b]",
-  accentBg: "bg-[#c0392b]",
-  accentBgSoft: "bg-[#d4edda]",
-  accentBorder: "border-[#c5d9e8]",
-  sectionHeading: "text-[#535c68]",
-  skillChip: "bg-[#d4edda]/90 text-[#1a2438] border-[#c5d9e8]",
-  langChip: "bg-[#f5d76e]/45 text-[#1a2438] border-[#c5d9e8]",
-  tailoredBg: "bg-[#f5d76e]/35",
-  tailoredBorder: "border-[#c0392b]",
-  expHighlightBg: "bg-[#f5d76e]/30",
-  expHighlightBorder: "border-[#c0392b]",
-  headerBorder: "border-[#c5d9e8]",
-  nameClass: "font-display",
-  sectionTitle: "border-b border-[#c5d9e8]",
-  sidebarDot: "bg-[#c0392b]",
-  sidebarTitle: "text-[#535c68]",
-  roleAccent: "text-[#c0392b]",
-  sheetFont: "font-serif"
-};
-var CLASSIC_DEFAULTS = {
-  ...MODERN_DEFAULTS,
-  accentBar: "from-[#C0392B] to-[#A93226]",
-  accentText: "text-[#C0392B]",
-  accentBg: "bg-[#1A2438]",
-  accentBgSoft: "bg-[#FAF6EB]",
-  accentBorder: "border-[#C5D9E8]",
-  sectionHeading: "text-[#1A2438]",
-  skillChip: "text-[#535C68]",
-  langChip: "text-[#535C68]",
-  tailoredBg: "bg-[#F5D76E]/30",
-  tailoredBorder: "border-[#C0392B]",
-  expHighlightBg: "bg-[#D4EDDA]/55",
-  expHighlightBorder: "border-[#2E7D74]",
-  headerBorder: "border-[#C5D9E8]",
-  nameClass: "uppercase tracking-tight",
-  sectionTitle: "border-b border-[#C5D9E8]",
-  sheetFont: "font-serif"
-};
-var MINIMAL_DEFAULTS = {
-  ...MODERN_DEFAULTS,
-  sheetFont: "font-sans"
-};
-var DEFAULT_A4_TEMPLATE = "classic-02";
-var RESUME_TEMPLATE_CATALOG = [
-  ...buildFamilyThemes("modern", MODERN_PRESETS, MODERN_DEFAULTS),
-  ...buildFamilyThemes("classic", CLASSIC_PRESETS, CLASSIC_DEFAULTS),
-  ...buildFamilyThemes("minimalist", MINIMAL_PRESETS, MINIMAL_DEFAULTS)
-];
-var LEGACY_TEMPLATE_MAP = {
-  modern: "modern-01",
-  academic: "classic-01",
-  classic: "classic-01",
-  minimalist: "minimalist-01"
-};
-function normalizeTemplateStyle(value) {
-  if (!value) return DEFAULT_A4_TEMPLATE;
-  if (value in LEGACY_TEMPLATE_MAP) return LEGACY_TEMPLATE_MAP[value];
-  const found = RESUME_TEMPLATE_CATALOG.find((t2) => t2.id === value);
-  return found?.id ?? DEFAULT_A4_TEMPLATE;
 }
 
 // server/routes/sync.ts

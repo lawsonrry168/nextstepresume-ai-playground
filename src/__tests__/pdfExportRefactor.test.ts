@@ -49,4 +49,74 @@ describe("export pdf handler", () => {
     expect(handler).toContain("watermark");
     expect(standalone).toContain("handleExportPdf");
   });
+
+  it("detects SSO-protected Vercel deployment hosts", async () => {
+    const { isProtectedVercelDeploymentHost, resolvePrintOrigin } = await import(
+      "../../server/exportPdfHandler.ts"
+    );
+    expect(
+      isProtectedVercelDeploymentHost(
+        "nextstepresume-ai-playground-7rf37naw6-aiden-s-projects8.vercel.app",
+      ),
+    ).toBe(true);
+    expect(isProtectedVercelDeploymentHost("nextstepresume-ai-playground.vercel.app")).toBe(false);
+    expect(isProtectedVercelDeploymentHost("example.com")).toBe(false);
+
+    const prevVercel = process.env.VERCEL;
+    const prevProd = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const prevPrint = process.env.PRINT_ORIGIN;
+    process.env.VERCEL = "1";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "nextstepresume-ai-playground.vercel.app";
+    delete process.env.PRINT_ORIGIN;
+    try {
+      // Public production URL wins over any inbound Host (independent render origin).
+      expect(
+        resolvePrintOrigin({
+          headers: {
+            host: "nextstepresume-ai-playground-7rf37naw6-aiden-s-projects8.vercel.app",
+            "x-forwarded-proto": "https",
+          },
+        } as never),
+      ).toBe("https://nextstepresume-ai-playground.vercel.app");
+      expect(
+        resolvePrintOrigin({
+          headers: {
+            host: "some-preview.example.com",
+            "x-forwarded-proto": "https",
+          },
+        } as never),
+      ).toBe("https://nextstepresume-ai-playground.vercel.app");
+    } finally {
+      if (prevVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = prevVercel;
+      if (prevProd === undefined) delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      else process.env.VERCEL_PROJECT_PRODUCTION_URL = prevProd;
+      if (prevPrint === undefined) delete process.env.PRINT_ORIGIN;
+      else process.env.PRINT_ORIGIN = prevPrint;
+    }
+  });
+
+  it("prefers PRINT_ORIGIN over Vercel production URL for independent PDF render", async () => {
+    const { resolvePrintOrigin } = await import("../../server/exportPdfHandler.ts");
+    const prevVercel = process.env.VERCEL;
+    const prevProd = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    const prevPrint = process.env.PRINT_ORIGIN;
+    process.env.VERCEL = "1";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "nextstepresume-ai-playground.vercel.app";
+    process.env.PRINT_ORIGIN = "https://pdf-cdn.example.com";
+    try {
+      expect(
+        resolvePrintOrigin({
+          headers: { host: "nextstepresume-ai-playground.vercel.app", "x-forwarded-proto": "https" },
+        } as never),
+      ).toBe("https://pdf-cdn.example.com");
+    } finally {
+      if (prevVercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = prevVercel;
+      if (prevProd === undefined) delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      else process.env.VERCEL_PROJECT_PRODUCTION_URL = prevProd;
+      if (prevPrint === undefined) delete process.env.PRINT_ORIGIN;
+      else process.env.PRINT_ORIGIN = prevPrint;
+    }
+  });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ResumeData } from "../types";
 import { RESUME_TEMPLATE_CATALOG } from "../lib/resumeTemplateCatalog";
 import { buildTemplateDemoBundle, resolveTemplateDemoEditorPositions } from "../lib/templates/applyTemplateDemo";
 import {
@@ -18,6 +19,7 @@ import {
 } from "../lib/templates/templateDemoMatch";
 import {
   createTemplateDemoLayoutPositions,
+  demoLayoutCollapsedToSinglePage,
   demoLayoutHasOverlaps,
   demoLayoutHasPageOverflow,
   demoLayoutMissingSecondPage,
@@ -124,6 +126,36 @@ describe("template demo locale sync", () => {
     expect(shouldSyncTemplateDemoToLocale(stale, "modern-01", "en")).toBe(true);
   });
 
+  it("detects compact pre–two-page Alex Chan still stuck on Vercel localStorage", () => {
+    const compactAlex: ResumeData = {
+      ...compactResumeFixture,
+      personalInfo: {
+        ...compactResumeFixture.personalInfo,
+        name: "Alex Chan",
+        title: "Frontend Product Engineer",
+        expectedSalary: "HK$42,000 / month",
+      },
+      summary:
+        "Frontend product engineer with 4 years of experience shipping React and TypeScript workflows for Hong Kong and APAC teams.",
+      projects: [
+        {
+          id: "proj-1",
+          name: "Sprintboard HK",
+          description: "Kanban planning tool with drag-and-drop boards and keyboard shortcuts.",
+          techStack: "React, TypeScript, Tailwind CSS, Zustand",
+          url: "https://github.com/alexchan/sprintboard-hk",
+        },
+      ],
+      certifications: [],
+      volunteerWork: [],
+    };
+    expect(isStaleTemplateDemoResume(compactAlex)).toBe(true);
+    expect(shouldSyncTemplateDemoToLocale(compactAlex, "modern-01", "zh-TW")).toBe(true);
+    const upgraded = templateDemoResumeForLocale(compactAlex, "modern-01", "zh-TW");
+    expect(upgraded?.projects.length).toBeGreaterThanOrEqual(2);
+    expect(upgraded?.certifications?.length).toBeGreaterThanOrEqual(2);
+  });
+
   it("should sync legacy English placeholder when UI locale is Chinese", () => {
     expect(shouldSyncTemplateDemoToLocale(compactResumeFixture, "classic-02", "zh-HK")).toBe(true);
     const zh = templateDemoResumeForLocale(compactResumeFixture, "classic-02", "zh-HK");
@@ -154,6 +186,22 @@ describe("template demo layout", () => {
         ).toBe(true);
       }
     }
+  });
+
+  it("detects single-page export-page collapse used by stale Vercel layouts", () => {
+    const collapsed = {
+      header: { x: 48, y: 48, width: 698, height: 120, pageId: "export-page-1" },
+      summary: { x: 48, y: 180, width: 698, height: 100, pageId: "export-page-1" },
+      experience: { x: 48, y: 300, width: 698, height: 400, pageId: "export-page-1" },
+    };
+    expect(demoLayoutCollapsedToSinglePage(collapsed)).toBe(true);
+    expect(demoLayoutMissingSecondPage(collapsed)).toBe(false);
+    const twoPage = createTemplateDemoLayoutPositions(
+      "modern-01",
+      ["header", "summary", "experience", "education", "projects", "skills"],
+      getTemplateDemoResume("modern-01", "en"),
+    );
+    expect(demoLayoutCollapsedToSinglePage(twoPage)).toBe(false);
   });
 
   it("builds a bundle with pages document and positions", () => {

@@ -252,6 +252,25 @@ export function demoLayoutMissingSecondPage(
   return !layoutUsesTwoDemoPages(positions);
 }
 
+/**
+ * True when stored positions collapse onto a single page id (e.g. only `export-page-1`)
+ * instead of the canonical two-page demo stack. Common on older Vercel localStorage.
+ */
+export function demoLayoutCollapsedToSinglePage(
+  positions: Record<string, FreeLayoutPosition>,
+): boolean {
+  const ids = Object.keys(positions);
+  if (ids.length === 0) return false;
+  if (demoLayoutMissingSecondPage(positions)) return true;
+  if (layoutUsesTwoDemoPages(positions)) return false;
+  const pageIds = new Set<string>();
+  for (const pos of Object.values(positions)) {
+    if (pos.pageId) pageIds.add(pos.pageId);
+  }
+  // No pageId / single pageId → cannot represent the two-page demo.
+  return pageIds.size <= 1;
+}
+
 /** True when stored demo page ids diverge from the canonical two-page demo stack. */
 export function demoLayoutPageAssignmentDrift(
   positions: Record<string, FreeLayoutPosition>,

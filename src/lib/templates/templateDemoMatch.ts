@@ -35,11 +35,26 @@ export function isStaleTemplateDemoResume(resume: ResumeData): boolean {
 
   const name = resume.personalInfo.name.trim();
   if (name === "Alex Chan" || name === "陳俊樂") {
+    // Oversized historical demos
     if ((resume.certifications?.length ?? 0) >= 4) return true;
     if ((resume.projects?.length ?? 0) >= 3 && resume.experience.length >= 4) return true;
+    // Compact pre–two-page placeholders (common on Vercel localStorage / cloud):
+    // current demos always ship ≥2 projects, ≥2 certs, and volunteer.
+    if ((resume.projects?.length ?? 0) < 2) return true;
+    if ((resume.certifications?.length ?? 0) < 2) return true;
+    if ((resume.volunteerWork?.length ?? 0) < 1) return true;
   }
 
   return false;
+}
+
+/** Syncable seed persona (demo / legacy / stale) — safe to auto-heal layout+content. */
+export function isSyncableSeedDemoResume(resume: ResumeData, style: TemplateStyle): boolean {
+  return (
+    isTemplateDemoResume(resume, style) ||
+    isLegacyDefaultResume(resume) ||
+    isStaleTemplateDemoResume(resume)
+  );
 }
 
 /**

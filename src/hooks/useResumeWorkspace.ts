@@ -9,6 +9,8 @@ import {
 import { buildTemplateDemoBundle, persistTemplateDemoLayout } from "../lib/templates/applyTemplateDemo";
 import { getDefaultTemplateDemoResume, getTemplateDemoResume } from "../lib/templates/templateDemoContent";
 import { readStoredUiLocale } from "../lib/templates/templateDemoLocale";
+import { templateDemoResumeForLocale } from "../lib/templates/templateDemoMatch";
+import { writeDemoSchemaVersion } from "../lib/templates/demoSchemaMigration";
 
 import { NSR_STORAGE_KEYS } from "../lib/storageKeys";
 import {
@@ -83,13 +85,25 @@ export function useResumeWorkspace(options?: {
 
   useEffect(() => {
     return registerWorkspaceHydrateHandler((snapshot) => {
-      setResumeData(snapshot.resumeData);
+      const locale = readStoredUiLocale();
+      const upgraded = templateDemoResumeForLocale(
+        snapshot.resumeData,
+        snapshot.activeTemplate,
+        locale,
+      );
+      const resumeData = upgraded ?? snapshot.resumeData;
+      if (upgraded) {
+        persistTemplateDemoLayout(snapshot.activeTemplate, locale);
+        writeDemoSchemaVersion();
+      }
+      setResumeData(resumeData);
       setJobDescription(snapshot.jobDescription);
       setActiveTemplate(snapshot.activeTemplate);
-      localStorage.setItem(STORAGE_KEYS.resume, JSON.stringify(snapshot.resumeData));
+      localStorage.setItem(STORAGE_KEYS.resume, JSON.stringify(resumeData));
       localStorage.setItem(STORAGE_KEYS.jd, snapshot.jobDescription);
       localStorage.setItem(STORAGE_KEYS.template, snapshot.activeTemplate);
-      skipInitialAutoSaveRef.current = true;
+      // Allow autosave to push the healed two-page demo back to cloud.
+      skipInitialAutoSaveRef.current = Boolean(!upgraded);
       setSaveStatus("saved");
     });
   }, []);

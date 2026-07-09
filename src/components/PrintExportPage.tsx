@@ -107,6 +107,7 @@ export default function PrintExportPage() {
     document.documentElement.classList.remove("dark");
     let cancelled = false;
 
+
     // Bound every readiness dependency so a slow/failed resource (external
     // webfonts, a dynamic chunk, document.fonts.ready) can never leave the
     // surface hanging — which would stall the serverless exporter until its
@@ -160,9 +161,7 @@ export default function PrintExportPage() {
       .then(() => settleWithin(document.fonts.ready, 8000))
       .then(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))))
       .then(() => {
-        if (!cancelled) {
-          setReady(true);
-        }
+        if (!cancelled) setReady(true);
       })
       .finally(() => clearTimeout(hardFallback));
 

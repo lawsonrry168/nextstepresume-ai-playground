@@ -48,6 +48,7 @@ import { usePlaygroundPdfExport } from "../hooks/usePlaygroundPdfExport";
 import { DEFAULT_A4_TEMPLATE } from "../lib/resumeTemplateCatalog";
 import { persistRecalculatedLayout, persistTemplateDemoLayout } from "../lib/templates/applyTemplateDemo";
 import {
+  demoLayoutCollapsedToSinglePage,
   demoLayoutHasPageOverflow,
   demoLayoutMissingSecondPage,
   demoLayoutPageAssignmentDrift,
@@ -56,6 +57,7 @@ import { buildFreeLayoutSections, readFamilyLayoutStorage, type FreeLayoutPositi
 import { freeLayoutHasSamePageOverlaps } from "../lib/layoutPresets";
 import {
   isStaleTemplateDemoResume,
+  isSyncableSeedDemoResume,
   isTemplateDemoResume,
   shouldSyncTemplateDemoToLocale,
 } from "../lib/templates/templateDemoMatch";
@@ -370,32 +372,37 @@ export default function ResumeSimulatorPlayground({
   useEffect(() => {
     if (!localeReady) return;
     try {
+
       const family = getTemplateFamily(activeTemplate);
       const stored = readFamilyLayoutStorage()[family] as Record<string, FreeLayoutPosition> | undefined;
+      const seedDemo = isSyncableSeedDemoResume(resumeData, activeTemplate);
+
       const needsDemoTwoPageHeal =
-        stored &&
-        isTemplateDemoResume(resumeData, activeTemplate) &&
-        demoLayoutMissingSecondPage(stored);
+        Boolean(stored) &&
+        seedDemo &&
+        (demoLayoutMissingSecondPage(stored!) || demoLayoutCollapsedToSinglePage(stored!));
 
       const sectionIds = buildFreeLayoutSections(resumeData).map((section) => section.id);
       const needsDemoPageDriftHeal =
-        stored &&
+        Boolean(stored) &&
         isTemplateDemoResume(resumeData, activeTemplate) &&
-        demoLayoutPageAssignmentDrift(stored, activeTemplate, sectionIds, resumeData);
+        demoLayoutPageAssignmentDrift(stored!, activeTemplate, sectionIds, resumeData);
+
+      const contentNeedsUpgrade =
+        shouldSyncTemplateDemoToLocale(resumeData, activeTemplate, locale) ||
+        isStaleTemplateDemoResume(resumeData);
 
       const layoutCorrupt =
-        stored &&
-        (freeLayoutHasSamePageOverlaps(stored) ||
-          demoLayoutHasPageOverflow(stored) ||
+        Boolean(stored) &&
+        (freeLayoutHasSamePageOverlaps(stored!) ||
+          demoLayoutHasPageOverflow(stored!) ||
           needsDemoTwoPageHeal ||
           needsDemoPageDriftHeal);
 
-      if (!layoutCorrupt) return;
+      if (!layoutCorrupt && !contentNeedsUpgrade) return;
 
-      const useFullDemoReload =
-        needsDemoTwoPageHeal ||
-        shouldSyncTemplateDemoToLocale(resumeData, activeTemplate, locale) ||
-        isStaleTemplateDemoResume(resumeData);
+      const useFullDemoReload = needsDemoTwoPageHeal || contentNeedsUpgrade;
+
 
       if (useFullDemoReload) {
         loadTemplateDemo(activeTemplate);

@@ -4,6 +4,7 @@ import App from './App.tsx';
 import { LocaleProvider } from './i18n';
 import { injectLayoutGeometryCss } from './lib/layoutDocument/geometryCss';
 import { purgeLegacyStorage } from './lib/storageKeys';
+import { migrateDemoSchemaIfNeeded } from './lib/templates/demoSchemaMigration';
 import { SubscriptionProvider } from './context/SubscriptionProvider';
 import { AuthProvider } from './context/AuthProvider';
 import BillingModals from './components/billing/BillingModals';
@@ -16,6 +17,11 @@ purgeLegacyStorage();
 injectLayoutGeometryCss();
 
 const isPrintExportMode = new URLSearchParams(window.location.search).has('print');
+
+// Print export must not rewrite the user's workspace draft.
+if (!isPrintExportMode) {
+  migrateDemoSchemaIfNeeded();
+}
 
 if (isPrintExportMode) {
   // Seed the UI locale from the print payload BEFORE LocaleProvider reads it,
@@ -35,6 +41,8 @@ if (isPrintExportMode) {
         <PrintExportPage />
       </LocaleProvider>,
     );
+  }).catch((err) => {
+    console.error('[print] PrintExportPage failed to load', err);
   });
 } else {
 createRoot(document.getElementById('root')!).render(
